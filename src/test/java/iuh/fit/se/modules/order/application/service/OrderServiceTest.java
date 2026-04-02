@@ -30,6 +30,7 @@ class OrderServiceTest {
     @Mock private InventoryPort inventoryPort;
     @Mock private PromotionPort promotionPort;
     @Mock private CartPort cartPort;
+    @Mock private OrderUserPort orderUserPort;
     @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private OrderService orderService;
@@ -79,6 +80,12 @@ class OrderServiceTest {
 
         // Mock findById trả về sharedOrder (đối tượng duy nhất đang xử lý)
         lenient().when(orderPersistencePort.findById(anyLong())).thenAnswer(invocation -> Optional.ofNullable(sharedOrder));
+
+        // Mock OrderUserPort
+        lenient().when(orderUserPort.getUserDetails(anyLong())).thenReturn(OrderUserPort.UserDto.builder()
+                .fullName("Test User")
+                .email("test@example.com")
+                .build());
     }
 
     @Test

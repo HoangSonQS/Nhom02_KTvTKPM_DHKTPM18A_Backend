@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.auth.application.service;
 
+import iuh.fit.se.modules.auth.application.port.in.AuthInternalUseCase;
 import iuh.fit.se.modules.auth.application.port.in.AuthUseCase;
 import iuh.fit.se.modules.auth.application.port.out.UserPersistencePort;
 import iuh.fit.se.modules.auth.domain.Role;
@@ -22,12 +23,26 @@ import java.util.Map;
  */
 @Service
 @RequiredArgsConstructor
-public class AuthService implements AuthUseCase {
+public class AuthService implements AuthUseCase, AuthInternalUseCase {
 
     private final UserPersistencePort userPersistencePort;
     private final AccountInternalUseCase accountInternalUseCase;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDetailsResponse getUserDetails(Long userId) {
+        User user = userPersistencePort.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.AUTH_USER_NOT_FOUND));
+        
+        return UserDetailsResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole().name())
+                .build();
+    }
 
     @Override
     @Transactional(readOnly = true)
