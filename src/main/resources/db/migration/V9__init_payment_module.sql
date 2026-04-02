@@ -1,6 +1,6 @@
 -- V9__init_payment_module.sql
 CREATE TABLE pay_payment (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     order_id BIGINT NOT NULL,
     transaction_id VARCHAR(100),
     amount DECIMAL(19, 2) NOT NULL,
