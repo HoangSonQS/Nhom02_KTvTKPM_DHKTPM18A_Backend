@@ -4,10 +4,12 @@ import iuh.fit.se.modules.order.application.port.out.InventoryPort;
 import iuh.fit.se.modules.order.application.port.out.OrderPersistencePort;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.modules.order.domain.Order;
+import iuh.fit.se.modules.order.domain.OrderCancelledEvent;
 import iuh.fit.se.modules.order.domain.SagaStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +25,7 @@ public class OrderCleanupJob {
     private final OrderPersistencePort orderPersistencePort;
     private final InventoryPort inventoryPort;
     private final PromotionPort promotionPort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(fixedDelay = 5 * 60 * 1000) // Every 5 minutes
     public void cleanupGhostReservations() {
@@ -98,6 +101,9 @@ public class OrderCleanupJob {
             Order o = orderPersistencePort.findById(order.getId()).orElseThrow();
             o.markCompensated();
             orderPersistencePort.save(o);
+
+            // 4. Publish Event for Admin Reports
+            eventPublisher.publishEvent(OrderCancelledEvent.create(o, "Expired or Abandoned Saga"));
             
             return true;
         } catch (Exception e) {

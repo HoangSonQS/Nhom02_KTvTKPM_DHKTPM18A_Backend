@@ -4,6 +4,7 @@ import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import iuh.fit.se.modules.order.application.port.out.CartPort;
 import iuh.fit.se.modules.order.application.port.out.InventoryPort;
 import iuh.fit.se.modules.order.application.port.out.OrderPersistencePort;
+import iuh.fit.se.modules.order.application.port.out.OrderUserPort;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.modules.order.domain.*;
 import iuh.fit.se.shared.exception.AppException;
@@ -30,6 +31,7 @@ public class OrderService implements OrderInternalUseCase {
     private final CartPort cartPort;
     private final InventoryPort inventoryPort;
     private final PromotionPort promotionPort;
+    private final OrderUserPort orderUserPort;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -105,8 +107,9 @@ public class OrderService implements OrderInternalUseCase {
             // 6. Complete Phase
             completeSaga(order);
 
-            // 7. Publish Event (Idempotent cleanup via AFTER_COMMIT)
-            eventPublisher.publishEvent(OrderCreatedEvent.create(order));
+            // 7. Publish Event (Self-contained with User Info)
+            OrderUserPort.UserDto user = orderUserPort.getUserDetails(userId);
+            eventPublisher.publishEvent(OrderCreatedEvent.create(order, user.getFullName(), user.getEmail()));
 
             return order.getId();
 
