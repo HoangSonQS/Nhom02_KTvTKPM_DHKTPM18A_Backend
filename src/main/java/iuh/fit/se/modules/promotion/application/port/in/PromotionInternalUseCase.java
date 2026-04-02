@@ -1,16 +1,23 @@
 package iuh.fit.se.modules.promotion.application.port.in;
 
-import java.math.BigDecimal;
 
 public interface PromotionInternalUseCase {
     
     /**
      * Dùng cho Cart để kiểm tra mã (soft check), không trừ lượt dùng.
      */
-    PromotionApplicationResult validateCoupon(String code, BigDecimal orderTotal);
+    PromotionApplicationResult validateCoupon(String code, java.math.BigDecimal orderTotal);
+
+    // Saga operations
+    PromotionApplicationResult reserveCoupon(String code, java.math.BigDecimal orderTotal, String referenceId);
+    
+    void releaseCoupon(String referenceId);
+    
+    void confirmCouponUsage(String referenceId);
 
     /**
      * Dùng cho Checkout để áp dụng mã chính thức và trừ lượt dùng (trong 1 transaction).
      */
-    PromotionApplicationResult applyCoupon(String code, BigDecimal orderTotal, String orderId);
+    @Deprecated
+    PromotionApplicationResult applyCoupon(String code, java.math.BigDecimal orderTotal, String orderId);
 }

@@ -27,10 +27,36 @@ public class CartService implements CartInternalUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Cart getCartByUserId(Long userId) {
-        return cartPersistencePort.findByUserId(userId)
+    public CartResponse getCartByUserId(Long userId) {
+        Cart cart = cartPersistencePort.findByUserId(userId)
                 .orElseGet(() -> {
                     log.info("Creating new cart for user {}", userId);
+                    Cart newCart = Cart.create(userId);
+                    cartPersistencePort.save(newCart);
+                    return newCart;
+                });
+        
+        return mapToResponse(cart);
+    }
+
+    private CartResponse mapToResponse(Cart cart) {
+        return CartResponse.builder()
+                .userId(cart.getUserId())
+                .totalAmount(cart.calculateTotal())
+                .items(cart.getItems().stream()
+                        .map(item -> CartItemResponse.builder()
+                                .bookId(item.getBookId())
+                                .title(item.getTitleSnapshot())
+                                .price(item.getPriceAtAddTime())
+                                .quantity(item.getQuantity())
+                                .build())
+                        .collect(java.util.stream.Collectors.toList()))
+                .build();
+    }
+
+    private Cart getCartEntity(Long userId) {
+        return cartPersistencePort.findByUserId(userId)
+                .orElseGet(() -> {
                     Cart newCart = Cart.create(userId);
                     cartPersistencePort.save(newCart);
                     return newCart;
@@ -40,8 +66,8 @@ public class CartService implements CartInternalUseCase {
     @Override
     @Transactional
     public void addItem(Long userId, AddItemCommand command) {
-        // 1. Lấy thông tin Cart (hoặc tạo mới)
-        Cart cart = getCartByUserId(userId);
+        // 1. Lấy thực thể Cart
+        Cart cart = getCartEntity(userId);
 
         // 2. Validate Book tồn tại và Active (Catalog Integration)
         Book book = bookUseCase.getBook(command.getBookId());
@@ -65,7 +91,7 @@ public class CartService implements CartInternalUseCase {
     @Override
     @Transactional
     public void updateItemQuantity(Long userId, UpdateQuantityCommand command) {
-        Cart cart = getCartByUserId(userId);
+        Cart cart = getCartEntity(userId);
         
         // Soft-check Inventory nếu tăng số lượng
         StockResult stock = inventoryInternalUseCase.getAvailableStock(command.getBookId());

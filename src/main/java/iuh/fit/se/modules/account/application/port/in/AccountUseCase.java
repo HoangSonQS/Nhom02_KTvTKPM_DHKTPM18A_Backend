@@ -1,7 +1,6 @@
 package iuh.fit.se.modules.account.application.port.in;
 
 import iuh.fit.se.modules.account.domain.Account;
-import iuh.fit.se.modules.account.domain.Address;
 
 /**
  * AccountUseCase — Inbound Port (Public API).

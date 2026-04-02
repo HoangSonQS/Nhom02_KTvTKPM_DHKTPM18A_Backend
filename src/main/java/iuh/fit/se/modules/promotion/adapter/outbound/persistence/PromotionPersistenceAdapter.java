@@ -12,6 +12,7 @@ import java.util.Optional;
 public class PromotionPersistenceAdapter implements PromotionPersistencePort {
 
     private final CouponJpaRepository couponJpaRepository;
+    private final CouponReservationJpaRepository reservationJpaRepository;
 
     @Override
     public Optional<Coupon> findByCode(String code) {
@@ -26,5 +27,15 @@ public class PromotionPersistenceAdapter implements PromotionPersistencePort {
     @Override
     public void save(Coupon coupon) {
         couponJpaRepository.save(coupon);
+    }
+
+    @Override
+    public void saveReservation(iuh.fit.se.modules.promotion.domain.CouponReservation reservation) {
+        reservationJpaRepository.save(reservation);
+    }
+
+    @Override
+    public java.util.Optional<iuh.fit.se.modules.promotion.domain.CouponReservation> findReservationByReferenceId(String referenceId) {
+        return reservationJpaRepository.findByReferenceId(referenceId);
     }
 }

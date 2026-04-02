@@ -1,7 +1,6 @@
 package iuh.fit.se.modules.inventory.adapter.inbound.event;
 
 import iuh.fit.se.modules.inventory.adapter.outbound.persistence.StockHistoryJpaRepository;
-import iuh.fit.se.modules.inventory.domain.StockHistoryStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,11 +24,11 @@ public class InventoryCleanupJob {
     @Transactional
     public void cleanupStalePendingTransactions() {
         LocalDateTime threshold = LocalDateTime.now().minusSeconds(30);
-        
+
         // Dùng native query hoặc JPA repo để xử lý batch
         // Để đơn giản và an toàn, ta dùng một custom query trong repo
         int updated = historyRepository.markStalePendingAsFailed(threshold);
-        
+
         if (updated > 0) {
             log.info("InventoryCleanupJob: Đã khôi phục {} bản ghi PENDING bị treo.", updated);
         }

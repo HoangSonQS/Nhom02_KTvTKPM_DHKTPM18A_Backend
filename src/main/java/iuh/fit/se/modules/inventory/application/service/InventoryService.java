@@ -63,6 +63,34 @@ public class InventoryService implements InventoryInternalUseCase {
         return processOperationWithRetry(bookId, amount, referenceId, false);
     }
 
+    @Override
+    @Transactional
+    public java.util.List<StockResult> decreaseStockBulk(java.util.List<InventoryInternalUseCase.StockItemRequest> requests, String referenceId) {
+        log.info("Saga decreaseStockBulk for ref: {}. Items: {}", referenceId, requests.size());
+        java.util.List<StockResult> results = new java.util.ArrayList<>();
+        for (InventoryInternalUseCase.StockItemRequest req : requests) {
+            StockResult res = executeTransactionalOperation(req.getBookId(), req.getAmount(), referenceId + "_" + req.getBookId(), false);
+            if (res.getStatus() != StockResult.Status.SUCCESS && res.getStatus() != StockResult.Status.ALREADY_PROCESSED) {
+                log.error("Bulk decrease failed at book {}: {}", req.getBookId(), res.getMessage());
+                throw new AppException(ErrorCode.INV_OUT_OF_STOCK, "Saga bulk decrease failed for book " + req.getBookId());
+            }
+            results.add(res);
+        }
+        return results;
+    }
+
+    @Override
+    @Transactional
+    public java.util.List<StockResult> increaseStockBulk(java.util.List<InventoryInternalUseCase.StockItemRequest> requests, String referenceId) {
+        log.info("Saga increaseStockBulk for ref: {}. Items: {}", referenceId, requests.size());
+        java.util.List<StockResult> results = new java.util.ArrayList<>();
+        for (InventoryInternalUseCase.StockItemRequest req : requests) {
+            StockResult res = executeTransactionalOperation(req.getBookId(), req.getAmount(), referenceId + "_" + req.getBookId(), true);
+            results.add(res);
+        }
+        return results;
+    }
+
     private StockResult processOperationWithRetry(Long bookId, int amount, String referenceId, boolean isIncrease) {
         for (int i = 1; i <= MAX_RETRY; i++) {
             try {
