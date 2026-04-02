@@ -11,9 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import iuh.fit.se.modules.promotion.domain.CouponReservation;
+import iuh.fit.se.modules.promotion.domain.CouponReservationStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -76,5 +79,77 @@ public class PromotionService implements PromotionInternalUseCase {
             log.error("[{}] Error applying coupon: ", traceId, e);
             return PromotionApplicationResult.failure("Lỗi hệ thống khi áp dụng mã.", orderTotal, traceId);
         }
+    }
+
+    @Override
+    @Transactional
+    public PromotionApplicationResult reserveCoupon(String code, BigDecimal orderTotal, String referenceId) {
+        log.info("[{}] Reserving coupon {} for amount {}", referenceId, code, orderTotal);
+
+        try {
+            Coupon coupon = persistencePort.findByCodeWithOptimisticLock(code)
+                    .orElseThrow(() -> new IllegalArgumentException("Mã khuyến mãi không tồn tại"));
+
+            if (!coupon.isAppliable(orderTotal)) {
+                return PromotionApplicationResult.failure("Mã không khả thi (hết hạn/lượt dùng)", orderTotal, referenceId);
+            }
+
+            BigDecimal discount = coupon.calculateDiscount(orderTotal);
+
+            // Tạo Reservation (Idempotent check by Unique reference_id at DB layer)
+            CouponReservation reservation = CouponReservation.builder()
+                    .coupon(coupon)
+                    .referenceId(referenceId)
+                    .status(CouponReservationStatus.RESERVED)
+                    .expiresAt(LocalDateTime.now().plusMinutes(20))
+                    .build();
+
+            persistencePort.saveReservation(reservation);
+
+            List<String> rules = List.of("SAGA_RESERVATION", "DISCOUNT_" + coupon.getDiscountType().name());
+            return PromotionApplicationResult.success(orderTotal, discount, rules, referenceId);
+
+        } catch (ObjectOptimisticLockingFailureException e) {
+            return PromotionApplicationResult.failure("Mã vừa hết lượt dùng", orderTotal, referenceId);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Already reserved
+            return persistencePort.findReservationByReferenceId(referenceId)
+                    .map(res -> {
+                        BigDecimal disc = res.getCoupon().calculateDiscount(orderTotal);
+                        return PromotionApplicationResult.success(orderTotal, disc, List.of("ALREADY_RESERVED"), referenceId);
+                    })
+                    .orElse(PromotionApplicationResult.failure("Lỗi xung đột reservation", orderTotal, referenceId));
+        } catch (Exception e) {
+            log.error("[{}] Error reserving coupon: ", referenceId, e);
+            return PromotionApplicationResult.failure("Lỗi hệ thống khi giữ mã.", orderTotal, referenceId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void releaseCoupon(String referenceId) {
+        persistencePort.findReservationByReferenceId(referenceId).ifPresent(res -> {
+            if (res.getStatus() == CouponReservationStatus.RESERVED) {
+                res.release();
+                persistencePort.saveReservation(res);
+                log.info("[{}] Coupon reservation released for ref: {}", referenceId, referenceId);
+            }
+        });
+    }
+
+    @Override
+    @Transactional
+    public void confirmCouponUsage(String referenceId) {
+        persistencePort.findReservationByReferenceId(referenceId).ifPresent(res -> {
+            // Idempotent check
+            if (res.getStatus() == CouponReservationStatus.RESERVED) {
+                res.confirm(); // Tăng usedCount của Coupon và set status reservation = CONFIRMED
+                persistencePort.saveReservation(res);
+                persistencePort.save(res.getCoupon());
+                log.info("[{}] Coupon usage confirmed for ref: {}", referenceId, referenceId);
+            } else {
+                log.info("[{}] Coupon already confirmed or released. Status: {}", referenceId, res.getStatus());
+            }
+        });
     }
 }

@@ -1,7 +1,6 @@
 package iuh.fit.se.modules.cart.adapter.inbound.web;
 
 import iuh.fit.se.modules.cart.application.port.in.CartInternalUseCase;
-import iuh.fit.se.modules.cart.domain.Cart;
 import iuh.fit.se.shared.api.ApiResponse;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -10,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/cart")
@@ -20,10 +18,10 @@ public class CartController {
     private final CartInternalUseCase cartUseCase;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<CartResponse>> getCart() {
+    public ResponseEntity<ApiResponse<CartInternalUseCase.CartResponse>> getCart() {
         Long userId = getCurrentUserId();
-        Cart cart = cartUseCase.getCartByUserId(userId);
-        return ResponseEntity.ok(ApiResponse.success(mapToResponse(cart)));
+        CartInternalUseCase.CartResponse cart = cartUseCase.getCartByUserId(userId);
+        return ResponseEntity.ok(ApiResponse.success(cart));
     }
 
     @PostMapping("/items")
@@ -55,22 +53,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.success("Đã làm trống giỏ hàng"));
     }
 
-    private CartResponse mapToResponse(Cart cart) {
-        return CartResponse.builder()
-                .id(cart.getId())
-                .userId(cart.getUserId())
-                .totalPrice(cart.calculateTotal())
-                .items(cart.getItems().stream()
-                        .map(item -> CartResponse.CartItemResponse.builder()
-                                .bookId(item.getBookId())
-                                .title(item.getTitleSnapshot())
-                                .quantity(item.getQuantity())
-                                .price(item.getPriceAtAddTime())
-                                .subTotal(item.getSubTotal())
-                                .build())
-                        .collect(Collectors.toList()))
-                .build();
-    }
+
 
     private Long getCurrentUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();

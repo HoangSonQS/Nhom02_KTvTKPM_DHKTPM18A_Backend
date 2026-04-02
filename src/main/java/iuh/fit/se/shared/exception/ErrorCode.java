@@ -15,6 +15,7 @@ public enum ErrorCode {
     VALIDATION_FAILED(4000, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
     RESOURCE_NOT_FOUND(4004, "Không tìm thấy tài nguyên", HttpStatus.NOT_FOUND),
     ACCESS_DENIED(4003, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
+    INVALID_INPUT(4001, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
 
     // ===== Auth Module (AUTH_) =====
     AUTH_INVALID_CREDENTIALS(4010, "Email hoặc mật khẩu không đúng", HttpStatus.UNAUTHORIZED),
@@ -28,7 +29,19 @@ public enum ErrorCode {
     INV_STOCK_NOT_FOUND(4200, "Không tìm thấy tồn kho cho sách này", HttpStatus.NOT_FOUND),
     INV_OUT_OF_STOCK(4201, "Hết hàng hoặc không đủ số lượng", HttpStatus.CONFLICT),
     INV_STOCK_LOCK_TIMEOUT(4202, "Kho đang bận xử lý, vui lòng thử lại sau giây lát", HttpStatus.CONFLICT),
-    INV_IDEMPOTENCY_PENDING(4203, "Giao dịch đang được xử lý, vui lòng đợi", HttpStatus.ACCEPTED);
+    INV_IDEMPOTENCY_PENDING(4203, "Giao dịch đang được xử lý, vui lòng đợi", HttpStatus.ACCEPTED),
+
+    // ===== Order Module (ORD_) =====
+    ORD_NOT_FOUND(4304, "Không tìm thấy đơn hàng", HttpStatus.NOT_FOUND),
+    ORD_INVALID_STATUS(4300, "Trạng thái đơn hàng không hợp lệ cho thao tác này", HttpStatus.BAD_REQUEST),
+    ORD_ALREADY_PAID(4301, "Đơn hàng đã được thanh toán", HttpStatus.CONFLICT),
+    ORD_EXPIRED(4302, "Đơn hàng đã quá hạn thanh toán", HttpStatus.GONE),
+
+    // ===== Payment Module (PAY_) =====
+    PAY_SIGNATURE_INVALID(4400, "Chữ ký thanh toán không hợp lệ", HttpStatus.BAD_REQUEST),
+    PAY_TRANSACTION_FAILED(4401, "Giao dịch thanh toán thất bại", HttpStatus.PAYMENT_REQUIRED),
+    PAY_DUPLICATE_TXN(4402, "Giao dịch đã được ghi nhận trước đó", HttpStatus.CONFLICT),
+    PAY_ORDER_MISMATCH(4403, "Thông tin đơn hàng không khớp", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
