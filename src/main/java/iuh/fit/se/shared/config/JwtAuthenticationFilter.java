@@ -38,12 +38,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String subject = claims.getSubject();
                 String role = claims.get("role", String.class);
                 Long userId = claims.get("userId", Long.class);
+                @SuppressWarnings("unchecked")
+                List<String> permissions = claims.get("permissions", List.class);
 
-                var authorities = role != null
-                        ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                        : List.<SimpleGrantedAuthority>of();
+                // Gộp ROLE_ và các Permissions vào Authorities
+                java.util.Set<SimpleGrantedAuthority> authorities = new java.util.HashSet<>();
+                if (role != null) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+                }
+                if (permissions != null) {
+                    permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+                }
 
-                var auth = new UsernamePasswordAuthenticationToken(subject, userId, authorities);
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(subject, userId, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ex) {
                 log.debug("Could not set authentication from token: {}", ex.getMessage());

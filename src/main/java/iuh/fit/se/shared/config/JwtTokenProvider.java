@@ -44,9 +44,10 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String generateRefreshToken(String subject) {
+    public String generateRefreshToken(String subject, Map<String, Object> claims) {
         return Jwts.builder()
                 .subject(subject)
+                .claims(claims)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                 .signWith(getSigningKey())

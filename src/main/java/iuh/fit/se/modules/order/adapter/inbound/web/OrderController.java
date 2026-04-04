@@ -7,18 +7,20 @@ import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
 public class OrderController {
 
     private final OrderInternalUseCase orderUseCase;
 
+    @PreAuthorize("hasAuthority('ORDER_CREATE')")
     @PostMapping("/checkout")
     public ResponseEntity<ApiResponse<Long>> checkout(@RequestBody OrderInternalUseCase.CheckoutCommand command) {
         Long userId = getCurrentUserId();

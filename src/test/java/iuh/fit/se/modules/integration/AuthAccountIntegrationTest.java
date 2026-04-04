@@ -3,15 +3,19 @@ package iuh.fit.se.modules.integration;
 import iuh.fit.se.modules.account.application.port.out.AccountPersistencePort;
 import iuh.fit.se.modules.account.domain.Account;
 import iuh.fit.se.modules.auth.application.port.in.AuthUseCase;
+import iuh.fit.se.modules.auth.application.port.out.RefreshTokenPersistencePort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 /**
  * Integration Test kiểm tra luồng liên module (Auth -> Account).
@@ -28,6 +32,9 @@ class AuthAccountIntegrationTest {
     @Autowired
     private AccountPersistencePort accountPersistencePort;
 
+    @MockitoBean
+    private RefreshTokenPersistencePort refreshTokenPersistencePort;
+
     @Test
     void givenNewUser_whenRegister_thenAccountProfileAutomatedCreated() {
         // Arrange
@@ -36,6 +43,10 @@ class AuthAccountIntegrationTest {
                 "password123", 
                 "Integration User"
         );
+
+        // Stubbing: Tránh lỗi Redis connection và NullPointer khi tạo token
+        when(refreshTokenPersistencePort.incrementAndGetVersion(anyString(), anyString()))
+                .thenReturn(1);
 
         // Act: Đăng ký user mới (Module Auth)
         AuthUseCase.TokenPair tokenPair = authUseCase.register(command);

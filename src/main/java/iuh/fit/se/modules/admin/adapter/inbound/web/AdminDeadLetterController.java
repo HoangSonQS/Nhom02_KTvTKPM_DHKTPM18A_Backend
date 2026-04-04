@@ -17,17 +17,18 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Admin Dead Letter", description = "Quản lý các sự kiện thông báo bị lỗi vĩnh viễn (Staff+ Operational Support)")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminDeadLetterController {
 
     private final NotificationAdminPort notificationAdminPort;
 
+    @PreAuthorize("hasAuthority('DEAD_LETTER_READ')")
     @GetMapping("/failed-notifications")
     @Operation(summary = "Lấy danh sách các thông báo lỗi vĩnh viễn")
     public ResponseEntity<List<NotificationLogResponse>> getFailedNotifications() {
         return ResponseEntity.ok(notificationAdminPort.getFailedNotifications());
     }
 
+    @PreAuthorize("hasAuthority('DEAD_LETTER_RETRY')")
     @PostMapping("/retry/{logId}")
     @Operation(summary = "Yêu cầu phát lại sự kiện (Manual Retry)")
     public ResponseEntity<String> retryNotification(@PathVariable Long logId) {

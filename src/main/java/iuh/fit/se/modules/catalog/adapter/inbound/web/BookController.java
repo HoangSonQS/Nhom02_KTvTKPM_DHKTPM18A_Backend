@@ -24,12 +24,13 @@ import java.util.List;
  * BookController — Inbound Adapter cho Book.
  */
 @RestController
-@RequestMapping("/api/catalog/books")
+@RequestMapping("/api/v1/catalog/books")
 @RequiredArgsConstructor
 public class BookController {
 
     private final BookUseCase bookUseCase;
 
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<Book>>> search(
             @RequestParam(required = false) String title,
@@ -37,12 +38,13 @@ public class BookController {
         return ResponseEntity.ok(ApiResponse.success(bookUseCase.searchBooks(title, categoryId)));
     }
 
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Book>> getBook(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(bookUseCase.getBook(id)));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATALOG_BOOK_CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<Book>> create(
             @RequestParam("title") String title,
@@ -61,7 +63,7 @@ public class BookController {
         return ResponseEntity.ok(ApiResponse.success("Tạo sách thành công", book));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATALOG_BOOK_UPDATE')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Book>> update(
             @PathVariable Long id,
@@ -81,7 +83,7 @@ public class BookController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật sách thành công", book));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATALOG_BOOK_DELETE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         bookUseCase.deleteBook(id);

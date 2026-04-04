@@ -21,32 +21,33 @@ import java.util.List;
  * CategoryController — Inbound Adapter cho Category.
  */
 @RestController
-@RequestMapping("/api/catalog/categories")
+@RequestMapping("/api/v1/catalog/categories")
 @RequiredArgsConstructor
 public class CategoryController {
 
     private final CategoryUseCase categoryUseCase;
 
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<Category>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(categoryUseCase.getAllCategories()));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
     @PostMapping
     public ResponseEntity<ApiResponse<Category>> create(@RequestBody CategoryRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo danh mục thành công", 
                 categoryUseCase.createCategory(request.name())));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Category>> update(@PathVariable Long id, @RequestBody CategoryRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật danh mục thành công", 
                 categoryUseCase.updateCategory(id, request.name())));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         categoryUseCase.deleteCategory(id);
