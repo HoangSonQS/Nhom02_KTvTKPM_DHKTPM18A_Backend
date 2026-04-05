@@ -9,6 +9,10 @@ import java.util.Optional;
 
 public interface InventoryPersistencePort {
     
+    void updateStockAtomic(Long bookId, Integer adjustmentQuantity);
+    void saveProcessedEvent(java.util.UUID eventId);
+    boolean existsProcessedEvent(java.util.UUID eventId);
+
     // Inventory Stock
     Optional<InventoryStock> findStockByBookId(Long bookId);
     void saveStock(InventoryStock stock);

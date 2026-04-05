@@ -41,7 +41,13 @@ public enum ErrorCode {
     PAY_SIGNATURE_INVALID(4400, "Chữ ký thanh toán không hợp lệ", HttpStatus.BAD_REQUEST),
     PAY_TRANSACTION_FAILED(4401, "Giao dịch thanh toán thất bại", HttpStatus.PAYMENT_REQUIRED),
     PAY_DUPLICATE_TXN(4402, "Giao dịch đã được ghi nhận trước đó", HttpStatus.CONFLICT),
-    PAY_ORDER_MISMATCH(4403, "Thông tin đơn hàng không khớp", HttpStatus.BAD_REQUEST);
+    PAY_ORDER_MISMATCH(4403, "Thông tin đơn hàng không khớp", HttpStatus.BAD_REQUEST),
+
+    // ===== Logistics Module (LOG_) =====
+    LOG_INVALID_STATE_TRANSITION(4501, "Chuyển đổi trạng thái không hợp lệ", HttpStatus.CONFLICT),
+    LOG_UNAUTHORIZED_STATE_TRANSITION(4502, "Bạn không có quyền thực hiện chuyển đổi trạng thái này", HttpStatus.FORBIDDEN),
+    LOG_SUPPLIER_NOT_FOUND(4504, "Không tìm thấy nhà cung cấp", HttpStatus.NOT_FOUND),
+    LOG_PO_NOT_FOUND(4505, "Không tìm thấy đơn hàng mua", HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;
