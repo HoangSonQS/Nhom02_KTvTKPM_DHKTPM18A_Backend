@@ -2,7 +2,6 @@ package iuh.fit.se.modules.logistics.domain;
 
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
-import iuh.fit.se.modules.auth.domain.Role;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -81,7 +80,7 @@ public class PurchaseOrder {
                 .items(new ArrayList<>())
                 .totalAmount(BigDecimal.ZERO)
                 .build();
-        
+
         if (items != null) {
             items.forEach(po::addItem);
         }
@@ -163,7 +162,8 @@ public class PurchaseOrder {
             }
         }
         if (!allowed) {
-            throw new AppException(ErrorCode.LOG_UNAUTHORIZED_STATE_TRANSITION, "Bạn không có quyền thực hiện thao tác này");
+            throw new AppException(ErrorCode.LOG_UNAUTHORIZED_STATE_TRANSITION,
+                    "Bạn không có quyền thực hiện thao tác này");
         }
     }
 }
