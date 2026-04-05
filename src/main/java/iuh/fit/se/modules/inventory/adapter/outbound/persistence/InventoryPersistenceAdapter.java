@@ -2,6 +2,7 @@ package iuh.fit.se.modules.inventory.adapter.outbound.persistence;
 
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
 import iuh.fit.se.modules.inventory.domain.InventoryStock;
+import iuh.fit.se.modules.inventory.domain.ProcessedEvent;
 import iuh.fit.se.modules.inventory.domain.StockHistory;
 import iuh.fit.se.modules.inventory.domain.StockHistoryStatus;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -16,6 +18,22 @@ public class InventoryPersistenceAdapter implements InventoryPersistencePort {
 
     private final InventoryJpaRepository inventoryJpaRepository;
     private final StockHistoryJpaRepository stockHistoryJpaRepository;
+    private final JpaProcessedEventRepository processedEventRepository;
+
+    @Override
+    public void updateStockAtomic(Long bookId, Integer adjustmentQuantity) {
+        inventoryJpaRepository.updateStock(bookId, adjustmentQuantity);
+    }
+
+    @Override
+    public void saveProcessedEvent(UUID eventId) {
+        processedEventRepository.save(ProcessedEvent.record(eventId));
+    }
+
+    @Override
+    public boolean existsProcessedEvent(UUID eventId) {
+        return processedEventRepository.existsById(eventId);
+    }
 
     @Override
     public Optional<InventoryStock> findStockByBookId(Long bookId) {

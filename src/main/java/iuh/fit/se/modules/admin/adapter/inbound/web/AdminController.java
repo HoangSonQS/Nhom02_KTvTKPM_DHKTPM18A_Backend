@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @RequestMapping("/api/v1/admin/dashboard")
 @RequiredArgsConstructor
 @Tag(name = "Admin Dashboard", description = "APIs cho báo cáo và giám sát hệ thống (CQRS)")
-@PreAuthorize("hasAnyRole('ADMIN', 'STAFF_SELLER', 'STAFF_WAREHOUSE')")
+@PreAuthorize("hasAuthority('DASHBOARD_REVENUE') or hasAuthority('DASHBOARD_INVENTORY') or hasAuthority('DASHBOARD_FULL')")
 public class AdminController {
 
     private final OrderReportRepository repository;

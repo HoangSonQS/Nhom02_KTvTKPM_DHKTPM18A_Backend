@@ -1,0 +1,76 @@
+package iuh.fit.se.modules.auth.domain;
+
+/**
+ * Định nghĩa các quyền hạn chi tiết (Granular Permissions) cho hệ thống.
+ * Phân tách theo domain để dễ dàng quản lý và mở rộng.
+ */
+public enum Permission {
+    // === Auth & Account ===
+    AUTH_LOGIN,
+    AUTH_REGISTER,
+    AUTH_REFRESH_TOKEN,
+    AUTH_LOGOUT,
+    ACCOUNT_VIEW_SELF,
+    ACCOUNT_UPDATE_SELF,
+    ACCOUNT_VIEW_ALL,
+    ACCOUNT_UPDATE_STATUS,
+    ACCOUNT_CREATE_STAFF,
+    ACCOUNT_UPDATE_ROLES,
+
+    // === Catalog (Book & Category) ===
+    CATALOG_READ,
+    CATALOG_SEARCH,
+    CATALOG_BOOK_CREATE,
+    CATALOG_BOOK_UPDATE,
+    CATALOG_BOOK_DELETE,
+    CATALOG_CATEGORY_WRITE,
+
+    // === Cart & Order ===
+    CART_READ_SELF,
+    CART_WRITE_SELF,
+    ORDER_CREATE,
+    ORDER_READ_SELF,
+    ORDER_CANCEL_SELF,
+    ORDER_CONFIRM_RECEIVED,
+    ORDER_READ_ALL,
+    ORDER_UPDATE_STATUS,
+
+    // === Payment ===
+    PAYMENT_INITIATE,
+    PAYMENT_CALLBACK,
+    PAYMENT_READ_ALL,
+
+    // === Promotion ===
+    PROMOTION_VALIDATE,
+    PROMOTION_READ_ALL,
+    PROMOTION_CREATE,
+    PROMOTION_APPROVE,
+    PROMOTION_DEACTIVATE,
+    PROMOTION_PAUSE_RESUME,
+
+    // === Inventory & Logistics ===
+    INVENTORY_READ,
+    INVENTORY_IMPORT_STOCK,
+    INVENTORY_VIEW_HISTORY,
+    PURCHASE_ORDER_CREATE,
+    PURCHASE_ORDER_APPROVE,
+    PURCHASE_ORDER_READ_ALL,
+    STOCK_REQUEST_CREATE,
+    STOCK_REQUEST_APPROVE,
+    STOCK_REQUEST_PROCESS,
+    STOCK_REQUEST_READ_ALL,
+    STOCK_ADJUSTMENT_EXECUTE,
+
+    // === Return & Service ===
+    RETURN_CREATE,
+    RETURN_READ_SELF,
+    RETURN_READ_ALL,
+    RETURN_APPROVE,
+
+    // === Admin Dashboard & Support ===
+    DASHBOARD_REVENUE,
+    DASHBOARD_INVENTORY,
+    DASHBOARD_FULL,
+    DEAD_LETTER_READ,
+    DEAD_LETTER_RETRY
+}

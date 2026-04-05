@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,18 +24,20 @@ import java.io.IOException;
  * AccountController — Inbound Adapter cho Account.
  */
 @RestController
-@RequestMapping("/api/account")
+@RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
 public class AccountController {
 
     private final AccountUseCase accountUseCase;
 
+    @PreAuthorize("hasAuthority('ACCOUNT_VIEW_SELF')")
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<Account>> getProfile() {
         Long userId = getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.success(accountUseCase.getProfile(userId)));
     }
 
+    @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")
     @PostMapping("/profile")
     public ResponseEntity<ApiResponse<Account>> updateProfile(
             @RequestParam(value = "phoneNumber", required = false) String phoneNumber,
@@ -49,6 +52,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật profile thành công", updated));
     }
 
+    @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")
     @PostMapping("/address")
     public ResponseEntity<ApiResponse<Account>> addAddress(
             @Valid @RequestBody AccountUseCase.AddressCommand command) {

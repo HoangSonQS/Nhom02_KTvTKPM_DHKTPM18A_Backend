@@ -30,12 +30,17 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf
+                .ignoringRequestMatchers("/api/v1/auth/login", "/api/v1/auth/register") // Các endpoint public không cần CSRF ban đầu
+                .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
+            )
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/api/auth/**",
+                    "/api/v1/auth/**",
+                    "/api/v1/catalog/**",
+                    "/api/v1/payments/vnpay-ipn",
                     "/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
