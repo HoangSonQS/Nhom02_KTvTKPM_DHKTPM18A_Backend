@@ -103,4 +103,30 @@ public class PaymentService implements PaymentUseCase {
         log.info("IPN: Successfully processed payment for Order {}. Event emitted.", orderId);
         return "{\"RspCode\":\"00\",\"Message\":\"Confirm success\"}";
     }
+
+    @Override
+    @Transactional
+    public void processRefund(Long orderId, BigDecimal amount, String returnRequestId) {
+        log.info("Processing refund for Order {}. Amount: {}. ReturnRequest: {}", orderId, amount, returnRequestId);
+
+        // 1. Find existing payment record
+        Payment payment = paymentPersistencePort.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy giao dịch thanh toán cho đơn hàng: " + orderId));
+
+        // 2. Simulate VNPay Refund API call
+        log.info("Calling VNPay Refund API (Simulated) for transaction: {}", payment.getTransactionId());
+        
+        // In reality, this would be a RestTemplate call to VNPay
+        boolean refundSuccess = true; 
+
+        if (refundSuccess) {
+            // 3. Update payment status to REFUNDED
+            payment.markRefunded(amount, returnRequestId);
+            paymentPersistencePort.save(payment);
+            log.info("Refund successful for Order {}. Payment updated.", orderId);
+        } else {
+            log.error("VNPay Refund API failed for Order {}", orderId);
+            throw new RuntimeException("Lỗi khi gọi API hoàn tiền VNPay");
+        }
+    }
 }

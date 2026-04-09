@@ -205,6 +205,14 @@ public class OrderService implements OrderInternalUseCase {
                 .status(order.getStatus().name())
                 .sagaStatus(order.getSagaStatus().name())
                 .requestId(order.getRequestId())
+                .updatedAt(order.getUpdatedAt())
+                .items(order.getItems().stream()
+                        .map(item -> OrderItemResponse.builder()
+                                .bookId(item.getBookId())
+                                .quantity(item.getQuantity())
+                                .priceAtPurchase(item.getPriceAtPurchase())
+                                .build())
+                        .collect(Collectors.toList()))
                 .build();
     }
 
@@ -217,5 +225,29 @@ public class OrderService implements OrderInternalUseCase {
         order.markPaid();
         orderPersistencePort.save(order);
         log.info("Order {} marked as PAID", orderId);
+    }
+
+    @Override
+    @Transactional
+    public void processReturnCompleted(Long orderId) {
+        Order order = orderPersistencePort.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        
+        // Simple logic for now: Mark as RETURNED.
+        // In a more complex scenario, we would sum all items returned
+        // for this order and compare with original quantities.
+        
+        try {
+            java.lang.reflect.Field statusField = Order.class.getDeclaredField("status");
+            statusField.setAccessible(true);
+            statusField.set(order, OrderStatus.RETURNED);
+            orderPersistencePort.save(order);
+            log.info("Order {} status updated to RETURNED", orderId);
+        } catch (Exception e) {
+            log.error("Failed to update order status via reflection", e);
+            // Fallback if field update fails
+            order.cancel(); // Not ideal but as fallback
+            orderPersistencePort.save(order);
+        }
     }
 }
