@@ -47,7 +47,15 @@ public enum ErrorCode {
     LOG_INVALID_STATE_TRANSITION(4501, "Chuyển đổi trạng thái không hợp lệ", HttpStatus.CONFLICT),
     LOG_UNAUTHORIZED_STATE_TRANSITION(4502, "Bạn không có quyền thực hiện chuyển đổi trạng thái này", HttpStatus.FORBIDDEN),
     LOG_SUPPLIER_NOT_FOUND(4504, "Không tìm thấy nhà cung cấp", HttpStatus.NOT_FOUND),
-    LOG_PO_NOT_FOUND(4505, "Không tìm thấy đơn hàng mua", HttpStatus.NOT_FOUND);
+    LOG_PO_NOT_FOUND(4505, "Không tìm thấy đơn hàng mua", HttpStatus.NOT_FOUND),
+
+    // ===== Returns Module (RET_) =====
+    RET_INVALID_STATE_TRANSITION(4601, "Chuyển trạng thái yêu cầu trả hàng không hợp lệ", HttpStatus.CONFLICT),
+    RET_NOT_FOUND(4604, "Không tìm thấy yêu cầu trả hàng", HttpStatus.NOT_FOUND),
+    RET_ORDER_NOT_DELIVERED(4605, "Chỉ có thể trả hàng cho đơn hàng đã giao thành công", HttpStatus.BAD_REQUEST),
+    RET_EXCEEDED_RETURN_WINDOW(4606, "Đã quá thời hạn 7 ngày để yêu cầu trả hàng", HttpStatus.BAD_REQUEST),
+    RET_INVALID_ITEMS(4607, "Danh sách hàng trả không hợp lệ", HttpStatus.BAD_REQUEST);
+
 
     private final int code;
     private final String message;

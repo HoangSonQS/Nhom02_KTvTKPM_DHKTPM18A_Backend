@@ -11,6 +11,8 @@ public interface OrderInternalUseCase {
 
     void markOrderAsPaid(Long orderId);
 
+    void processReturnCompleted(Long orderId);
+
     @Data
     @Builder
     class OrderResponse {
@@ -20,6 +22,16 @@ public interface OrderInternalUseCase {
         private String status;
         private String sagaStatus;
         private String requestId;
+        private java.time.LocalDateTime updatedAt;
+        private java.util.List<OrderItemResponse> items;
+    }
+
+    @Data
+    @Builder
+    class OrderItemResponse {
+        private Long bookId;
+        private int quantity;
+        private java.math.BigDecimal priceAtPurchase;
     }
 
     @Data

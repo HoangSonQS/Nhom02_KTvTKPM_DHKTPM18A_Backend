@@ -39,6 +39,12 @@ public class Payment {
     @Column(name = "result_data", columnDefinition = "TEXT")
     private String resultData;
 
+    @Column(name = "refund_amount")
+    private BigDecimal refundAmount;
+
+    @Column(name = "return_request_id")
+    private String returnRequestId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -56,5 +62,11 @@ public class Payment {
     public void markFailed(String resultData) {
         this.status = PaymentStatus.FAILED;
         this.resultData = resultData;
+    }
+
+    public void markRefunded(BigDecimal refundAmount, String returnRequestId) {
+        this.status = PaymentStatus.REFUNDED;
+        this.refundAmount = refundAmount;
+        this.returnRequestId = returnRequestId;
     }
 }

@@ -66,9 +66,15 @@ public class OrderReport {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "refund_amount")
+    private BigDecimal refundAmount;
+
+    @Column(name = "refunded_at")
+    private java.time.Instant refundedAt;
+
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private Instant updatedAt;
+    private java.time.Instant updatedAt;
 
     public void markPaid(Instant paidAt, String paymentMethod) {
         this.status = "PAID";
@@ -79,5 +85,11 @@ public class OrderReport {
     public void markCancelled(String reason) {
         this.status = "CANCELLED";
         this.cancellationReason = reason;
+    }
+
+    public void markRefunded(BigDecimal amount, java.time.Instant refundedAt) {
+        this.status = "REFUNDED";
+        this.refundAmount = amount;
+        this.refundedAt = refundedAt;
     }
 }

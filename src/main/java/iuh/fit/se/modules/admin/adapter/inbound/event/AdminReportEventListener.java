@@ -94,4 +94,17 @@ public class AdminReportEventListener {
             }
         });
     }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onReturnRefunded(iuh.fit.se.modules.returns.domain.ReturnRequestRefundedEvent event) {
+        log.info("📊 CQRS: Synchronizing ReturnRefunded for order {}", event.getOrderId());
+        
+        repository.findByOrderId(event.getOrderId()).ifPresent(report -> {
+            report.markRefunded(event.getRefundAmount(), event.getOccurredAt().atZone(java.time.ZoneId.systemDefault()).toInstant());
+            repository.save(report);
+            log.info("✅ OrderReport for {} marked as REFUNDED sum: {}", event.getOrderId(), event.getRefundAmount());
+        });
+    }
 }

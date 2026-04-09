@@ -66,6 +66,8 @@ public enum Permission {
     RETURN_READ_SELF,
     RETURN_READ_ALL,
     RETURN_APPROVE,
+    RETURN_RECEIVE,
+
 
     // === Admin Dashboard & Support ===
     DASHBOARD_REVENUE,
