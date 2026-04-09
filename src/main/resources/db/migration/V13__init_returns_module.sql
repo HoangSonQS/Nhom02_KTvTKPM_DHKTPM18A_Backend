@@ -3,20 +3,20 @@
 
 CREATE TABLE ret_return_requests (
     id VARCHAR(36) PRIMARY KEY,
-    order_id VARCHAR(36) NOT NULL,
-    customer_id VARCHAR(36) NOT NULL,
+    order_id BIGINT NOT NULL,
+    customer_id BIGINT NOT NULL,
     status VARCHAR(20) NOT NULL,
     refund_amount DECIMAL(19, 2),
     reason VARCHAR(50) NOT NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE ret_return_items (
     id VARCHAR(36) PRIMARY KEY,
     return_request_id VARCHAR(36) NOT NULL,
-    book_id VARCHAR(36) NOT NULL,
+    book_id BIGINT NOT NULL,
     quantity INT NOT NULL,
     refund_price DECIMAL(19, 2) NOT NULL,
     item_condition VARCHAR(20) NOT NULL,
