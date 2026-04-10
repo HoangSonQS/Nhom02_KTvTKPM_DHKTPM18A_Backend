@@ -484,7 +484,7 @@ InventoryLogisticsListener
 | Phase 6 | Logistics module: Supplier, Purchase Order (full state machine), Stock Adjustment, Audit Trail, Price Snapshot, Outbox integration | **Current** |
 | Phase 7 | Reverse Logistics & Customer Service (Returns) | Planned |
 | Phase 8 | Advanced Intelligence: Semantic Search (pgvector), OCR Vision, Chatbot integration | Done |
-| Phase 8.5 | Architecture Refactoring: Hexagonal Events, Strict DDD boundaries, Transactional Outbox synchronization | Done |
+| Phase 8.5 | Refactor: Book Atribute, Architecture Refactoring: Hexagonal Events, Strict DDD boundaries, Transactional Outbox synchronization | Done |
 a| Phase 9 | System Hardening & Optimization | Planned |
 
 ---
