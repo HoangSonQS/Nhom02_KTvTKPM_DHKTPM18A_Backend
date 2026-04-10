@@ -35,4 +35,5 @@ build/
 .env
 certs/
 config/keys/
+scratch/
 *.pem
