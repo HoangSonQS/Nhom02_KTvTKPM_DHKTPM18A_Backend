@@ -464,11 +464,11 @@ InventoryLogisticsListener
 
 | Limitation | Detail | Planned Fix |
 | :--- | :--- | :--- |
-| Partial PO Receipt | System only supports full receipt (all or nothing). Partial delivery not tracked. | Phase 8+ |
-| Concurrent Refresh Race | Two simultaneous refresh calls from same device may trigger false reuse detection. | Phase 9 (Distributed Lock via Redis SET NX) |
-| RS256 JWT | Currently using HS256 (symmetric). RS256 needed only when splitting into microservices. | Phase 9 |
-| Search Engine | Using PostgreSQL Full-Text Search. Elasticsearch / Meilisearch not yet integrated. | Phase 8 |
-| Distributed Tracing | No request tracing across modules. | Phase 9 (Jaeger / Micrometer Tracing) |
+| Partial PO Receipt | System only supports full receipt (all or nothing). Partial delivery not tracked. | Phase 10 |
+| Concurrent Refresh Race | Two simultaneous refresh calls from same device may trigger false reuse detection. | Optimized (Redis Atomic) |
+| RS256 JWT | Implement Asymmetric signing for production security and future microservices scalability. | ✅ Done (Phase 9) |
+| Search Engine | Using PostgreSQL Full-Text Search. Elasticsearch / Meilisearch not yet integrated. | Phase 11 |
+| Distributed Tracing | No request tracing across modules. | Planned |
 | Outbox for PO→Inventory | PO RECEIVED → Inventory increase goes through Outbox. If outbox job is down, stock lags by up to 5s but will self-heal. | Acceptable, monitored via audit trail |
 
 ---
@@ -485,7 +485,7 @@ InventoryLogisticsListener
 | Phase 7 | Reverse Logistics & Customer Service (Returns) | Planned |
 | Phase 8 | Advanced Intelligence: Semantic Search (pgvector), OCR Vision, Chatbot integration | Done |
 | Phase 8.5 | Refactor: Book Atribute, Architecture Refactoring: Hexagonal Events, Strict DDD boundaries, Transactional Outbox synchronization | Done |
-a| Phase 9 | System Hardening & Optimization | Planned |
+| Phase 9 | System Hardening & Optimization: RS256 JWT, Cache Unification, Stable Tests | ✅ Done |
 
 ---
 
