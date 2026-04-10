@@ -4,7 +4,7 @@ import iuh.fit.se.modules.payment.application.port.out.OrderPaymentPort;
 import iuh.fit.se.modules.payment.application.port.out.PaymentPersistencePort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.PaymentStatus;
-import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
+import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +60,7 @@ class PaymentServiceTest {
         // Then
         assertTrue(response.contains("RspCode\":\"00"));
         verify(paymentPersistencePort).save(any(Payment.class));
-        verify(eventPublisher).publishEvent(any(PaymentSuccessEvent.class));
+        verify(eventPublisher).publishEvent(any(PaymentSuccessDomainEvent.class));
     }
 
     @Test

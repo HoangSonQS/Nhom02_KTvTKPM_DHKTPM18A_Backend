@@ -2,7 +2,7 @@ package iuh.fit.se.modules.order.adapter.inbound.event;
 
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
-import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
+import iuh.fit.se.modules.payment.application.event.PaymentSuccessIntegrationEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,11 +26,14 @@ class OrderPaymentEventListenerTest {
         // Given
         Long orderId = 1L;
         String requestId = "req-123";
-        PaymentSuccessEvent event = PaymentSuccessEvent.builder()
-                .orderId(orderId)
-                .transactionId("vnpay-tx-123")
-                .amount(new BigDecimal("200000"))
-                .build();
+        PaymentSuccessIntegrationEvent event = new PaymentSuccessIntegrationEvent(
+                "evt-123",
+                "PAY-" + orderId,
+                orderId,
+                "vnpay-tx-123",
+                new BigDecimal("200000"),
+                "VNPAY"
+        );
 
         OrderInternalUseCase.OrderResponse orderResponse = OrderInternalUseCase.OrderResponse.builder()
                 .orderId(orderId)

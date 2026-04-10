@@ -7,6 +7,7 @@ import iuh.fit.se.modules.order.application.port.out.OrderPersistencePort;
 import iuh.fit.se.modules.order.application.port.out.OrderUserPort;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.modules.order.domain.*;
+import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -107,9 +108,9 @@ public class OrderService implements OrderInternalUseCase {
             // 6. Complete Phase
             completeSaga(order);
 
-            // 7. Publish Event (Self-contained with User Info)
+            // 7. Publish Domain Event (Internal)
             OrderUserPort.UserDto user = orderUserPort.getUserDetails(userId);
-            eventPublisher.publishEvent(OrderCreatedEvent.create(order, user.getFullName(), user.getEmail()));
+            eventPublisher.publishEvent(OrderCreatedDomainEvent.of(order, user.getFullName(), user.getEmail()));
 
             return order.getId();
 

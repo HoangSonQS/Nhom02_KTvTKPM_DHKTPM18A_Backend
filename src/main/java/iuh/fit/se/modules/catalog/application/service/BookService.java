@@ -1,5 +1,7 @@
 package iuh.fit.se.modules.catalog.application.service;
 
+import iuh.fit.se.modules.catalog.adapter.outbound.persistence.BookMapper;
+import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.BookImagePort;
 import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * BookService — Implementation của BookUseCase.
@@ -31,7 +34,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
-    public Book createBook(CreateBookCommand command) {
+    public BookDTO createBook(CreateBookCommand command) {
         String imageUrl = null;
         String imagePublicId = null;
 
@@ -46,7 +49,7 @@ public class BookService implements BookUseCase {
                 .author(command.author())
                 .description(command.description())
                 .price(command.price())
-                // .deprecatedQuantity(command.quantity())
+                .deprecatedQuantity(command.quantity())
                 .imageUrl(imageUrl)
                 .imagePublicId(imagePublicId)
                 .isActive(true)
@@ -55,16 +58,17 @@ public class BookService implements BookUseCase {
 
         Book savedBook = bookPersistencePort.save(book);
 
-        // Publish event for AI module to sync embedding (Idempotency ready)
-        eventPublisher.publishEvent(new BookCreatedEvent(savedBook.getId()));
+        // Publish event for AI module to sync embedding
+        eventPublisher.publishEvent(BookCreatedEvent.builder().bookId(savedBook.getId()).build());
 
-        return savedBook;
+        return BookMapper.toDto(savedBook);
     }
 
     @Override
     @Transactional
-    public Book updateBook(Long id, UpdateBookCommand command) {
-        Book book = getBook(id);
+    public BookDTO updateBook(Long id, UpdateBookCommand command) {
+        Book book = bookPersistencePort.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
 
         book.updateBasicInfo(
                 command.title(),
@@ -86,7 +90,6 @@ public class BookService implements BookUseCase {
 
         Book updatedBook = bookPersistencePort.save(book);
 
-        // Publish Update Event for AI synchronization
         eventPublisher.publishEvent(BookUpdatedEvent.builder()
                 .bookId(updatedBook.getId())
                 .title(updatedBook.getTitle())
@@ -94,24 +97,22 @@ public class BookService implements BookUseCase {
                 .description(updatedBook.getDescription())
                 .build());
 
-        return updatedBook;
+        return BookMapper.toDto(updatedBook);
     }
 
     @Override
     @Transactional
     public void deleteBook(Long id) {
-        Book book = getBook(id);
+        Book book = bookPersistencePort.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
         String publicId = book.getImagePublicId();
 
-        // 1. Xóa trong DB trước (Source of Truth)
         bookPersistencePort.delete(id);
 
-        // 2. Publish Deleted Event for AI cleanup
         eventPublisher.publishEvent(BookDeletedEvent.builder()
                 .bookId(id)
                 .build());
 
-        // 3. Xóa trên Cloudinary sau khi DB xóa thành công (orphan cleanup)
         if (publicId != null) {
             bookImagePort.deleteBookImage(publicId);
         }
@@ -119,21 +120,26 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Book getBook(Long id) {
-        return bookPersistencePort.findById(id)
+    public BookDTO getBook(Long id) {
+        Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
+        return BookMapper.toDto(book);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Book> searchBooks(String title, Long categoryId) {
-        return bookPersistencePort.search(title, categoryId);
+    public List<BookDTO> searchBooks(String title, Long categoryId) {
+        return bookPersistencePort.search(title, categoryId).stream()
+                .map(BookMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void updateStock(Long id, int amount, boolean isIncrease) {
-        Book book = getBook(id);
+        Book book = bookPersistencePort.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
+
         if (isIncrease) {
             book.increaseStock(amount);
         } else {

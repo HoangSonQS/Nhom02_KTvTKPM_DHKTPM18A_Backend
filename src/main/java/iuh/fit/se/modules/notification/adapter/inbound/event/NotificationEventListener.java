@@ -2,8 +2,8 @@ package iuh.fit.se.modules.notification.adapter.inbound.event;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import iuh.fit.se.modules.notification.application.service.NotificationService;
-import iuh.fit.se.modules.order.domain.OrderCreatedEvent;
-import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
+import iuh.fit.se.modules.order.application.event.OrderCreatedIntegrationEvent;
+import iuh.fit.se.modules.payment.application.event.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.shared.application.port.out.EmailPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,17 +30,17 @@ public class NotificationEventListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleOrderCreated(OrderCreatedEvent event) {
-        setupMdc(event.getCorrelationId());
+    public void handleOrderCreated(OrderCreatedIntegrationEvent event) {
+        setupMdc(event.correlationId());
         try {
-            notificationService.processNotification(event.getEventId(), event.getOrderId(), "ORDER_CREATED", () -> {
+            notificationService.processNotification(event.id(), event.orderId(), "ORDER_CREATED", () -> {
                 Map<String, Object> vars = Map.of(
-                        "customerName", event.getCustomerName(),
-                        "orderId", event.getOrderId(),
-                        "totalAmount", event.getTotalAmount(),
-                        "itemsSummary", event.getItemsSummary()
+                        "customerName", event.customerName(),
+                        "orderId", event.orderId(),
+                        "totalAmount", event.totalAmount(),
+                        "itemsSummary", event.itemsSummary()
                 );
-                emailPort.sendTemplateEmail(event.getCustomerEmail(), "Xác nhận đơn hàng #" + event.getOrderId(), "order-confirmation", vars);
+                emailPort.sendTemplateEmail(event.customerEmail(), "Xác nhận đơn hàng #" + event.orderId(), "order-confirmation", vars);
             });
         } finally {
             MDC.clear();
@@ -49,13 +49,13 @@ public class NotificationEventListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handlePaymentSuccess(PaymentSuccessEvent event) {
-        setupMdc(event.getCorrelationId());
+    public void handlePaymentSuccess(PaymentSuccessIntegrationEvent event) {
+        setupMdc(event.correlationId());
         try {
-            notificationService.processNotification(event.getEventId(), event.getOrderId(), "PAYMENT_SUCCESS", () -> {
-                log.info("Processing payment success notification for order {}", event.getOrderId());
+            notificationService.processNotification(event.id(), event.orderId(), "PAYMENT_SUCCESS", () -> {
+                log.info("Processing payment success notification for order {}", event.orderId());
                 // (Trong thực tế sẽ gọi emailPort tương tự handleOrderCreated)
-                meterRegistry.counter("notification.payment.success", "order", event.getOrderId().toString()).increment();
+                meterRegistry.counter("notification.payment.success", "order", event.orderId().toString()).increment();
             });
         } finally {
             MDC.clear();

@@ -3,6 +3,7 @@ package iuh.fit.se.modules.catalog.adapter.outbound.persistence;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.modules.catalog.domain.BookContent;
 import lombok.extern.slf4j.Slf4j;
@@ -12,11 +13,44 @@ import java.util.Set;
 
 /**
  * BookMapper — Chuyển đổi giữa Domain Model và JPA Entities (Strict Purity).
- * Đảm bảo logic mapping tập trung một chỗ.
+ * Cũng hỗ trợ mapping sang DTO cho giao tiếp liên module.
  */
 @Slf4j
 public class BookMapper {
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    public static BookDTO toDto(Book domain) {
+        if (domain == null)
+            return null;
+
+        return BookDTO.builder()
+                .id(domain.getId())
+                .title(domain.getTitle())
+                .author(domain.getAuthor())
+                .description(domain.getDescription())
+                .price(domain.getPrice())
+                .quantity(domain.getDeprecatedQuantity())
+                .imageUrl(domain.getImageUrl())
+                .isActive(domain.isActive())
+                .publisher(domain.getPublisher())
+                .isbn(domain.getIsbn())
+                .publicationYear(domain.getPublicationYear())
+                .language(domain.getLanguage())
+                .keywords(domain.getKeywords() != null ? new HashSet<>(domain.getKeywords()) : new HashSet<>())
+                .pageCount(domain.getPageCount())
+                .coverType(domain.getCoverType())
+                .weight(domain.getWeight())
+                .length(domain.getLength())
+                .width(domain.getWidth())
+                .height(domain.getHeight())
+                .originalPrice(domain.getOriginalPrice())
+                .averageRating(domain.getAverageRating())
+                .ratingCount(domain.getRatingCount())
+                .tableOfContents(domain.getContent() != null ? domain.getContent().getTableOfContents() : null)
+                .excerpt(domain.getContent() != null ? domain.getContent().getExcerpt() : null)
+                .categoryIds(new HashSet<>(domain.getCategoryIds()))
+                .build();
+    }
 
     public static Book toDomain(BookJpaEntity entity, BookContentJpaEntity contentEntity) {
         if (entity == null)

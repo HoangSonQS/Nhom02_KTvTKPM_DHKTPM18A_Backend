@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.catalog.application.port.in;
 
-import iuh.fit.se.modules.catalog.domain.Book;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -9,15 +9,15 @@ import java.util.List;
  */
 public interface BookUseCase {
 
-    Book createBook(CreateBookCommand command);
+    BookDTO createBook(CreateBookCommand command);
 
-    Book updateBook(Long id, UpdateBookCommand command);
+    BookDTO updateBook(Long id, UpdateBookCommand command);
 
     void deleteBook(Long id);
 
-    Book getBook(Long id);
+    BookDTO getBook(Long id);
 
-    List<Book> searchBooks(String title, Long categoryId);
+    List<BookDTO> searchBooks(String title, Long categoryId);
 
     // Dùng cho module Order/Inventory
     void updateStock(Long id, int amount, boolean isIncrease);

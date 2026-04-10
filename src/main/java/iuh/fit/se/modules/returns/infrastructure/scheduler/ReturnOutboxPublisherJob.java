@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.returns.infrastructure.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.modules.returns.application.event.ReturnIntegrationEvents.*;
 import iuh.fit.se.modules.returns.application.port.out.ReturnOutboxPersistencePort;
 import iuh.fit.se.modules.returns.domain.*;
 import lombok.RequiredArgsConstructor;
@@ -23,34 +24,40 @@ public class ReturnOutboxPublisherJob {
     @Scheduled(fixedDelay = 5000) // 5 seconds
     public void publishEvents() {
         List<ReturnOutboxEvent> pendingEvents = outboxPort.findPendingEvents();
-        if (pendingEvents.isEmpty()) return;
+        if (pendingEvents.isEmpty())
+            return;
 
         log.info("Found {} pending return outbox events to publish", pendingEvents.size());
 
         for (ReturnOutboxEvent event : pendingEvents) {
             try {
-                Object domainEvent = null;
+                Object integrationEvent = null;
                 String type = event.getEventType();
 
-                if ("ReturnRequestCreatedEvent".equals(type)) {
-                    domainEvent = objectMapper.readValue(event.getPayload(), ReturnRequestCreatedEvent.class);
-                } else if ("ReturnRequestApprovedEvent".equals(type)) {
-                    domainEvent = objectMapper.readValue(event.getPayload(), ReturnRequestApprovedEvent.class);
-                } else if ("ReturnRequestReceivedEvent".equals(type)) {
-                    domainEvent = objectMapper.readValue(event.getPayload(), ReturnRequestReceivedEvent.class);
-                } else if ("ReturnRequestRefundedEvent".equals(type)) {
-                    domainEvent = objectMapper.readValue(event.getPayload(), ReturnRequestRefundedEvent.class);
-                } else if ("ReturnRequestRejectedEvent".equals(type)) {
-                    domainEvent = objectMapper.readValue(event.getPayload(), ReturnRequestRejectedEvent.class);
+                if ("ReturnRequestCreatedIntegrationEvent".equals(type)) {
+                    integrationEvent = objectMapper.readValue(event.getPayload(),
+                            ReturnRequestCreatedIntegrationEvent.class);
+                } else if ("ReturnRequestApprovedIntegrationEvent".equals(type)) {
+                    integrationEvent = objectMapper.readValue(event.getPayload(),
+                            ReturnRequestApprovedIntegrationEvent.class);
+                } else if ("ReturnRequestReceivedIntegrationEvent".equals(type)) {
+                    integrationEvent = objectMapper.readValue(event.getPayload(),
+                            ReturnRequestReceivedIntegrationEvent.class);
+                } else if ("ReturnRequestRefundedIntegrationEvent".equals(type)) {
+                    integrationEvent = objectMapper.readValue(event.getPayload(),
+                            ReturnRequestRefundedIntegrationEvent.class);
+                } else if ("ReturnRequestRejectedIntegrationEvent".equals(type)) {
+                    integrationEvent = objectMapper.readValue(event.getPayload(),
+                            ReturnRequestRejectedIntegrationEvent.class);
                 }
 
-                if (domainEvent != null) {
-                    eventPublisher.publishEvent(domainEvent);
+                if (integrationEvent != null) {
+                    eventPublisher.publishEvent(integrationEvent);
                     event.markPublished();
                     outboxPort.save(event);
-                    log.info("Published return event: {} - {}", event.getId(), type);
+                    log.info("Published return integration event: {} - {}", event.getId(), type);
                 } else {
-                    log.warn("Unknown event type: {}", type);
+                    log.warn("Unknown integration event type: {}", type);
                 }
 
             } catch (Exception e) {
