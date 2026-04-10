@@ -5,6 +5,8 @@ import iuh.fit.se.modules.catalog.application.port.out.BookImagePort;
 import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.shared.event.catalog.BookCreatedEvent;
+import iuh.fit.se.shared.event.catalog.BookUpdatedEvent;
+import iuh.fit.se.shared.event.catalog.BookDeletedEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
@@ -44,7 +46,7 @@ public class BookService implements BookUseCase {
                 .author(command.author())
                 .description(command.description())
                 .price(command.price())
-                .quantity(command.quantity())
+                // .deprecatedQuantity(command.quantity())
                 .imageUrl(imageUrl)
                 .imagePublicId(imagePublicId)
                 .isActive(true)
@@ -52,8 +54,8 @@ public class BookService implements BookUseCase {
                 .build();
 
         Book savedBook = bookPersistencePort.save(book);
-        
-        // Publish event for AI module to sync embedding
+
+        // Publish event for AI module to sync embedding (Idempotency ready)
         eventPublisher.publishEvent(new BookCreatedEvent(savedBook.getId()));
 
         return savedBook;
@@ -70,8 +72,7 @@ public class BookService implements BookUseCase {
                 command.description(),
                 command.price(),
                 command.quantity(),
-                new HashSet<>(command.categoryIds())
-        );
+                new HashSet<>(command.categoryIds()));
 
         if (command.imageFile() != null && command.imageFile().length > 0) {
             String oldPublicId = book.getImagePublicId();
@@ -83,7 +84,17 @@ public class BookService implements BookUseCase {
             }
         }
 
-        return bookPersistencePort.save(book);
+        Book updatedBook = bookPersistencePort.save(book);
+
+        // Publish Update Event for AI synchronization
+        eventPublisher.publishEvent(BookUpdatedEvent.builder()
+                .bookId(updatedBook.getId())
+                .title(updatedBook.getTitle())
+                .author(updatedBook.getAuthor())
+                .description(updatedBook.getDescription())
+                .build());
+
+        return updatedBook;
     }
 
     @Override
@@ -95,7 +106,12 @@ public class BookService implements BookUseCase {
         // 1. Xóa trong DB trước (Source of Truth)
         bookPersistencePort.delete(id);
 
-        // 2. Xóa trên Cloudinary sau khi DB xóa thành công (orphan cleanup)
+        // 2. Publish Deleted Event for AI cleanup
+        eventPublisher.publishEvent(BookDeletedEvent.builder()
+                .bookId(id)
+                .build());
+
+        // 3. Xóa trên Cloudinary sau khi DB xóa thành công (orphan cleanup)
         if (publicId != null) {
             bookImagePort.deleteBookImage(publicId);
         }

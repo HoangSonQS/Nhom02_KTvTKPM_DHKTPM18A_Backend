@@ -28,31 +28,67 @@ public class Book {
     private String author;
     private String description;
     private BigDecimal price;
-    private int quantity;
+    
+    @Deprecated
+    private int deprecatedQuantity; // Sẽ được thay thế bởi Module Inventory
+    
     private String imageUrl;
     private String imagePublicId;
     private boolean isActive;
+
+    // Metadata bổ sung
+    private String publisher;
+    private String isbn;
+    private Integer publicationYear;
+    private String language;
+    @Builder.Default
+    private Set<String> keywords = new HashSet<>();
+
+    // Thông số vật lý
+    private Integer pageCount;
+    private String coverType;
+    private Integer weight; // gram
+    private Integer length; // mm
+    private Integer width; // mm
+    private Integer height; // mm
+
+    private BigDecimal originalPrice;
+    @Builder.Default
+    private BigDecimal averageRating = BigDecimal.ZERO;
+    @Builder.Default
+    private int ratingCount = 0;
+
+    // Thành phần nội dung (tách bảng)
+    private BookContent content;
 
     @Builder.Default
     private Set<Long> categoryIds = new HashSet<>();
 
     /**
-     * Giảm tồn kho. Throws exception nếu không đủ hàng.
+     * Giảm tồn kho (Deprecated behavior - Move to Inventory soon).
      */
     public void decreaseStock(int amount) {
         if (amount <= 0) return;
-        if (this.quantity < amount) {
+        if (this.deprecatedQuantity < amount) {
             throw new AppException(ErrorCode.INTERNAL_ERROR, "Không đủ tồn kho cho sách: " + title);
         }
-        this.quantity -= amount;
+        this.deprecatedQuantity -= amount;
     }
 
     /**
-     * Tăng tồn kho.
+     * Tăng tồn kho (Deprecated behavior).
      */
     public void increaseStock(int amount) {
         if (amount <= 0) return;
-        this.quantity += amount;
+        this.deprecatedQuantity += amount;
+    }
+
+    /**
+     * Cập nhật nội dung chi tiết. 
+     * Encapsulated behavior: Chỉ Aggregate Root mới có quyền khởi tạo BookContent.
+     */
+    public void updateContent(String tableOfContents, String excerpt) {
+        this.content = new BookContent(tableOfContents, excerpt);
     }
 
     public void addCategory(Long categoryId) {
@@ -68,12 +104,32 @@ public class Book {
         this.author = author;
         this.description = description;
         this.price = price;
-        this.quantity = targetQuantity;
+        this.deprecatedQuantity = targetQuantity;
         if (categoryIds != null) {
             this.categoryIds = new HashSet<>(categoryIds);
         } else {
             this.categoryIds.clear();
         }
+    }
+
+    /**
+     * Cập nhật Metadata phong phú.
+     */
+    public void updateMetadata(String publisher, String isbn, Integer publicationYear, String language, Set<String> keywords,
+                               Integer pageCount, String coverType, Integer weight, Integer length, Integer width, Integer height,
+                               BigDecimal originalPrice) {
+        this.publisher = publisher;
+        this.isbn = isbn;
+        this.publicationYear = publicationYear;
+        this.language = language;
+        this.keywords = keywords != null ? new HashSet<>(keywords) : new HashSet<>();
+        this.pageCount = pageCount;
+        this.coverType = coverType;
+        this.weight = weight;
+        this.length = length;
+        this.width = width;
+        this.height = height;
+        this.originalPrice = originalPrice;
     }
 
     public void updateImage(String imageUrl, String imagePublicId) {

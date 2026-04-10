@@ -14,22 +14,22 @@ class BookTest {
 
     @Test
     void whenDecreaseStockValidAmount_thenQuantityUpdated() {
-        Book book = Book.builder().quantity(10).build();
+        Book book = Book.builder().deprecatedQuantity(10).build();
         book.decreaseStock(3);
-        assertThat(book.getQuantity()).isEqualTo(7);
+        assertThat(book.getDeprecatedQuantity()).isEqualTo(7);
     }
 
     @Test
     void whenDecreaseStockOverAmount_thenThrowsException() {
-        Book book = Book.builder().quantity(10).build();
+        Book book = Book.builder().deprecatedQuantity(10).build();
         assertThatThrownBy(() -> book.decreaseStock(11))
                 .isInstanceOf(AppException.class);
     }
 
     @Test
     void whenIncreaseStock_thenQuantityUpdated() {
-        Book book = Book.builder().quantity(10).build();
+        Book book = Book.builder().deprecatedQuantity(10).build();
         book.increaseStock(5);
-        assertThat(book.getQuantity()).isEqualTo(15);
+        assertThat(book.getDeprecatedQuantity()).isEqualTo(15);
     }
 }

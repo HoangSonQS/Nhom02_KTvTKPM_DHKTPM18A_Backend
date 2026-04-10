@@ -3,8 +3,6 @@ package iuh.fit.se.modules.ai.adapter.outbound.persistence;
 import iuh.fit.se.modules.ai.domain.ChatSession;
 import iuh.fit.se.modules.ai.domain.ChatMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.UUID;
 
 interface JpaChatSessionRepository extends JpaRepository<ChatSession, String> {
