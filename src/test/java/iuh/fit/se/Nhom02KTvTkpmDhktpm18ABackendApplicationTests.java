@@ -10,8 +10,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 
 @SpringBootTest
-@ActiveProfiles("test")
-class Nhom02KTvTkpmDhktpm18ABackendApplicationTests {
+class Nhom02KTvTkpmDhktpm18ABackendApplicationTests extends BaseIntegrationTest {
 
     @MockitoBean
     private EmailPort emailPort;

@@ -13,6 +13,9 @@ import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @CacheEvict(value = "books", allEntries = true)
     public BookDTO createBook(CreateBookCommand command) {
         String imageUrl = null;
         String imagePublicId = null;
@@ -66,6 +70,10 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+        @CacheEvict(value = "books", allEntries = true)
+    })
     public BookDTO updateBook(Long id, UpdateBookCommand command) {
         Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
@@ -90,6 +98,7 @@ public class BookService implements BookUseCase {
 
         Book updatedBook = bookPersistencePort.save(book);
 
+        // Phát sự kiện cập nhật
         eventPublisher.publishEvent(BookUpdatedEvent.builder()
                 .bookId(updatedBook.getId())
                 .title(updatedBook.getTitle())
@@ -102,6 +111,10 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+        @CacheEvict(value = "books", allEntries = true)
+    })
     public void deleteBook(Long id) {
         Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
@@ -120,6 +133,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)")
     public BookDTO getBook(Long id) {
         Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
@@ -128,6 +142,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "books", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('books', 'search:' + #title + ':' + #categoryId)")
     public List<BookDTO> searchBooks(String title, Long categoryId) {
         return bookPersistencePort.search(title, categoryId).stream()
                 .map(BookMapper::toDto)
@@ -136,6 +151,10 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+        @CacheEvict(value = "books", allEntries = true)
+    })
     public void updateStock(Long id, int amount, boolean isIncrease) {
         Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));

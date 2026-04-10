@@ -40,4 +40,8 @@ public class User {
                 .enabled(true)
                 .build();
     }
+
+    public void updatePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

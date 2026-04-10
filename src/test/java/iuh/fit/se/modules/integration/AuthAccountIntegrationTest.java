@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.integration;
 
+import iuh.fit.se.BaseIntegrationTest;
 import iuh.fit.se.modules.account.application.port.out.AccountPersistencePort;
 import iuh.fit.se.modules.account.domain.Account;
 import iuh.fit.se.modules.auth.application.port.in.AuthUseCase;
@@ -8,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
@@ -22,9 +22,8 @@ import static org.mockito.Mockito.when;
  * Sử dụng Spring Context và H2 Database.
  */
 @SpringBootTest
-@ActiveProfiles("test")
 @Transactional
-class AuthAccountIntegrationTest {
+class AuthAccountIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private AuthUseCase authUseCase;

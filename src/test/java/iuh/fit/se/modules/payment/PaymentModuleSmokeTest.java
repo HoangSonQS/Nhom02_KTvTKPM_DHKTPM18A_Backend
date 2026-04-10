@@ -1,12 +1,11 @@
 package iuh.fit.se.modules.payment;
 
+import iuh.fit.se.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-@ActiveProfiles("test")
-class PaymentModuleSmokeTest {
+class PaymentModuleSmokeTest extends BaseIntegrationTest {
 
     @Test
     void contextLoads() {

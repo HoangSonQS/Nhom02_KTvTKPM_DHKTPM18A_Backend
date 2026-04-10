@@ -16,6 +16,7 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(4004, "Không tìm thấy tài nguyên", HttpStatus.NOT_FOUND),
     ACCESS_DENIED(4003, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
     INVALID_INPUT(4001, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
+    TOO_MANY_REQUESTS(4029, "Quá nhiều yêu cầu, vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
 
     // ===== Auth Module (AUTH_) =====
     AUTH_INVALID_CREDENTIALS(4010, "Email hoặc mật khẩu không đúng", HttpStatus.UNAUTHORIZED),

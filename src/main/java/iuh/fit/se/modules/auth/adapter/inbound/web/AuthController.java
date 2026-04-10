@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthUseCase authUseCase;
+    private final iuh.fit.se.modules.auth.application.port.in.PasswordResetUseCase passwordResetUseCase;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthUseCase.TokenPair>> login(
@@ -84,6 +85,20 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Đăng xuất thành công", null));
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetUseCase.requestPasswordReset(request.email());
+        return ResponseEntity.ok(ApiResponse.success("Mã xác nhận đã được gửi vào email của bạn", null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetUseCase.completePasswordReset(new iuh.fit.se.modules.auth.application.port.in.PasswordResetUseCase.PasswordResetCommand(
+                request.email(), request.otp(), request.newPassword()
+        ));
+        return ResponseEntity.ok(ApiResponse.success("Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập lại.", null));
+    }
+
     private void setRefreshTokenCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
@@ -117,5 +132,15 @@ public class AuthController {
             @NotBlank @Email String email,
             @NotBlank @Size(min = 6) String password,
             @NotBlank @Size(min = 2, max = 100) String fullName) {
+    }
+
+    public record ForgotPasswordRequest(
+            @NotBlank @Email String email) {
+    }
+
+    public record ResetPasswordRequest(
+            @NotBlank @Email String email,
+            @NotBlank String otp,
+            @NotBlank @Size(min = 6) String newPassword) {
     }
 }

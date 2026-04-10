@@ -54,6 +54,7 @@ public class AuthService implements AuthUseCase, AuthInternalUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "USER_LOGIN")
     public TokenPair login(LoginCommand command, String deviceId) {
         User user = userPersistencePort.findByEmail(command.email())
                 .orElseThrow(() -> new AppException(ErrorCode.AUTH_INVALID_CREDENTIALS));
