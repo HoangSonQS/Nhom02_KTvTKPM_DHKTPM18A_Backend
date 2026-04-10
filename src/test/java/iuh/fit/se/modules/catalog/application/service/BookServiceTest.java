@@ -39,7 +39,7 @@ class BookServiceTest {
         // Arrange
         Book book = Book.builder()
                 .title("Clean Architecture")
-                .quantity(10)
+                .deprecatedQuantity(10)
                 .build();
         when(bookPersistencePort.findById(1L)).thenReturn(Optional.of(book));
 
@@ -47,14 +47,14 @@ class BookServiceTest {
         bookService.updateStock(1L, 3, false);
 
         // Assert
-        assertThat(book.getQuantity()).isEqualTo(7);
+        assertThat(book.getDeprecatedQuantity()).isEqualTo(7);
         verify(bookPersistencePort).save(book);
     }
 
     @Test
     void givenOutOfStock_whenDecreaseStock_thenThrowsException() {
         // Arrange
-        Book book = Book.builder().quantity(5).build();
+        Book book = Book.builder().deprecatedQuantity(5).build();
         when(bookPersistencePort.findById(1L)).thenReturn(Optional.of(book));
 
         // Act & Assert

@@ -3,8 +3,8 @@ package iuh.fit.se.modules.cart.application.service;
 import iuh.fit.se.modules.cart.application.port.in.CartInternalUseCase;
 import iuh.fit.se.modules.cart.application.port.out.CartPersistencePort;
 import iuh.fit.se.modules.cart.domain.Cart;
+import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
-import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
 import iuh.fit.se.modules.inventory.application.port.in.StockResult;
 import iuh.fit.se.shared.exception.AppException;
@@ -70,7 +70,7 @@ public class CartService implements CartInternalUseCase {
         Cart cart = getCartEntity(userId);
 
         // 2. Validate Book tồn tại và Active (Catalog Integration)
-        Book book = bookUseCase.getBook(command.getBookId());
+        BookDTO book = bookUseCase.getBook(command.getBookId());
         if (book == null) {
             throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
         }
@@ -82,7 +82,7 @@ public class CartService implements CartInternalUseCase {
         }
 
         // 4. Áp dụng Domain Logic
-        cart.addItem(book.getId(), command.getQuantity(), book.getPrice(), book.getTitle(), MAX_PER_ITEM);
+        cart.addItem(book.id(), command.getQuantity(), book.price(), book.title(), MAX_PER_ITEM);
         
         // 5. Save
         cartPersistencePort.save(cart);

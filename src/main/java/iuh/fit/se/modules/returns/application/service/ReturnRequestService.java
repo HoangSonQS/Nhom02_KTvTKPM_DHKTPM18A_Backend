@@ -1,15 +1,15 @@
 package iuh.fit.se.modules.returns.application.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.returns.application.port.in.ReturnRequestUseCase;
 import iuh.fit.se.modules.returns.application.port.out.OrderQueryPort;
-import iuh.fit.se.modules.returns.application.port.out.ReturnOutboxPersistencePort;
 import iuh.fit.se.modules.returns.application.port.out.ReturnRequestRepository;
 import iuh.fit.se.modules.returns.domain.*;
+import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.*;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +24,8 @@ import java.util.stream.Collectors;
 public class ReturnRequestService implements ReturnRequestUseCase {
 
     private final ReturnRequestRepository returnRequestRepository;
-    private final ReturnOutboxPersistencePort outboxPort;
     private final OrderQueryPort orderQueryPort;
-    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -79,12 +78,8 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
         ReturnRequest saved = returnRequestRepository.save(returnRequest);
 
-        // 4. Record Outbox Event
-        recordEvent(ReturnRequestCreatedEvent.of(
-                saved.getId(),
-                saved.getOrderId(),
-                saved.getCustomerId()
-        ));
+        // 4. Publish Domain Event (Internal)
+        eventPublisher.publishEvent(ReturnRequestCreatedDomainEvent.of(saved));
 
         return saved;
     }
@@ -98,7 +93,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         request.approve(approvedBy);
         returnRequestRepository.save(request);
 
-        recordEvent(ReturnRequestApprovedEvent.of(request.getId(), request.getOrderId()));
+        eventPublisher.publishEvent(ReturnRequestApprovedDomainEvent.of(request));
     }
 
     @Override
@@ -111,10 +106,9 @@ public class ReturnRequestService implements ReturnRequestUseCase {
             throw new AppException(ErrorCode.INVALID_INPUT, "Số lượng đánh giá tình trạng hàng không khớp");
         }
 
-        // Update items condition in domain
         request.markAsReceived(receivedBy, conditions);
         
-        // Manual update of conditions since we didn't implement it fully in the entity yet
+        // Manual update of conditions via reflect for legacy consistency
         for (int i = 0; i < request.getItems().size(); i++) {
             try {
                 java.lang.reflect.Field field = ReturnItem.class.getDeclaredField("condition");
@@ -126,17 +120,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         }
         
         returnRequestRepository.save(request);
-
-        // Snapshot items for event payload
-        List<ReturnRequestReceivedEvent.ReturnedItemCondition> payloads = request.getItems().stream()
-                .map(item -> ReturnRequestReceivedEvent.ReturnedItemCondition.builder()
-                        .bookId(item.getBookId())
-                        .quantity(item.getQuantity())
-                        .condition(item.getCondition())
-                        .build())
-                .collect(Collectors.toList());
-
-        recordEvent(ReturnRequestReceivedEvent.of(request.getId(), request.getOrderId(), payloads));
+        eventPublisher.publishEvent(ReturnRequestReceivedDomainEvent.of(request));
     }
 
     @Override
@@ -145,7 +129,6 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         ReturnRequest request = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new AppException(ErrorCode.RET_NOT_FOUND));
 
-        // Calculate refund amount
         BigDecimal totalRefund = request.getItems().stream()
                 .map(item -> item.getRefundPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -153,11 +136,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         request.refund(processedBy, totalRefund);
         returnRequestRepository.save(request);
 
-        recordEvent(ReturnRequestRefundedEvent.of(
-                request.getId(),
-                request.getOrderId(),
-                request.getRefundAmount()
-        ));
+        eventPublisher.publishEvent(ReturnRequestRefundedDomainEvent.of(request));
     }
 
     @Override
@@ -169,7 +148,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         request.reject(reason, rejectedBy);
         returnRequestRepository.save(request);
 
-        recordEvent(ReturnRequestRejectedEvent.of(request.getId(), request.getOrderId(), reason));
+        eventPublisher.publishEvent(ReturnRequestRejectedDomainEvent.of(request, reason));
     }
 
     @Override
@@ -189,18 +168,5 @@ public class ReturnRequestService implements ReturnRequestUseCase {
     @Transactional(readOnly = true)
     public List<ReturnRequest> getByCustomer(Long customerId) {
         return returnRequestRepository.findByCustomerId(customerId);
-    }
-
-    private void recordEvent(Object event) {
-        try {
-            String eventType = event.getClass().getSimpleName();
-            String payload = objectMapper.writeValueAsString(event);
-            ReturnOutboxEvent outboxEvent = ReturnOutboxEvent.create(eventType, payload);
-            outboxPort.save(outboxEvent);
-            log.info("Recorded outbox event: {}", eventType);
-        } catch (Exception e) {
-            log.error("Failed to record outbox event", e);
-            throw new RuntimeException("Lỗi hệ thống khi lưu lịch sử sự kiện");
-        }
     }
 }

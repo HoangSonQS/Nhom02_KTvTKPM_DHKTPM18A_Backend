@@ -1,19 +1,12 @@
 package iuh.fit.se.modules.catalog.adapter.inbound.web;
 
+import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
-import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.shared.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -32,7 +25,7 @@ public class BookController {
 
     @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Book>>> search(
+    public ResponseEntity<ApiResponse<List<BookDTO>>> search(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Long categoryId) {
         return ResponseEntity.ok(ApiResponse.success(bookUseCase.searchBooks(title, categoryId)));
@@ -40,13 +33,13 @@ public class BookController {
 
     @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Book>> getBook(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<BookDTO>> getBook(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(bookUseCase.getBook(id)));
     }
 
     @PreAuthorize("hasAuthority('CATALOG_BOOK_CREATE')")
     @PostMapping
-    public ResponseEntity<ApiResponse<Book>> create(
+    public ResponseEntity<ApiResponse<BookDTO>> create(
             @RequestParam("title") String title,
             @RequestParam("author") String author,
             @RequestParam(value = "description", required = false) String description,
@@ -57,7 +50,7 @@ public class BookController {
 
         byte[] imageBytes = (image != null && !image.isEmpty()) ? image.getBytes() : null;
         
-        Book book = bookUseCase.createBook(new BookUseCase.CreateBookCommand(
+        BookDTO book = bookUseCase.createBook(new BookUseCase.CreateBookCommand(
                 title, author, description, price, quantity, imageBytes, categoryIds));
         
         return ResponseEntity.ok(ApiResponse.success("Tạo sách thành công", book));
@@ -65,7 +58,7 @@ public class BookController {
 
     @PreAuthorize("hasAuthority('CATALOG_BOOK_UPDATE')")
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Book>> update(
+    public ResponseEntity<ApiResponse<BookDTO>> update(
             @PathVariable Long id,
             @RequestParam("title") String title,
             @RequestParam("author") String author,
@@ -77,7 +70,7 @@ public class BookController {
 
         byte[] imageBytes = (image != null && !image.isEmpty()) ? image.getBytes() : null;
 
-        Book book = bookUseCase.updateBook(id, new BookUseCase.UpdateBookCommand(
+        BookDTO book = bookUseCase.updateBook(id, new BookUseCase.UpdateBookCommand(
                 title, author, description, price, quantity, imageBytes, categoryIds));
 
         return ResponseEntity.ok(ApiResponse.success("Cập nhật sách thành công", book));

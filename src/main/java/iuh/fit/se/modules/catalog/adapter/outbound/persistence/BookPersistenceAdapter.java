@@ -17,60 +17,51 @@ import java.util.stream.Collectors;
 public class BookPersistenceAdapter implements BookPersistencePort {
 
     private final BookJpaRepository bookJpaRepository;
+    private final BookContentJpaRepository bookContentJpaRepository;
 
     @Override
     public Optional<Book> findById(Long id) {
-        return bookJpaRepository.findById(id).map(this::mapToDomain);
+        return bookJpaRepository.findById(id).map(entity -> {
+            BookContentJpaEntity contentEntity = bookContentJpaRepository.findById(id).orElse(null);
+            return BookMapper.toDomain(entity, contentEntity);
+        });
     }
 
     @Override
     public Book save(Book book) {
-        BookJpaEntity entity = mapToJpa(book);
+        BookJpaEntity existingEntity = book.getId() != null ? 
+                bookJpaRepository.findById(book.getId()).orElse(null) : null;
+        
+        BookJpaEntity entity = BookMapper.toJpa(book, existingEntity);
         BookJpaEntity saved = bookJpaRepository.save(entity);
-        return mapToDomain(saved);
+        
+        // Cập nhật ID cho domain nếu là tạo mới để lưu content
+        if (book.getId() == null) {
+            book.setId(saved.getId());
+        }
+
+        // Lưu BookContent nếu có
+        if (book.getContent() != null) {
+            BookContentJpaEntity contentEntity = BookMapper.toContentJpa(book);
+            bookContentJpaRepository.save(contentEntity);
+        }
+
+        return findById(saved.getId()).orElseThrow();
     }
 
     @Override
     public void delete(Long id) {
         bookJpaRepository.deleteById(id);
+        // Cascading delete đã được xử lý ở tầng DB (ON DELETE CASCADE)
     }
 
     @Override
     public List<Book> search(String title, Long categoryId) {
         return bookJpaRepository.search(title, categoryId).stream()
-                .map(this::mapToDomain)
+                .map(entity -> {
+                    // Để tối ưu hiệu năng, search list không cần load Content ngay lập tức
+                    return BookMapper.toDomain(entity, null);
+                })
                 .collect(Collectors.toList());
-    }
-
-    private Book mapToDomain(BookJpaEntity entity) {
-        return Book.builder()
-                .id(entity.getId())
-                .title(entity.getTitle())
-                .author(entity.getAuthor())
-                .description(entity.getDescription())
-                .price(entity.getPrice())
-                .quantity(entity.getQuantity())
-                .imageUrl(entity.getImageUrl())
-                .imagePublicId(entity.getImagePublicId())
-                .isActive(entity.isActive())
-                .categoryIds(entity.getCategoryIds())
-                .build();
-    }
-
-    private BookJpaEntity mapToJpa(Book domain) {
-        BookJpaEntity entity = bookJpaRepository.findById(domain.getId() != null ? domain.getId() : -1L)
-                .orElse(new BookJpaEntity());
-
-        entity.setTitle(domain.getTitle());
-        entity.setAuthor(domain.getAuthor());
-        entity.setDescription(domain.getDescription());
-        entity.setPrice(domain.getPrice());
-        entity.setQuantity(domain.getQuantity());
-        entity.setImageUrl(domain.getImageUrl());
-        entity.setImagePublicId(domain.getImagePublicId());
-        entity.setActive(domain.isActive());
-        entity.setCategoryIds(domain.getCategoryIds());
-
-        return entity;
     }
 }

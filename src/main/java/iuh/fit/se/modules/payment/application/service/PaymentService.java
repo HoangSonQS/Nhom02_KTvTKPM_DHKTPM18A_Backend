@@ -5,7 +5,7 @@ import iuh.fit.se.modules.payment.application.port.out.OrderPaymentPort;
 import iuh.fit.se.modules.payment.application.port.out.PaymentPersistencePort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.PaymentStatus;
-import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
+import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -97,8 +97,8 @@ public class PaymentService implements PaymentUseCase {
         
         paymentPersistencePort.save(payment);
 
-        // Emit success event - Order module will listen and finalize
-        eventPublisher.publishEvent(PaymentSuccessEvent.create(payment));
+        // Emit Domain success event (Internal)
+        eventPublisher.publishEvent(PaymentSuccessDomainEvent.of(payment));
 
         log.info("IPN: Successfully processed payment for Order {}. Event emitted.", orderId);
         return "{\"RspCode\":\"00\",\"Message\":\"Confirm success\"}";
