@@ -4,10 +4,12 @@ import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.BookImagePort;
 import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Book;
+import iuh.fit.se.shared.event.catalog.BookCreatedEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class BookService implements BookUseCase {
 
     private final BookPersistencePort bookPersistencePort;
     private final BookImagePort bookImagePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -48,7 +51,12 @@ public class BookService implements BookUseCase {
                 .categoryIds(new HashSet<>(command.categoryIds()))
                 .build();
 
-        return bookPersistencePort.save(book);
+        Book savedBook = bookPersistencePort.save(book);
+        
+        // Publish event for AI module to sync embedding
+        eventPublisher.publishEvent(new BookCreatedEvent(savedBook.getId()));
+
+        return savedBook;
     }
 
     @Override
