@@ -2,15 +2,20 @@ package iuh.fit.se.modules.ai.application.service;
 
 import iuh.fit.se.modules.ai.application.port.in.EmbeddingSyncUseCase;
 import iuh.fit.se.modules.ai.application.port.out.VectorStorePort;
+import iuh.fit.se.modules.ai.adapter.outbound.persistence.AiProcessedEventRepository;
 import iuh.fit.se.modules.ai.domain.BookVectorMetadata;
+import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
-import iuh.fit.se.modules.catalog.domain.Book;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,44 +24,95 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
 
     private final BookUseCase bookUseCase;
     private final VectorStorePort vectorStorePort;
+    private final SemanticDocumentFactory documentFactory;
+    private final AiProcessedEventRepository idempotencyRepository;
 
     @Override
     @Async
-    public void syncBook(Long bookId) {
-        log.info("Syncing book embedding for bookId: {}", bookId);
+    @Transactional
+    public void syncBook(Long bookId, UUID eventId) {
+        log.info("Starting strict sync flow for bookId: {}, eventId: {}", bookId, eventId);
+
         try {
-            Book book = bookUseCase.getBook(bookId);
-            if (book != null) {
-                BookVectorMetadata metadata = BookVectorMetadata.builder()
-                        .bookId(book.getId())
-                        .title(book.getTitle())
-                        .author(book.getAuthor())
-                        .description(book.getDescription())
-                        // Category info might need a better way to join strings
-                        .category(book.getCategoryIds() != null ? 
-                                book.getCategoryIds().stream()
-                                    .map(String::valueOf)
-                                    .reduce((a, b) -> a + ", " + b)
-                                    .orElse("General") : "General")
-                        .build();
-                
-                vectorStorePort.saveBookVector(metadata);
-                log.info("Successfully synced bookId: {}", bookId);
+            BookDTO book = bookUseCase.getBook(bookId);
+            if (book == null) {
+                log.warn("Book not found for sync: {}", bookId);
+                return;
             }
+
+            // Step 1: Build Metadata & Compute Hash
+            String richText = documentFactory.createWeightedText(book);
+            String currentHash = documentFactory.calculateHash(richText);
+            String currentVersion = documentFactory.getCurrentVersion();
+
+            // Step 2: Check Existing Vector (Hash-First Skip)
+            Optional<BookVectorMetadata> existing = vectorStorePort.getExistingMetadata(bookId);
+            if (existing.isPresent() &&
+                    currentHash.equals(existing.get().getContentHash()) &&
+                    Integer.parseInt(currentVersion) == existing.get().getEmbeddingVersion()) {
+                log.info("Vector for bookId {} is up to date (hash + version matched). Skipping AI call.", bookId);
+                return;
+            }
+
+            // Step 3: Idempotency Lock (Status-aware)
+            int lockResult = idempotencyRepository.tryLockEvent(eventId);
+            if (lockResult == 0) {
+                // Đã tồn tại record, kiểm tra status
+                idempotencyRepository.findById(eventId).ifPresent(event -> {
+                    if ("DONE".equals(event.getStatus())) {
+                        log.info("Event {} already processed successfully. Skipping.", eventId);
+                    } else {
+                        log.warn("Event {} is currently in PROCESSING or crashed. Logic might retry or wait.", eventId);
+                    }
+                });
+                return;
+            }
+
+            // Step 4: Execute LLM & Save Vector
+            log.info("Calling LLM for bookId: {} (Hash changed or internal version update)", bookId);
+            BookVectorMetadata metadata = BookVectorMetadata.builder()
+                    .bookId(book.id())
+                    .title(book.title())
+                    .author(book.author())
+                    .description(richText) // Dùng text đã gán label làm content
+                    .category(book.categoryIds() != null
+                            ? book.categoryIds().stream().map(String::valueOf).collect(Collectors.joining(", "))
+                            : "General")
+                    .contentHash(currentHash)
+                    .embeddingVersion(Integer.parseInt(currentVersion))
+                    .build();
+
+            vectorStorePort.saveBookVector(metadata);
+
+            // Step 5: Finalize Status
+            idempotencyRepository.markAsDone(eventId);
+            log.info("Successfully synced bookId: {} and finalized event: {}", bookId, eventId);
+
         } catch (Exception e) {
-            log.error("Failed to sync book embedding for bookId: {}", bookId, e);
+            log.error("Sync failed for bookId: {}, eventId: {}", bookId, eventId, e);
+        }
+    }
+
+    @Override
+    @Async
+    @Transactional
+    public void syncDeletion(Long bookId) {
+        log.info("Syncing deletion for bookId: {}", bookId);
+        try {
+            vectorStorePort.deleteBookVector(bookId);
+            log.info("Successfully removed vector for bookId: {}", bookId);
+        } catch (Exception e) {
+            log.error("Failed to delete vector for bookId: {}", bookId, e);
         }
     }
 
     @Override
     public void syncAllBooks() {
-        log.info("Starting bulk sync for all books...");
-        // This might be expensive, in a real app we'd paginate
-        List<Book> books = bookUseCase.searchBooks(null, null);
+        log.info("Bulk sync triggered. Note: Simple loop, no individual idempotency IDs provided here.");
+        List<BookDTO> books = bookUseCase.searchBooks(null, null);
         if (books != null) {
-            log.info("Found {} books to sync", books.size());
-            for (Book book : books) {
-                syncBook(book.getId());
+            for (BookDTO book : books) {
+                syncBook(book.id(), UUID.randomUUID());
             }
         }
     }
