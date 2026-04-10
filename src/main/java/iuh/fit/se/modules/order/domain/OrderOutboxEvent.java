@@ -2,8 +2,6 @@ package iuh.fit.se.modules.order.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,16 +19,14 @@ public class OrderOutboxEvent {
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String payload;
 
-    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OrderOutboxStatus status = OrderOutboxStatus.PENDING;
+    private OrderOutboxStatus status;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "published_at")
@@ -42,6 +38,7 @@ public class OrderOutboxEvent {
                 .eventType(eventType)
                 .payload(payload)
                 .status(OrderOutboxStatus.PENDING)
+                .createdAt(LocalDateTime.now())
                 .build();
     }
 

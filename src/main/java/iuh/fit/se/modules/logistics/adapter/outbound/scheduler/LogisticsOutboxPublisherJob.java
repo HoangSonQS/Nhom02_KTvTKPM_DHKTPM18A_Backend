@@ -1,8 +1,8 @@
-package iuh.fit.se.modules.logistics.infrastructure.scheduler;
+package iuh.fit.se.modules.logistics.adapter.outbound.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import iuh.fit.se.modules.logistics.application.port.out.OutboxPersistencePort;
-import iuh.fit.se.modules.logistics.domain.OutboxEvent;
+import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
+import iuh.fit.se.modules.logistics.domain.LogisticsOutboxEvent;
 import iuh.fit.se.modules.logistics.domain.event.StockAdjustmentConfirmedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,20 +15,20 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OutboxPublisherJob {
+public class LogisticsOutboxPublisherJob {
 
-    private final OutboxPersistencePort outboxPort;
+    private final LogisticsOutboxPersistencePort outboxPort;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 5000) // 5 giây chạy 1 lần
     public void publishEvents() {
-        List<OutboxEvent> pendingEvents = outboxPort.findPendingEvents();
+        List<LogisticsOutboxEvent> pendingEvents = outboxPort.findPendingEvents();
         if (pendingEvents.isEmpty()) return;
 
         log.info("Found {} pending outbox events to publish", pendingEvents.size());
 
-        for (OutboxEvent event : pendingEvents) {
+        for (LogisticsOutboxEvent event : pendingEvents) {
             try {
                 if ("StockAdjustmentConfirmedEvent".equals(event.getEventType())) {
                     StockAdjustmentConfirmedEvent domainEvent = objectMapper.readValue(

@@ -3,7 +3,7 @@ package iuh.fit.se.modules.admin.adapter.inbound.event;
 import iuh.fit.se.modules.admin.adapter.outbound.persistence.OrderReportRepository;
 import iuh.fit.se.modules.admin.domain.OrderReport;
 import iuh.fit.se.modules.order.domain.OrderCancelledEvent;
-import iuh.fit.se.modules.order.domain.OrderCreatedEvent;
+import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ public class AdminReportEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void onOrderCreated(OrderCreatedEvent event) {
+    public void onOrderCreated(OrderCreatedDomainEvent event) {
         log.info("📊 CQRS: Synchronizing OrderCreated for {}", event.getOrderId());
         
         try {

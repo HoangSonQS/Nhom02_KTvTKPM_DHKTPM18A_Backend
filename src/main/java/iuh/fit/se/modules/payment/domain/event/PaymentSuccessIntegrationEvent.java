@@ -1,4 +1,4 @@
-package iuh.fit.se.modules.payment.application.event;
+package iuh.fit.se.modules.payment.domain.event;
 
 import java.math.BigDecimal;
 

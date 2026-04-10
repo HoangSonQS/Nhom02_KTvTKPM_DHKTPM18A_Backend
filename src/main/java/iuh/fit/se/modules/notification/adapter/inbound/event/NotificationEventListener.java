@@ -2,8 +2,8 @@ package iuh.fit.se.modules.notification.adapter.inbound.event;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import iuh.fit.se.modules.notification.application.service.NotificationService;
-import iuh.fit.se.modules.order.application.event.OrderCreatedIntegrationEvent;
-import iuh.fit.se.modules.payment.application.event.PaymentSuccessIntegrationEvent;
+import iuh.fit.se.modules.order.domain.event.OrderCreatedIntegrationEvent;
+import iuh.fit.se.modules.payment.domain.event.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.shared.application.port.out.EmailPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

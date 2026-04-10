@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.payment.application.listener;
 
-import iuh.fit.se.modules.payment.application.event.PaymentSuccessIntegrationEvent;
+import iuh.fit.se.modules.payment.domain.event.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.modules.payment.application.port.out.PaymentEventPort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;

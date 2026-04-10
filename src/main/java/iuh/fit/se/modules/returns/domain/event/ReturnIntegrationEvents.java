@@ -1,4 +1,4 @@
-package iuh.fit.se.modules.returns.application.event;
+package iuh.fit.se.modules.returns.domain.event;
 
 import iuh.fit.se.modules.returns.domain.ItemCondition;
 import lombok.Builder;
