@@ -1,10 +1,10 @@
-package iuh.fit.se.modules.order.infrastructure.scheduler;
+package iuh.fit.se.modules.order.adapter.outbound.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.order.adapter.outbound.persistence.JpaOrderOutboxRepository;
-import iuh.fit.se.modules.order.application.event.OrderCreatedIntegrationEvent;
 import iuh.fit.se.modules.order.domain.OrderOutboxEvent;
 import iuh.fit.se.modules.order.domain.OrderOutboxStatus;
+import iuh.fit.se.modules.order.domain.event.OrderCreatedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,7 +27,8 @@ public class OrderOutboxPublisherJob {
     @Transactional
     public void publishEvents() {
         List<OrderOutboxEvent> pendingEvents = outboxRepository.findByStatus(OrderOutboxStatus.PENDING);
-        if (pendingEvents.isEmpty()) return;
+        if (pendingEvents.isEmpty())
+            return;
 
         log.info("Found {} pending order outbox events to publish", pendingEvents.size());
 

@@ -1,4 +1,4 @@
-package iuh.fit.se.modules.order.application.event;
+package iuh.fit.se.modules.order.domain.event;
 
 import java.math.BigDecimal;
 

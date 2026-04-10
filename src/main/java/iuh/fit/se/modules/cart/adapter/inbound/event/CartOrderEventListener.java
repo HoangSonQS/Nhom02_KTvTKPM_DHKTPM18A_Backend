@@ -1,7 +1,7 @@
 package iuh.fit.se.modules.cart.adapter.inbound.event;
 
 import iuh.fit.se.modules.cart.application.port.in.CartInternalUseCase;
-import iuh.fit.se.modules.order.domain.OrderCreatedEvent;
+import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -18,7 +18,7 @@ public class CartOrderEventListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleOrderCreated(OrderCreatedEvent event) {
+    public void handleOrderCreated(OrderCreatedDomainEvent event) {
         log.info("OrderCreatedEvent received for order {}. Clearing cart for user {}", 
                 event.getOrderId(), event.getUserId());
         try {

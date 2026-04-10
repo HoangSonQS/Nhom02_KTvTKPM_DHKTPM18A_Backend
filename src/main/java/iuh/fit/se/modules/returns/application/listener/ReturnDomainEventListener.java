@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.returns.application.listener;
 
-import iuh.fit.se.modules.returns.application.event.ReturnIntegrationEvents.*;
+import iuh.fit.se.modules.returns.domain.event.ReturnIntegrationEvents.*;
 import iuh.fit.se.modules.returns.application.port.out.ReturnEventPort;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.*;

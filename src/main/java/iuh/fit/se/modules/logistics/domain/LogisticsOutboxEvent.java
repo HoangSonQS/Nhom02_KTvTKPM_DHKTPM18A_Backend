@@ -14,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OutboxEvent {
+public class LogisticsOutboxEvent {
 
     @Id
     private UUID id;
@@ -28,7 +28,7 @@ public class OutboxEvent {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OutboxStatus status = OutboxStatus.PENDING;
+    private LogisticsOutboxStatus status = LogisticsOutboxStatus.PENDING;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -37,21 +37,21 @@ public class OutboxEvent {
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
-    public static OutboxEvent create(String eventType, String payload) {
-        return OutboxEvent.builder()
+    public static LogisticsOutboxEvent create(String eventType, String payload) {
+        return LogisticsOutboxEvent.builder()
                 .id(UUID.randomUUID())
                 .eventType(eventType)
                 .payload(payload)
-                .status(OutboxStatus.PENDING)
+                .status(LogisticsOutboxStatus.PENDING)
                 .build();
     }
 
     public void markPublished() {
-        this.status = OutboxStatus.PUBLISHED;
+        this.status = LogisticsOutboxStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
     }
 
     public void markFailed() {
-        this.status = OutboxStatus.FAILED;
+        this.status = LogisticsOutboxStatus.FAILED;
     }
 }

@@ -2,7 +2,7 @@ package iuh.fit.se.modules.order.adapter.inbound.event;
 
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
-import iuh.fit.se.modules.payment.application.event.PaymentSuccessIntegrationEvent;
+import iuh.fit.se.modules.payment.domain.event.PaymentSuccessIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

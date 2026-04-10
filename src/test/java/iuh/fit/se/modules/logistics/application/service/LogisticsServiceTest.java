@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.logistics.application.service;
 
-import iuh.fit.se.modules.logistics.application.port.out.OutboxPersistencePort;
+import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
 import iuh.fit.se.modules.logistics.domain.PurchaseOrder;
@@ -33,7 +33,7 @@ class LogisticsServiceTest {
     @Mock
     private PurchaseOrderPersistencePort poPort;
     @Mock
-    private OutboxPersistencePort outboxPort;
+    private LogisticsOutboxPersistencePort outboxPort;
     @Mock
     private ObjectMapper objectMapper;
 

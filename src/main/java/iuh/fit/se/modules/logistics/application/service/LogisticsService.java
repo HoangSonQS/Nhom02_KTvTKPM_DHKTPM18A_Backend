@@ -3,7 +3,7 @@ package iuh.fit.se.modules.logistics.application.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.logistics.application.port.in.LogisticsUseCase;
-import iuh.fit.se.modules.logistics.application.port.out.OutboxPersistencePort;
+import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
 import iuh.fit.se.modules.logistics.domain.*;
@@ -26,7 +26,7 @@ public class LogisticsService implements LogisticsUseCase {
 
     private final SupplierPersistencePort supplierPort;
     private final PurchaseOrderPersistencePort poPort;
-    private final OutboxPersistencePort outboxPort;
+    private final LogisticsOutboxPersistencePort outboxPort;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -188,7 +188,7 @@ public class LogisticsService implements LogisticsUseCase {
 
         try {
             String payload = objectMapper.writeValueAsString(event);
-            OutboxEvent outbox = OutboxEvent.create("StockAdjustmentConfirmedEvent", payload);
+            LogisticsOutboxEvent outbox = LogisticsOutboxEvent.create("StockAdjustmentConfirmedEvent", payload);
             outbox.setId(eventId); // Sync eventId with outbox id for idempotency tracking
             outboxPort.save(outbox);
         } catch (JsonProcessingException e) {
