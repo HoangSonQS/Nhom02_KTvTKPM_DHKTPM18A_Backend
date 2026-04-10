@@ -483,8 +483,9 @@ InventoryLogisticsListener
 | Phase 5.5 | Security hardening: Redis session, Per-device auth, RBAC 2.0 (48 permissions), API versioning `/api/v1/` | Done |
 | Phase 6 | Logistics module: Supplier, Purchase Order (full state machine), Stock Adjustment, Audit Trail, Price Snapshot, Outbox integration | **Current** |
 | Phase 7 | Reverse Logistics & Customer Service (Returns) | Planned |
-| Phase 8 | Search engine upgrade, Partial PO receipt | Planned |
-| Phase 9 | RS256 JWT, Distributed Lock, Distributed Tracing | Planned |
+| Phase 8 | Advanced Intelligence: Semantic Search (pgvector), OCR Vision, Chatbot integration | Done |
+| Phase 8.5 | Architecture Refactoring: Hexagonal Events, Strict DDD boundaries, Transactional Outbox synchronization | Done |
+a| Phase 9 | System Hardening & Optimization | Planned |
 
 ---
 
