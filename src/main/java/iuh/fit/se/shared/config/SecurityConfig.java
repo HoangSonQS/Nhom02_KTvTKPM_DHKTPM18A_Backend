@@ -1,8 +1,6 @@
 package iuh.fit.se.shared.config;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,6 +11,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import iuh.fit.se.shared.security.CustomAccessDeniedHandler;
+import iuh.fit.se.shared.security.JwtAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -28,11 +28,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
-        private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
-
-        @Autowired
-        @Qualifier("handlerExceptionResolver")
-        private org.springframework.web.servlet.HandlerExceptionResolver resolver;
+        private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+        private final CustomAccessDeniedHandler accessDeniedHandler;
 
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -42,30 +39,12 @@ public class SecurityConfig {
                 requestHandler.setCsrfRequestAttributeName("_csrf");
 
                 http
-                                .csrf(csrf -> csrf
-                                                .ignoringRequestMatchers(
-                                                                "/api/v1/auth/login",
-                                                                "/api/v1/auth/register",
-                                                                "/api/v1/auth/forgot-password",
-                                                                "/api/v1/auth/reset-password",
-                                                                "/api/v1/auth/refresh")
-                                                .csrfTokenRepository(
-                                                                org.springframework.security.web.csrf.CookieCsrfTokenRepository
-                                                                                .withHttpOnlyFalse())
-                                                .csrfTokenRequestHandler(requestHandler))
+                                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .exceptionHandling(exceptions -> exceptions
-                                                // Đẩy lỗi 401 về GlobalExceptionHandler xử lý
-                                                .authenticationEntryPoint((request, response, authException) -> resolver
-                                                                .resolveException(request, response, null,
-                                                                                authException))
-                                                // Đẩy lỗi 403 về GlobalExceptionHandler xử lý
-                                                .accessDeniedHandler(
-                                                                (request, response, accessDeniedException) -> resolver
-                                                                                .resolveException(request, response,
-                                                                                                null,
-                                                                                                accessDeniedException)))
+                                                .authenticationEntryPoint(authenticationEntryPoint)
+                                                .accessDeniedHandler(accessDeniedHandler))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(
                                                                 "/api/v1/auth/login",
