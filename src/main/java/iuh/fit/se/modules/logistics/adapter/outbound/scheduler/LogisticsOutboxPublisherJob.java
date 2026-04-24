@@ -3,7 +3,7 @@ package iuh.fit.se.modules.logistics.adapter.outbound.scheduler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
 import iuh.fit.se.modules.logistics.domain.LogisticsOutboxEvent;
-import iuh.fit.se.modules.logistics.domain.event.StockAdjustmentConfirmedEvent;
+import iuh.fit.se.shared.event.logistics.StockAdjustmentIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,19 +30,19 @@ public class LogisticsOutboxPublisherJob {
 
         for (LogisticsOutboxEvent event : pendingEvents) {
             try {
-                if ("StockAdjustmentConfirmedEvent".equals(event.getEventType())) {
-                    StockAdjustmentConfirmedEvent domainEvent = objectMapper.readValue(
-                            event.getPayload(), 
-                            StockAdjustmentConfirmedEvent.class
+                if ("StockAdjustmentIntegrationEvent".equals(event.getEventType())) {
+                    StockAdjustmentIntegrationEvent integrationEvent = objectMapper.readValue(
+                            event.getPayload(),
+                            StockAdjustmentIntegrationEvent.class
                     );
-                    
-                    // Publish to Spring context
-                    eventPublisher.publishEvent(domainEvent);
-                    
-                    // Mark as published
+                    eventPublisher.publishEvent(integrationEvent);
                     event.markPublished();
                     outboxPort.save(event);
-                    log.info("Published event: {} - {}", event.getId(), event.getEventType());
+                    log.info("Published integration event: {} - {}", event.getId(), event.getEventType());
+                } else {
+                    log.warn("Unknown event type for outbox event {}: {}", event.getId(), event.getEventType());
+                    event.markFailed();
+                    outboxPort.save(event);
                 }
             } catch (Exception e) {
                 log.error("Failed to publish outbox event: {}", event.getId(), e);

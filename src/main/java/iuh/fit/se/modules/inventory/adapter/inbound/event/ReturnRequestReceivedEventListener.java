@@ -1,8 +1,9 @@
 package iuh.fit.se.modules.inventory.adapter.inbound.event;
 
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
-import iuh.fit.se.modules.returns.domain.ItemCondition;
-import iuh.fit.se.modules.returns.domain.ReturnRequestReceivedEvent;
+import iuh.fit.se.shared.event.returns.ItemCondition;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnRequestReceivedIntegrationEvent;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnedItemCondition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -18,28 +19,28 @@ public class ReturnRequestReceivedEventListener {
 
     @EventListener
     @Transactional
-    public void onReturnRequestReceived(ReturnRequestReceivedEvent event) {
-        log.info("Received ReturnRequestReceivedEvent for returnId: {}", event.getReturnRequestId());
+    public void onReturnRequestReceived(ReturnRequestReceivedIntegrationEvent event) {
+        log.info("Received ReturnRequestReceivedEvent for returnId: {}", event.returnRequestId());
 
         // 1. Idempotency check: eventId could be returnRequestId or eventId
         // In the outbox pattern, it's safer to use the unique eventId
-        if (inventoryPort.existsProcessedEvent(event.getEventId())) {
-            log.warn("Return event {} already processed by inventory, skipping.", event.getEventId());
+        if (inventoryPort.existsProcessedEvent(java.util.UUID.fromString(event.id()))) {
+            log.warn("Return event {} already processed by inventory, skipping.", event.id());
             return;
         }
 
         // 2. Process each item
-        for (ReturnRequestReceivedEvent.ReturnedItemCondition item : event.getItems()) {
-            if (item.getCondition() == ItemCondition.GOOD) {
-                log.info("Restocking GOOD item: bookId={}, quantity={}", item.getBookId(), item.getQuantity());
-                inventoryPort.updateStockAtomic(item.getBookId(), item.getQuantity());
+        for (ReturnedItemCondition item : event.items()) {
+            if (item.condition() == ItemCondition.GOOD) {
+                log.info("Restocking GOOD item: bookId={}, quantity={}", item.bookId(), item.quantity());
+                inventoryPort.updateStockAtomic(item.bookId(), item.quantity());
             } else {
-                log.warn("Item condition is DEFECTIVE for bookId={}, skipping restock.", item.getBookId());
+                log.warn("Item condition is DEFECTIVE for bookId={}, skipping restock.", item.bookId());
             }
         }
 
         // 3. Mark as processed
-        inventoryPort.saveProcessedEvent(event.getEventId());
-        log.info("Successfully processed items for returnId: {}", event.getReturnRequestId());
+        inventoryPort.saveProcessedEvent(java.util.UUID.fromString(event.id()));
+        log.info("Successfully processed items for returnId: {}", event.returnRequestId());
     }
 }

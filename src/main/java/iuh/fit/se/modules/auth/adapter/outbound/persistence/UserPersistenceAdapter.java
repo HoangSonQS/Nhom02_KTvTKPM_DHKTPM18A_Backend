@@ -54,12 +54,15 @@ public class UserPersistenceAdapter implements UserPersistencePort {
     }
 
     private UserJpaEntity toJpaEntity(User user) {
-        return UserJpaEntity.builder()
+        UserJpaEntity entity = UserJpaEntity.builder()
                 .email(user.getEmail())
                 .password(user.getPassword())
                 .fullName(user.getFullName())
                 .role(user.getRole())
                 .enabled(user.isEnabled())
                 .build();
+
+        entity.setId(user.getId());
+        return entity;
     }
 }

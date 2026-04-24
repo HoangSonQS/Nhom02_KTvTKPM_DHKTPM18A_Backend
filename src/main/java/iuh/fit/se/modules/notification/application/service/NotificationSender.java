@@ -2,7 +2,7 @@ package iuh.fit.se.modules.notification.application.service;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
-import iuh.fit.se.modules.notification.adapter.outbound.persistence.NotificationLogRepository;
+import iuh.fit.se.modules.notification.application.port.out.NotificationLogPersistencePort;
 import iuh.fit.se.modules.notification.domain.NotificationLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class NotificationSender {
 
-    private final NotificationLogRepository logRepository;
+    private final NotificationLogPersistencePort persistencePort;
     private final MeterRegistry meterRegistry;
 
     /**
@@ -40,11 +40,11 @@ public class NotificationSender {
         try {
             task.run();
             logRecord.markSuccess();
-            logRepository.save(logRecord);
+            persistencePort.save(logRecord);
             meterRegistry.counter("notification.send.success", "type", logRecord.getEventId()).increment();
         } catch (Exception e) {
             logRecord.incrementAttempt(e.getMessage());
-            logRepository.save(logRecord);
+            persistencePort.save(logRecord);
             throw e; // Để @Retryable nhận biết
         }
     }
@@ -58,7 +58,7 @@ public class NotificationSender {
                 logRecord.getEventId(), e.getMessage());
         
         logRecord.markPermanentFailure("Retry exhausted: " + e.getMessage());
-        logRepository.save(logRecord);
+        persistencePort.save(logRecord);
         
         meterRegistry.counter("notification.send.failed_permanent", "reason", "RETRY_EXHAUSTED").increment();
     }
@@ -70,7 +70,7 @@ public class NotificationSender {
         log.warn("[Resilience] Circuit Breaker OPEN for event {}. Failing immediately.", logRecord.getEventId());
         
         logRecord.markPermanentFailure("Circuit Breaker Open: " + t.getMessage());
-        logRepository.save(logRecord);
+        persistencePort.save(logRecord);
         
         meterRegistry.counter("notification.send.failed_permanent", "reason", "CIRCUIT_OPEN").increment();
     }

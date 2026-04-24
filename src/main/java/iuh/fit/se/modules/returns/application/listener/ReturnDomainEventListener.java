@@ -1,7 +1,9 @@
 package iuh.fit.se.modules.returns.application.listener;
 
-import iuh.fit.se.modules.returns.domain.event.ReturnIntegrationEvents.*;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.*;
 import iuh.fit.se.modules.returns.application.port.out.ReturnEventPort;
+import iuh.fit.se.modules.returns.domain.ReturnItem;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.*;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +56,7 @@ public class ReturnDomainEventListener {
                 request.getId(),
                 request.getOrderId(),
                 request.getItems().stream()
-                        .map(item -> ReturnedItemCondition.builder()
+                        .map((ReturnItem item) -> ReturnIntegrationEvents.ReturnedItemCondition.builder()
                                 .bookId(item.getBookId())
                                 .quantity(item.getQuantity())
                                 .condition(item.getCondition())

@@ -39,10 +39,10 @@ public class JwtTokenProvider {
     @Value("${jwt.active-kid:}")
     private String activeKid;
 
-    @Value("${jwt.access-token-expiration}")
+    @Value("${jwt.access-token-expiration:3600000}")
     private long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token-expiration}")
+    @Value("${jwt.refresh-token-expiration:2592000000}")
     private long refreshTokenExpiration;
 
     private PrivateKey privateKey;

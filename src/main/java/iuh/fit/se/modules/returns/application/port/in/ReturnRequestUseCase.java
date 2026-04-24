@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.returns.application.port.in;
 
-import iuh.fit.se.modules.returns.domain.ItemCondition;
+import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.modules.returns.domain.ReturnReason;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import lombok.Builder;

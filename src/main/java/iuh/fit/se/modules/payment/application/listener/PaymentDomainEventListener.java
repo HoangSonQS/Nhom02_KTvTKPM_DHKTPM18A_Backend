@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.payment.application.listener;
 
-import iuh.fit.se.modules.payment.domain.event.PaymentSuccessIntegrationEvent;
+import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.modules.payment.application.port.out.PaymentEventPort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;
@@ -23,13 +23,12 @@ public class PaymentDomainEventListener {
         
         Payment payment = domainEvent.getPayment();
         
-        PaymentSuccessIntegrationEvent integrationEvent = new PaymentSuccessIntegrationEvent(
-                java.util.UUID.randomUUID().toString(),
-                "PAY-" + payment.getOrderId(),
+        PaymentSuccessIntegrationEvent integrationEvent = PaymentSuccessIntegrationEvent.of(
                 payment.getOrderId(),
                 payment.getTransactionId(),
                 payment.getAmount(),
-                payment.getPaymentMethod()
+                payment.getPaymentMethod(),
+                "PAY-" + payment.getOrderId()
         );
 
         paymentEventPort.publishPaymentSuccess(integrationEvent);

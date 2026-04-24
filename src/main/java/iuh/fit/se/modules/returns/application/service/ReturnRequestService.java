@@ -4,6 +4,7 @@ import iuh.fit.se.modules.returns.application.port.in.ReturnRequestUseCase;
 import iuh.fit.se.modules.returns.application.port.out.OrderQueryPort;
 import iuh.fit.se.modules.returns.application.port.out.ReturnRequestRepository;
 import iuh.fit.se.modules.returns.domain.*;
+import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.*;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;

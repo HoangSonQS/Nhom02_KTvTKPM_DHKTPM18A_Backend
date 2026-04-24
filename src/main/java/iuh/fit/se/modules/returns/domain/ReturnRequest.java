@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.returns.domain;
 
+import iuh.fit.se.shared.event.returns.ItemCondition;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

@@ -1,8 +1,8 @@
 package iuh.fit.se.modules.notification.application.service;
 
-import iuh.fit.se.modules.notification.adapter.outbound.persistence.NotificationLogRepository;
 import iuh.fit.se.modules.notification.application.port.in.NotificationAdminPort;
 import iuh.fit.se.modules.notification.application.port.in.NotificationLogResponse;
+import iuh.fit.se.modules.notification.application.port.out.NotificationLogPersistencePort;
 import iuh.fit.se.modules.notification.domain.NotificationLog;
 import iuh.fit.se.modules.notification.domain.NotificationStatus;
 import iuh.fit.se.shared.exception.AppException;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class NotificationService implements NotificationAdminPort {
 
-    private final NotificationLogRepository logRepository;
+    private final NotificationLogPersistencePort persistencePort;
     private final RedisRateLimiter rateLimiter;
     private final NotificationSender notificationSender;
 
@@ -34,7 +34,7 @@ public class NotificationService implements NotificationAdminPort {
     @Override
     @Transactional(readOnly = true)
     public List<NotificationLogResponse> getFailedNotifications() {
-        return logRepository.findAll().stream()
+        return persistencePort.findAll().stream()
                 .filter(l -> l.getStatus() == NotificationStatus.FAILED_PERMANENT)
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -43,14 +43,14 @@ public class NotificationService implements NotificationAdminPort {
     @Override
     @Transactional
     public void retryNotification(Long logId) {
-        NotificationLog nLog = logRepository.findById(logId)
+        NotificationLog nLog = persistencePort.findById(logId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "Không tìm thấy log thông báo"));
 
         log.info("Admin triggered manual retry for Notification Log ID: {}, Event: {}", logId, nLog.getEventId());
         
         // Fix (Audit Design): Reset trạng thái INIT thay vì xóa log để giữ audit history
         nLog.resetToInit();
-        logRepository.save(nLog);
+        persistencePort.save(nLog);
     }
 
     // --- Internal Business Logic ---
@@ -60,7 +60,7 @@ public class NotificationService implements NotificationAdminPort {
         // 1. Idempotency check (DB-level)
         NotificationLog notificationLog;
         try {
-            notificationLog = logRepository.saveAndFlush(NotificationLog.builder()
+            notificationLog = persistencePort.save(NotificationLog.builder()
                     .eventId(eventId)
                     .orderId(orderId)
                     .status(NotificationStatus.INIT)
@@ -75,7 +75,7 @@ public class NotificationService implements NotificationAdminPort {
         // 2. Rate limiting check (Redis)
         if (!rateLimiter.allowRequest(orderId, type)) {
             notificationLog.markPermanentFailure("Rate limit triggered (Principal Standard)");
-            logRepository.save(notificationLog);
+            persistencePort.save(notificationLog);
             return;
         }
 

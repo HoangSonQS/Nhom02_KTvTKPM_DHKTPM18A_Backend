@@ -7,7 +7,7 @@ import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersiste
 import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
 import iuh.fit.se.modules.logistics.domain.*;
-import iuh.fit.se.modules.logistics.domain.event.StockAdjustmentConfirmedEvent;
+import iuh.fit.se.shared.event.logistics.StockAdjustmentIntegrationEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -178,17 +178,16 @@ public class LogisticsService implements LogisticsUseCase {
 
     private void createStockAdjustmentOutbox(Long bookId, Integer qty, String reason, String fromUser) {
         UUID eventId = UUID.randomUUID();
-        StockAdjustmentConfirmedEvent event = StockAdjustmentConfirmedEvent.builder()
+        StockAdjustmentIntegrationEvent event = StockAdjustmentIntegrationEvent.builder()
                 .eventId(eventId)
                 .bookId(bookId)
                 .adjustmentQuantity(qty)
                 .reason(reason)
-                .confirmedBy(fromUser)
                 .build();
 
         try {
             String payload = objectMapper.writeValueAsString(event);
-            LogisticsOutboxEvent outbox = LogisticsOutboxEvent.create("StockAdjustmentConfirmedEvent", payload);
+            LogisticsOutboxEvent outbox = LogisticsOutboxEvent.create("StockAdjustmentIntegrationEvent", payload);
             outbox.setId(eventId); // Sync eventId with outbox id for idempotency tracking
             outboxPort.save(outbox);
         } catch (JsonProcessingException e) {

@@ -2,7 +2,7 @@ package iuh.fit.se.modules.order.adapter.outbound.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.order.adapter.outbound.persistence.JpaOrderOutboxRepository;
-import iuh.fit.se.modules.order.domain.event.OrderCreatedIntegrationEvent;
+import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
 import iuh.fit.se.modules.order.application.port.out.OrderEventPort;
 import iuh.fit.se.modules.order.domain.OrderOutboxEvent;
 import lombok.RequiredArgsConstructor;
