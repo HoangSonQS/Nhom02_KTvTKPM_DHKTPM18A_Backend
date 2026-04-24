@@ -1,10 +1,9 @@
-package iuh.fit.se.modules.returns.domain.event;
+package iuh.fit.se.shared.event.returns;
 
-import iuh.fit.se.modules.returns.domain.ItemCondition;
 import lombok.Builder;
-
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public class ReturnIntegrationEvents {
 
@@ -29,7 +28,17 @@ public class ReturnIntegrationEvents {
             String returnRequestId,
             Long orderId,
             List<ReturnedItemCondition> items
-    ) {}
+    ) {
+        public static ReturnRequestReceivedIntegrationEvent of(String returnRequestId, Long orderId, List<ReturnedItemCondition> items, String correlationId) {
+            return new ReturnRequestReceivedIntegrationEvent(
+                    UUID.randomUUID().toString(),
+                    correlationId,
+                    returnRequestId,
+                    orderId,
+                    items
+            );
+        }
+    }
 
     @Builder
     public record ReturnedItemCondition(

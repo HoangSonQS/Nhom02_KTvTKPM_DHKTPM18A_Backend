@@ -2,7 +2,7 @@ package iuh.fit.se.modules.returns.adapter.outbound.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.returns.adapter.outbound.persistence.JpaReturnOutboxRepository;
-import iuh.fit.se.modules.returns.domain.event.ReturnIntegrationEvents.*;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.*;
 import iuh.fit.se.modules.returns.application.port.out.ReturnEventPort;
 import iuh.fit.se.modules.returns.domain.ReturnOutboxEvent;
 import lombok.RequiredArgsConstructor;

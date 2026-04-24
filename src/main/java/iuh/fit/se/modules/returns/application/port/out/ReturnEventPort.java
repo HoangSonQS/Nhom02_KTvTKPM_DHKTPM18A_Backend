@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.returns.application.port.out;
 
-import iuh.fit.se.modules.returns.domain.event.ReturnIntegrationEvents.*;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.*;
 
 public interface ReturnEventPort {
     void publishReturnCreated(ReturnRequestCreatedIntegrationEvent event);

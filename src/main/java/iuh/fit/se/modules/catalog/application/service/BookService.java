@@ -71,8 +71,8 @@ public class BookService implements BookUseCase {
     @Override
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
-        @CacheEvict(value = "books", allEntries = true)
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+            @CacheEvict(value = "books", allEntries = true)
     })
     public BookDTO updateBook(Long id, UpdateBookCommand command) {
         Book book = bookPersistencePort.findById(id)
@@ -112,8 +112,8 @@ public class BookService implements BookUseCase {
     @Override
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
-        @CacheEvict(value = "books", allEntries = true)
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+            @CacheEvict(value = "books", allEntries = true)
     })
     public void deleteBook(Long id) {
         Book book = bookPersistencePort.findById(id)
@@ -152,8 +152,8 @@ public class BookService implements BookUseCase {
     @Override
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
-        @CacheEvict(value = "books", allEntries = true)
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+            @CacheEvict(value = "books", allEntries = true)
     })
     public void updateStock(Long id, int amount, boolean isIncrease) {
         Book book = bookPersistencePort.findById(id)

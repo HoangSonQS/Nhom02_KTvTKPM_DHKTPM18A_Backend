@@ -3,6 +3,7 @@ package iuh.fit.se.modules.auth.adapter.inbound.web;
 import iuh.fit.se.modules.auth.application.port.in.AuthUseCase;
 import iuh.fit.se.modules.auth.application.port.in.PasswordResetUseCase;
 import iuh.fit.se.shared.api.ApiResponse;
+import iuh.fit.se.shared.config.UserPrincipal;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -75,10 +76,11 @@ public class AuthController {
 
         @PostMapping("/logout")
         public ResponseEntity<ApiResponse<Void>> logout(
-                        @AuthenticationPrincipal(expression = "claims['userId']") Long userId,
+                        @AuthenticationPrincipal UserPrincipal principal,
                         @RequestHeader(value = "X-Device-ID", required = false) String deviceId,
                         HttpServletResponse response) {
 
+                Long userId = principal != null ? ((Number) principal.claims().get("userId")).longValue() : null;
                 authUseCase.logout(userId, deviceId);
                 clearRefreshTokenCookie(response);
 

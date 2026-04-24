@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.returns.adapter.inbound.web;
 
-import iuh.fit.se.modules.returns.domain.ItemCondition;
+import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.modules.returns.domain.ReturnStatus;
 import lombok.Builder;
 import lombok.Data;

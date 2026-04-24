@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.order.adapter.outbound.persistence.JpaOrderOutboxRepository;
 import iuh.fit.se.modules.order.domain.OrderOutboxEvent;
 import iuh.fit.se.modules.order.domain.OrderOutboxStatus;
-import iuh.fit.se.modules.order.domain.event.OrderCreatedIntegrationEvent;
+import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

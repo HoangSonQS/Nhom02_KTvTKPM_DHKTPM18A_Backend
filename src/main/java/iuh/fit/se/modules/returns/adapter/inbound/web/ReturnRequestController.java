@@ -1,7 +1,8 @@
 package iuh.fit.se.modules.returns.adapter.inbound.web;
 
 import iuh.fit.se.modules.returns.application.port.in.ReturnRequestUseCase;
-import iuh.fit.se.modules.returns.domain.ItemCondition;
+import iuh.fit.se.shared.event.returns.ItemCondition;
+import iuh.fit.se.modules.returns.domain.ReturnItem;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import iuh.fit.se.shared.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -100,7 +101,7 @@ public class ReturnRequestController {
                 .notes(request.getNotes())
                 .createdAt(request.getCreatedAt())
                 .items(request.getItems().stream()
-                        .map(item -> ReturnRequestResponseDTO.ReturnItemResponseDTO.builder()
+                        .map((ReturnItem item) -> ReturnRequestResponseDTO.ReturnItemResponseDTO.builder()
                                 .id(item.getId())
                                 .bookId(item.getBookId())
                                 .quantity(item.getQuantity())

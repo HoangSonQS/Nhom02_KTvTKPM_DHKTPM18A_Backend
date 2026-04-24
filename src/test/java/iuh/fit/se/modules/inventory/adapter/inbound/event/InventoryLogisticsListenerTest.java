@@ -1,7 +1,7 @@
 package iuh.fit.se.modules.inventory.adapter.inbound.event;
 
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
-import iuh.fit.se.modules.logistics.domain.event.StockAdjustmentConfirmedEvent;
+import iuh.fit.se.shared.event.logistics.StockAdjustmentIntegrationEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +26,7 @@ class InventoryLogisticsListenerTest {
     @DisplayName("Xử lý event thành công nếu chưa được xử lý trước đó")
     void handleNewEventTest() {
         UUID eventId = UUID.randomUUID();
-        StockAdjustmentConfirmedEvent event = StockAdjustmentConfirmedEvent.builder()
+        StockAdjustmentIntegrationEvent event = StockAdjustmentIntegrationEvent.builder()
                 .eventId(eventId)
                 .bookId(1L)
                 .adjustmentQuantity(10)
@@ -44,7 +44,7 @@ class InventoryLogisticsListenerTest {
     @DisplayName("Bỏ qua event nếu đã xử lý rồi (Idempotency)")
     void skipDuplicateEventTest() {
         UUID eventId = UUID.randomUUID();
-        StockAdjustmentConfirmedEvent event = StockAdjustmentConfirmedEvent.builder()
+        StockAdjustmentIntegrationEvent event = StockAdjustmentIntegrationEvent.builder()
                 .eventId(eventId)
                 .bookId(1L)
                 .adjustmentQuantity(10)

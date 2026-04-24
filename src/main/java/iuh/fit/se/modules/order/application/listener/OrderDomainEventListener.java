@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.order.application.listener;
 
-import iuh.fit.se.modules.order.domain.event.OrderCreatedIntegrationEvent;
+import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
 import iuh.fit.se.modules.order.application.port.out.OrderEventPort;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import lombok.RequiredArgsConstructor;
@@ -20,15 +20,14 @@ public class OrderDomainEventListener {
     public void handleOrderCreated(OrderCreatedDomainEvent domainEvent) {
         log.info("Handling OrderCreatedDomainEvent for order: {}", domainEvent.getOrderId());
 
-        OrderCreatedIntegrationEvent integrationEvent = new OrderCreatedIntegrationEvent(
-                java.util.UUID.randomUUID().toString(),
-                domainEvent.getCorrelationId(),
+        OrderCreatedIntegrationEvent integrationEvent = OrderCreatedIntegrationEvent.of(
                 domainEvent.getOrderId(),
                 domainEvent.getUserId(),
                 domainEvent.getCustomerName(),
                 domainEvent.getCustomerEmail(),
                 domainEvent.getTotalAmount(),
-                domainEvent.getItemsSummary());
+                domainEvent.getItemsSummary(),
+                domainEvent.getCorrelationId());
 
         // Publish to Outbox via Port
         orderEventPort.publishOrderCreated(integrationEvent);

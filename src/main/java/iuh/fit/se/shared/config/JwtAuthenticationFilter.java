@@ -29,8 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
         if (StringUtils.hasText(token) && jwtTokenProvider.isTokenValid(token)) {
             try {
@@ -50,7 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
                 }
 
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(subject, userId, authorities);
+                UserPrincipal principal = new UserPrincipal(subject, claims);
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(principal, userId,
+                        authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ex) {
                 log.debug("Could not set authentication from token: {}", ex.getMessage());

@@ -1,7 +1,7 @@
 package iuh.fit.se.modules.inventory.adapter.inbound.event;
 
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
-import iuh.fit.se.modules.logistics.domain.event.StockAdjustmentConfirmedEvent;
+import iuh.fit.se.shared.event.logistics.StockAdjustmentIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -17,8 +17,8 @@ public class InventoryLogisticsListener {
 
     @EventListener
     @Transactional
-    public void handleStockAdjustment(StockAdjustmentConfirmedEvent event) {
-        log.info("Received StockAdjustmentConfirmedEvent: {}", event.getEventId());
+    public void handleStockAdjustment(StockAdjustmentIntegrationEvent event) {
+        log.info("Received StockAdjustmentIntegrationEvent: {}", event.getEventId());
 
         // 1. Kiểm tra Idempotency (Đã xử lý chưa?)
         if (inventoryPort.existsProcessedEvent(event.getEventId())) {

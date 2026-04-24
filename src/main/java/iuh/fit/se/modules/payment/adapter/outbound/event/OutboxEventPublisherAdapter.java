@@ -2,7 +2,7 @@ package iuh.fit.se.modules.payment.adapter.outbound.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.payment.adapter.outbound.persistence.JpaPaymentOutboxRepository;
-import iuh.fit.se.modules.payment.domain.event.PaymentSuccessIntegrationEvent;
+import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.modules.payment.application.port.out.PaymentEventPort;
 import iuh.fit.se.modules.payment.domain.PaymentOutboxEvent;
 import lombok.RequiredArgsConstructor;
