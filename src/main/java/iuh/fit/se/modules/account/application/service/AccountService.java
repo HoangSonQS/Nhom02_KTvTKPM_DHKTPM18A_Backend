@@ -73,6 +73,31 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
 
     @Override
     @Transactional
+    public Account updateAddress(Long userId, Long addressId, AddressCommand command) {
+        Account account = getProfile(userId);
+
+        Address updatedData = Address.builder()
+                .street(command.street())
+                .ward(command.ward())
+                .district(command.district())
+                .city(command.city())
+                .isDefault(command.isDefault())
+                .build();
+
+        account.updateAddress(addressId, updatedData);
+        return accountPersistencePort.save(account);
+    }
+
+    @Override
+    @Transactional
+    public Account deleteAddress(Long userId, Long addressId) {
+        Account account = getProfile(userId);
+        account.removeAddress(addressId);
+        return accountPersistencePort.save(account);
+    }
+
+    @Override
+    @Transactional
     public void createDefaultProfile(Long userId) {
         // Tránh tạo trùng lặp
         if (accountPersistencePort.findByUserId(userId).isPresent()) {

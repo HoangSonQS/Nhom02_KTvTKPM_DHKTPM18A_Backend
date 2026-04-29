@@ -27,9 +27,12 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
     private final SemanticDocumentFactory documentFactory;
     private final AiProcessedEventRepository idempotencyRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private EmbeddingSyncUseCase self;
+
     @Override
     @Async
-    @Transactional
     public void syncBook(Long bookId, UUID eventId) {
         log.info("Starting strict sync flow for bookId: {}, eventId: {}", bookId, eventId);
 
@@ -89,13 +92,15 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
             log.info("Successfully synced bookId: {} and finalized event: {}", bookId, eventId);
 
         } catch (Exception e) {
-            log.error("Sync failed for bookId: {}, eventId: {}", bookId, eventId, e);
+            log.error("AI Sync failed for bookId: {}, eventId: {}", bookId, eventId, e);
+            if (e.getMessage() != null && (e.getMessage().toLowerCase().contains("api key") || e.getMessage().toLowerCase().contains("unauthorized"))) {
+                log.error("Possible INVALID API KEY. Please check GEMINI_API_KEY in .env.");
+            }
         }
     }
 
     @Override
     @Async
-    @Transactional
     public void syncDeletion(Long bookId) {
         log.info("Syncing deletion for bookId: {}", bookId);
         try {
@@ -112,7 +117,7 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
         List<BookDTO> books = bookUseCase.searchBooks(null, null);
         if (books != null) {
             for (BookDTO book : books) {
-                syncBook(book.id(), UUID.randomUUID());
+                self.syncBook(book.id(), UUID.randomUUID());
             }
         }
     }

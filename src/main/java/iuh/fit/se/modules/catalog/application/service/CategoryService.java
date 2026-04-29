@@ -24,7 +24,7 @@ public class CategoryService implements CategoryUseCase {
     @Transactional
     public Category createCategory(String name) {
         if (categoryPersistencePort.existsByName(name)) {
-            throw new AppException(ErrorCode.INTERNAL_ERROR, "Tên danh mục đã tồn tại");
+            throw new AppException(ErrorCode.CAT_CATEGORY_ALREADY_EXISTS);
         }
         Category category = Category.builder()
                 .name(name)
@@ -38,6 +38,11 @@ public class CategoryService implements CategoryUseCase {
     public Category updateCategory(Long id, String newName) {
         Category category = categoryPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục"));
+        
+        if (!category.getName().equals(newName) && categoryPersistencePort.existsByName(newName)) {
+            throw new AppException(ErrorCode.CAT_CATEGORY_ALREADY_EXISTS);
+        }
+
         category.rename(newName);
         return categoryPersistencePort.save(category);
     }

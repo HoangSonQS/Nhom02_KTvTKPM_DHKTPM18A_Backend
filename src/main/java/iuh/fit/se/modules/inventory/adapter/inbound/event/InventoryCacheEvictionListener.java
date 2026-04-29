@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.inventory.adapter.inbound.event;
 
 import iuh.fit.se.modules.inventory.domain.InventoryStockDecreasedEvent;
+import iuh.fit.se.modules.inventory.domain.InventoryStockIncreasedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -21,6 +22,13 @@ public class InventoryCacheEvictionListener {
     @CacheEvict(value = "inventory_stock_cache", key = "#event.bookId")
     public void onStockDecreased(InventoryStockDecreasedEvent event) {
         log.info("🔥 Evicted cache inventory_stock_cache for book {}. ID: {}. Remaining: {}", 
+                event.getBookId(), event.getEventId(), event.getRemainingQuantity());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @CacheEvict(value = "inventory_stock_cache", key = "#event.bookId")
+    public void onStockIncreased(InventoryStockIncreasedEvent event) {
+        log.info("🔥 Evicted cache inventory_stock_cache (INCREASE) for book {}. ID: {}. New Total: {}", 
                 event.getBookId(), event.getEventId(), event.getRemainingQuantity());
     }
 }

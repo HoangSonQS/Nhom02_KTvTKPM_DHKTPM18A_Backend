@@ -10,6 +10,7 @@ import iuh.fit.se.modules.inventory.domain.StockHistory;
 import iuh.fit.se.modules.inventory.domain.StockHistoryStatus;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.modules.inventory.domain.InventoryStockIncreasedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -195,7 +196,9 @@ public class InventoryService implements InventoryInternalUseCase {
             persistencePort.saveHistory(updatedHistory);
 
             // 5. EVENT PUBLISH (AFTER_COMMIT handles by TransactionalEventListener)
-            if (!isIncrease) {
+            if (isIncrease) {
+                eventPublisher.publishEvent(InventoryStockIncreasedEvent.create(bookId, amount, stock.getQuantity()));
+            } else {
                 eventPublisher.publishEvent(InventoryStockDecreasedEvent.create(bookId, amount, stock.getQuantity()));
             }
 

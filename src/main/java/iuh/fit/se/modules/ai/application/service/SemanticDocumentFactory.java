@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SemanticDocumentFactory {
 
-    private static final String VERSION = "1";
+    private static final String VERSION = "2";
 
     public String createWeightedText(BookDTO book) {
         StringBuilder sb = new StringBuilder();

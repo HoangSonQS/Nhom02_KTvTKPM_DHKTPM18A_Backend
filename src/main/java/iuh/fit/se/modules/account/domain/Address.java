@@ -12,6 +12,7 @@ import lombok.Setter;
  * Không được quản lý độc lập bằng repository riêng.
  */
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)

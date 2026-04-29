@@ -8,12 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 
@@ -27,7 +29,6 @@ public class CategoryController {
 
     private final CategoryUseCase categoryUseCase;
 
-    @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<Category>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(categoryUseCase.getAllCategories()));
@@ -35,15 +36,15 @@ public class CategoryController {
 
     @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
     @PostMapping
-    public ResponseEntity<ApiResponse<Category>> create(@RequestBody CategoryRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Tạo danh mục thành công", 
+    public ResponseEntity<ApiResponse<Category>> create(@Valid @RequestBody CategoryRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Tạo danh mục thành công",
                 categoryUseCase.createCategory(request.name())));
     }
 
     @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
-    @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Category>> update(@PathVariable Long id, @RequestBody CategoryRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật danh mục thành công", 
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApiResponse<Category>> update(@PathVariable Long id, @Valid @RequestBody CategoryRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật danh mục thành công",
                 categoryUseCase.updateCategory(id, request.name())));
     }
 
@@ -54,5 +55,6 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponse.success("Xóa danh mục thành công", null));
     }
 
-    record CategoryRequest(String name) {}
+    record CategoryRequest(@NotBlank(message = "Tên danh mục không được để trống") String name) {
+    }
 }

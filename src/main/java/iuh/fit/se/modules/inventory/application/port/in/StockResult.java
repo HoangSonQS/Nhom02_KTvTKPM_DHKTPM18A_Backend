@@ -1,10 +1,14 @@
 package iuh.fit.se.modules.inventory.application.port.in;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class StockResult {
     private Status status;
     private Long bookId;

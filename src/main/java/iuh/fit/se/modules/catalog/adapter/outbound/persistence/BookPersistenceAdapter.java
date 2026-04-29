@@ -28,6 +28,11 @@ public class BookPersistenceAdapter implements BookPersistencePort {
     }
 
     @Override
+    public boolean existsById(Long id) {
+        return bookJpaRepository.existsById(id);
+    }
+
+    @Override
     public Book save(Book book) {
         BookJpaEntity existingEntity = book.getId() != null ? 
                 bookJpaRepository.findById(book.getId()).orElse(null) : null;

@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface BookPersistencePort {
 
     Optional<Book> findById(Long id);
+    
+    boolean existsById(Long id);
 
     Book save(Book book);
 

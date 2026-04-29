@@ -16,7 +16,7 @@ public class AdminAiSyncController {
     private final EmbeddingSyncUseCase syncUseCase;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> syncAll() {
         // Run syncAllBooks in background if needed, but for now we call it directly
         // and EmbeddingSyncService.syncBook is @Async

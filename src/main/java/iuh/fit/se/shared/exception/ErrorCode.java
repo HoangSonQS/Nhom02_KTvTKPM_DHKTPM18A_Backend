@@ -16,6 +16,7 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(4004, "Không tìm thấy tài nguyên", HttpStatus.NOT_FOUND),
     ACCESS_DENIED(4003, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
     INVALID_INPUT(4001, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
+    BODY_MISSING(4002, "Thiếu request body hoặc payload không hợp lệ", HttpStatus.BAD_REQUEST),
     TOO_MANY_REQUESTS(4029, "Quá nhiều yêu cầu, vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
 
     // ===== Auth Module (AUTH_) =====
@@ -25,6 +26,9 @@ public enum ErrorCode {
     AUTH_EMAIL_ALREADY_EXISTS(4013, "Email đã được đăng ký", HttpStatus.CONFLICT),
     AUTH_USER_NOT_FOUND(4014, "Người dùng không tồn tại", HttpStatus.NOT_FOUND),
     AUTH_ACCOUNT_DISABLED(4015, "Tài khoản đã bị vô hiệu hóa", HttpStatus.FORBIDDEN),
+
+    // ===== Catalog Module (CAT_) =====
+    CAT_CATEGORY_ALREADY_EXISTS(4100, "Tên danh mục đã tồn tại", HttpStatus.CONFLICT),
 
     // ===== Inventory Module (INV_) =====
     INV_STOCK_NOT_FOUND(4200, "Không tìm thấy tồn kho cho sách này", HttpStatus.NOT_FOUND),

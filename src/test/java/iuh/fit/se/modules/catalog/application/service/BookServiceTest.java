@@ -3,6 +3,7 @@ package iuh.fit.se.modules.catalog.application.service;
 import iuh.fit.se.modules.catalog.application.port.out.BookImagePort;
 import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Book;
+import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
 import iuh.fit.se.shared.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,40 +29,35 @@ class BookServiceTest {
     private BookImagePort bookImagePort;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private InventoryInternalUseCase inventoryInternalUseCase;
 
     @BeforeEach
     void setUp() {
-        bookService = new BookService(bookPersistencePort, bookImagePort, eventPublisher);
+        bookService = new BookService(bookPersistencePort, bookImagePort, eventPublisher, inventoryInternalUseCase);
     }
 
     @Test
-    void givenBookInStock_whenDecreaseStock_thenSuccess() {
+    void givenBookExists_whenUpdateStock_thenDelegatesToInventory() {
         // Arrange
-        Book book = Book.builder()
-                .title("Clean Architecture")
-                .deprecatedQuantity(10)
-                .build();
-        when(bookPersistencePort.findById(1L)).thenReturn(Optional.of(book));
+        when(bookPersistencePort.existsById(1L)).thenReturn(true);
 
         // Act
-        bookService.updateStock(1L, 3, false);
+        bookService.updateStock(1L, 5, true);
 
         // Assert
-        assertThat(book.getDeprecatedQuantity()).isEqualTo(7);
-        verify(bookPersistencePort).save(book);
+        verify(inventoryInternalUseCase).increaseStock(eq(1L), eq(5), anyString());
+        verify(bookPersistencePort, never()).save(any());
     }
 
     @Test
-    void givenOutOfStock_whenDecreaseStock_thenThrowsException() {
+    void givenBookNotFound_whenUpdateStock_thenThrowsException() {
         // Arrange
-        Book book = Book.builder().deprecatedQuantity(5).build();
-        when(bookPersistencePort.findById(1L)).thenReturn(Optional.of(book));
+        when(bookPersistencePort.existsById(1L)).thenReturn(false);
 
         // Act & Assert
-        assertThatThrownBy(() -> bookService.updateStock(1L, 6, false))
+        assertThatThrownBy(() -> bookService.updateStock(1L, 5, true))
                 .isInstanceOf(AppException.class);
-        
-        verify(bookPersistencePort, never()).save(any());
     }
 
     @Test

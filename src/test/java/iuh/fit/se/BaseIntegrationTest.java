@@ -1,6 +1,8 @@
 package iuh.fit.se;
 
 import io.jsonwebtoken.Jwts;
+import iuh.fit.se.config.GlobalTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -14,6 +16,7 @@ import java.util.Base64;
  * Giúp Test không phụ thuộc vào file cấu hình vật lý (.pem).
  */
 @ActiveProfiles("test")
+@Import(GlobalTestConfig.class)
 public abstract class BaseIntegrationTest {
 
     private static final KeyPair TEST_KEY_PAIR;
