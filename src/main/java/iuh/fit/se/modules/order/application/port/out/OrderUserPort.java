@@ -15,5 +15,7 @@ public interface OrderUserPort {
     class UserDto {
         private String fullName;
         private String email;
+        private String phoneNumber;
+        private String defaultAddress;
     }
 }

@@ -48,18 +48,42 @@ public class OrderService implements OrderInternalUseCase {
                 return existing.get().getId();
             }
 
-            // 2. Fetch Cart
+            // 2. Fetch User Profile để fallback địa chỉ & SĐT
+            OrderUserPort.UserDto userProfile = orderUserPort.getUserDetails(userId);
+            String shippingAddress = (command.getShippingAddress() == null || command.getShippingAddress().isBlank())
+                    ? userProfile.getDefaultAddress()
+                    : command.getShippingAddress();
+            String customerPhone = (command.getCustomerPhone() == null || command.getCustomerPhone().isBlank())
+                    ? userProfile.getPhoneNumber()
+                    : command.getCustomerPhone();
+
+            if (shippingAddress == null || shippingAddress.isBlank()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Vui lòng cung cấp địa chỉ giao hàng hoặc thiết lập địa chỉ mặc định trong hồ sơ.");
+            }
+            if (customerPhone == null || customerPhone.isBlank()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Vui lòng cung cấp số điện thoại hoặc cập nhật số điện thoại trong hồ sơ.");
+            }
+
+            // Tạo resolved command với thông tin đã được resolve từ profile
+            CheckoutCommand resolvedCommand = CheckoutCommand.builder()
+                    .requestId(command.getRequestId())
+                    .shippingAddress(shippingAddress)
+                    .customerPhone(customerPhone)
+                    .couponCode(command.getCouponCode())
+                    .build();
+
+            // 3. Fetch Cart
             CartPort.CartDto cart = cartPort.getCartByUserId(userId);
             if (cart.getItems() == null || cart.getItems().isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_INPUT, "Giỏ hàng rỗng, không thể tạo đơn hàng.");
             }
 
-            // 3. INIT Order in DB (Local Transaction for this step)
+            // 4. INIT Order in DB (Local Transaction for this step)
             BigDecimal totalAmount = cart.getItems().stream()
                     .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            Order order = saveInitialOrder(userId, command, cart, totalAmount);
+            Order order = saveInitialOrder(userId, resolvedCommand, cart, totalAmount);
             
             // Extract stock items for compensation/inventory phases
             List<InventoryPort.StockItem> stockItems = cart.getItems().stream()
@@ -69,27 +93,26 @@ public class OrderService implements OrderInternalUseCase {
                                     .build())
                             .collect(Collectors.toList());
 
-            // 4. Inventory Phase (Decrease)
+            // 5. Inventory Phase (Decrease)
             try {
-                inventoryPort.decreaseStockBulk(stockItems, command.getRequestId());
+                inventoryPort.decreaseStockBulk(stockItems, resolvedCommand.getRequestId());
                 updateSagaStatus(order, SagaStatus.STOCK_RESERVED);
             } catch (Exception e) {
-                log.error("Inventory Phase failed for requestId {}: {}", command.getRequestId(), e.getMessage());
-                // No compensation needed yet as it failed at the first step
+                log.error("Inventory Phase failed for requestId {}: {}", resolvedCommand.getRequestId(), e.getMessage());
                 updateSagaStatus(order, SagaStatus.FAILED);
                 throw e;
             }
 
-            // 5. Promotion Phase
+            // 6. Promotion Phase
             BigDecimal discount = BigDecimal.ZERO;
-            if (command.getCouponCode() != null && !command.getCouponCode().isBlank()) {
+            if (resolvedCommand.getCouponCode() != null && !resolvedCommand.getCouponCode().isBlank()) {
                 PromotionPort.PromotionResult promoResult;
                 try {
                     promoResult = promotionPort.reserveCoupon(
-                            command.getCouponCode(), totalAmount, command.getRequestId());
+                            resolvedCommand.getCouponCode(), totalAmount, resolvedCommand.getRequestId());
                 } catch (Exception e) {
                     log.error("Promotion Phase network/system error. Compensating stock...");
-                    inventoryPort.increaseStockBulk(stockItems, command.getRequestId());
+                    inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
                     updateSagaStatus(order, SagaStatus.FAILED);
                     throw e;
                 }
@@ -99,18 +122,17 @@ public class OrderService implements OrderInternalUseCase {
                     updateOrderWithPromotion(order, discount, SagaStatus.COUPON_RESERVED);
                 } else {
                     log.warn("Promotion business failed: {}. Executing compensation for Stock...", promoResult.getMessage());
-                    inventoryPort.increaseStockBulk(stockItems, command.getRequestId());
+                    inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
                     updateSagaStatus(order, SagaStatus.FAILED);
                     throw new AppException(ErrorCode.INVALID_INPUT, "Mã giảm giá không hợp lệ: " + promoResult.getMessage());
                 }
             }
 
-            // 6. Complete Phase
+            // 7. Complete Phase
             completeSaga(order);
 
-            // 7. Publish Domain Event (Internal)
-            OrderUserPort.UserDto user = orderUserPort.getUserDetails(userId);
-            eventPublisher.publishEvent(OrderCreatedDomainEvent.of(order, user.getFullName(), user.getEmail()));
+            // 8. Publish Domain Event (Internal)
+            eventPublisher.publishEvent(OrderCreatedDomainEvent.of(order, userProfile.getFullName(), userProfile.getEmail()));
 
             return order.getId();
 
