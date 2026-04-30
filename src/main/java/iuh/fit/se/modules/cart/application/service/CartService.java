@@ -116,10 +116,12 @@ public class CartService implements CartInternalUseCase {
     @Override
     @Transactional
     public void clearCart(Long userId) {
+        log.info("Clearing cart for user: {}", userId);
         cartPersistencePort.findByUserId(userId)
                 .ifPresent(cart -> {
                     cart.clearItems();
                     cartPersistencePort.save(cart);
+                    log.info("Cart cleared successfully for user: {}", userId);
                 });
     }
 }

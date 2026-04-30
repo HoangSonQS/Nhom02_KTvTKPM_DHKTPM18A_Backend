@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface InventoryJpaRepository extends JpaRepository<InventoryStock, Long> {
 
     Optional<InventoryStock> findByBookId(Long bookId);
+    java.util.List<InventoryStock> findByBookIdIn(java.util.Collection<Long> bookIds);
 
     /**
      * 🔥 Atomic Update với Optimistic Locking và hard check quantity

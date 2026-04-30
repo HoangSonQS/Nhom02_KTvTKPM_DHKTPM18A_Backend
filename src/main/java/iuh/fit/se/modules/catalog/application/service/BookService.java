@@ -14,6 +14,7 @@ import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookService implements BookUseCase {
 
     private final BookPersistencePort bookPersistencePort;
@@ -161,15 +163,38 @@ public class BookService implements BookUseCase {
     public BookDTO getBook(Long id) {
         Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
-        return BookMapper.toDto(book);
+        
+        // Fetch real stock from Inventory Source of Truth
+        int realStock = 0;
+        try {
+            realStock = inventoryInternalUseCase.getAvailableStock(id).getRemainingQuantity();
+        } catch (Exception e) {
+            log.error("Failed to fetch stock for book {}: {}", id, e.getMessage());
+            realStock = book.getDeprecatedQuantity(); // Fallback to stale local data
+        }
+        
+        return BookMapper.toDto(book, realStock);
     }
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = "books", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('books', 'search:' + #title + ':' + #categoryId)")
     public List<BookDTO> searchBooks(String title, Long categoryId) {
-        return bookPersistencePort.search(title, categoryId).stream()
-                .map(BookMapper::toDto)
+        List<Book> books = bookPersistencePort.search(title, categoryId);
+        List<Long> bookIds = books.stream().map(Book::getId).collect(Collectors.toList());
+
+        // Bulk fetch real stocks from Inventory Source of Truth
+        java.util.Map<Long, Integer> stocks = new java.util.HashMap<>();
+        try {
+            stocks = inventoryInternalUseCase.getAvailableStocks(bookIds);
+        } catch (Exception e) {
+            log.error("Failed to bulk fetch stocks: {}", e.getMessage());
+            // Map will be empty, will fallback to deprecatedQuantity in Mapper
+        }
+
+        final java.util.Map<Long, Integer> finalStocks = stocks;
+        return books.stream()
+                .map(book -> BookMapper.toDto(book, finalStocks.get(book.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -191,5 +216,19 @@ public class BookService implements BookUseCase {
         
         // Note: Field deprecatedQuantity trong cat_book không còn được cập nhật thủ công ở đây.
         // Nó sẽ được sync định kỳ hoặc xóa bỏ hoàn toàn ở Phase sau.
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
+            @CacheEvict(value = "books", allEntries = true)
+    })
+    public void syncStock(Long id, int quantity) {
+        bookPersistencePort.findById(id).ifPresent(book -> {
+            book.syncQuantity(quantity);
+            bookPersistencePort.save(book);
+            log.info("Synced stock for book {} to new quantity {}", id, quantity);
+        });
     }
 }

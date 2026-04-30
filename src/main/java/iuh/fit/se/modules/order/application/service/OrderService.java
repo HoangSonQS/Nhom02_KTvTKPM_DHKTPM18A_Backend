@@ -44,7 +44,8 @@ public class OrderService implements OrderInternalUseCase {
             // 1. Idempotency check
             Optional<Order> existing = orderPersistencePort.findByRequestId(command.getRequestId());
             if (existing.isPresent()) {
-                log.info("Order with requestId {} already exists. Returning existing ID.", command.getRequestId());
+                log.info("Order with requestId {} already exists. Ensuring cart is cleared and returning ID.", command.getRequestId());
+                cartPort.clearCart(userId);
                 return existing.get().getId();
             }
 
@@ -130,6 +131,7 @@ public class OrderService implements OrderInternalUseCase {
 
             // 7. Complete Phase
             completeSaga(order);
+            cartPort.clearCart(userId);
 
             // 8. Publish Domain Event (Internal)
             eventPublisher.publishEvent(OrderCreatedDomainEvent.of(order, userProfile.getFullName(), userProfile.getEmail()));

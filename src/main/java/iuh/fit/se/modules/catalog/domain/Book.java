@@ -136,4 +136,12 @@ public class Book {
         this.imageUrl = imageUrl;
         this.imagePublicId = imagePublicId;
     }
+
+    /**
+     * Đồng bộ số lượng tồn kho từ module Inventory.
+     * Đây là phương thức hỗ trợ cho việc chuyển đổi kiến trúc.
+     */
+    public void syncQuantity(int quantity) {
+        this.deprecatedQuantity = quantity;
+    }
 }

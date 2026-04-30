@@ -5,6 +5,7 @@ import iuh.fit.se.modules.inventory.domain.StockHistory;
 import iuh.fit.se.modules.inventory.domain.StockHistoryStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface InventoryPersistencePort {
@@ -15,6 +16,7 @@ public interface InventoryPersistencePort {
 
     // Inventory Stock
     Optional<InventoryStock> findStockByBookId(Long bookId);
+    List<InventoryStock> findStocksByBookIds(List<Long> bookIds);
     void saveStock(InventoryStock stock);
     int decreaseStockAtomically(Long bookId, int amount, Long version);
     int increaseStockAtomically(Long bookId, int amount, Long version);

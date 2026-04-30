@@ -21,6 +21,8 @@ public interface BookUseCase {
 
     // Dùng cho module Order/Inventory
     void updateStock(Long id, int amount, boolean isIncrease);
+    
+    void syncStock(Long id, int quantity);
 
     record CreateBookCommand(
             String title, String author, String description,
