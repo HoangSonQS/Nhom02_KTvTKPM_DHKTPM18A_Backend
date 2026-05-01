@@ -1,0 +1,2837 @@
+# FULL API DOCUMENTATION (66 ENDPOINTS)
+
+---
+API: POST /api/v1/returns
+Module: returns
+Controller: ReturnRequestController
+Description: Tạo yêu cầu đổi trả sách từ khách hàng.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_CREATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+    - name: Content-Type
+      value: application/json
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      orderId: {type: Long, required: true, validation: NotNull, example: 1001}
+      reason: {type: String, required: true, validation: Enum(WRONG_ITEM, DAMAGED, NOT_AS_DESCRIBED, OTHER), example: "DAMAGED"}
+      notes: {type: String, required: false, validation: None, example: "Sách bị rách bìa"}
+      items: {type: List<Object>, required: true, validation: NotEmpty, example: [{"bookId": 1, "quantity": 1}]}
+    example: |
+      {
+        "orderId": 1001,
+        "reason": "DAMAGED",
+        "notes": "Sách bị rách bìa",
+        "items": [{"bookId": 1, "quantity": 1}]
+      }
+TestCases:
+  - id: TC_01
+    name: "Happy path"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer valid_token"}
+      body: {"orderId": 1001, "reason": "DAMAGED", "items": [{"bookId": 1, "quantity": 1}]}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/returns/my
+Module: returns
+Controller: ReturnRequestController
+Description: Lấy danh sách các yêu cầu đổi trả của khách hàng hiện tại.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_READ_OWN, RETURN_READ_SELF]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_02
+    name: "Get user's returns"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer valid_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/admin/returns
+Module: returns
+Controller: ReturnRequestController
+Description: Admin lấy danh sách tất cả các yêu cầu đổi trả.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_READ_ALL]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_03
+    name: "Admin get all returns"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: PUT /api/v1/admin/returns/{id}/approve
+Module: returns
+Controller: ReturnRequestController
+Description: Phê duyệt yêu cầu đổi trả.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_APPROVE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: String
+      description: ID yêu cầu đổi trả
+      example: "RR-101"
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_04
+    name: "Approve return"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {"id": "RR-101"}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: PUT /api/v1/admin/returns/{id}/receive
+Module: returns
+Controller: ReturnRequestController
+Description: Xác nhận đã nhận hàng trả về.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_RECEIVE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: String
+      description: ID yêu cầu đổi trả
+      example: "RR-101"
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      conditions: {type: List<String>, required: true, validation: NotEmpty, example: ["GOOD"]}
+    example: |
+      ["GOOD"]
+TestCases:
+  - id: TC_05
+    name: "Receive items"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer staff_token"}
+      body: ["GOOD"]
+      pathVars: {"id": "RR-101"}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: PUT /api/v1/admin/returns/{id}/refund
+Module: returns
+Controller: ReturnRequestController
+Description: Hoàn tiền yêu cầu đổi trả.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_APPROVE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: String
+      description: ID yêu cầu đổi trả
+      example: "RR-101"
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_06
+    name: "Refund return"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {"id": "RR-101"}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: PUT /api/v1/admin/returns/{id}/reject
+Module: returns
+Controller: ReturnRequestController
+Description: Từ chối yêu cầu đổi trả.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [RETURN_APPROVE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: String
+      description: ID yêu cầu đổi trả
+      example: "RR-101"
+  QueryParams:
+    - name: reason
+      type: String
+      required: true
+      description: Lý do từ chối
+      example: "Không hợp lệ"
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_07
+    name: "Reject return"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {"id": "RR-101"}
+      queryParams: {"reason": "Not valid"}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/payments/create-payment-url
+Module: payment
+Controller: PaymentController
+Description: |
+  Tạo link thanh toán VNPay cho đơn hàng.
+  - vnp_TxnRef = orderId_timestamp (unique mỗi lần nhấn, tránh lỗi duplicate trên VNPay Sandbox)
+  - Chỉ cho phép tạo URL khi đơn hàng đang ở trạng thái PENDING_PAYMENT
+  - Nếu đơn đã PAID → trả lỗi 4301 (Conflict)
+  - Nếu đơn ở trạng thái khác (CANCELLED, COMPLETED, RETURNED) → trả lỗi 4300 (Bad Request)
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CUSTOMER, ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams:
+    - name: orderId
+      type: Long
+      required: true
+      description: ID của đơn hàng cần thanh toán
+      example: 3
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_PAY_01
+    name: "Create payment URL - Happy Path"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer customer_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {"orderId": 3}
+    expected:
+      status: 200
+      body: {"paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?..."}
+
+  - id: TC_PAY_01_ERR_01
+    name: "Create payment URL - Order not found"
+    type: ERROR_CASE
+    input:
+      headers: {"Authorization": "Bearer customer_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {"orderId": 9999}
+    expected:
+      status: 404
+      body: {"success": false, "code": 4304, "message": "Không tìm thấy đơn hàng"}
+
+  - id: TC_PAY_01_ERR_02
+    name: "Create payment URL - Order already PAID"
+    type: ERROR_CASE
+    input:
+      headers: {"Authorization": "Bearer customer_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {"orderId": 3}
+    expected:
+      status: 409
+      body: {"success": false, "code": 4301, "message": "Đơn hàng đã được thanh toán"}
+
+  - id: TC_PAY_01_ERR_03
+    name: "Create payment URL - Order in invalid status (CANCELLED)"
+    type: ERROR_CASE
+    input:
+      headers: {"Authorization": "Bearer customer_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {"orderId": 5}
+    expected:
+      status: 400
+      body: {"success": false, "code": 4300, "message": "Đơn hàng đang ở trạng thái CANCELLED, không thể thanh toán"}
+
+  - id: TC_PAY_01_ERR_04
+    name: "Create payment URL - Unauthorized (no token)"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams: {"orderId": 3}
+    expected:
+      status: 401
+      body: {"success": false, "code": 4012, "message": "Token không hợp lệ"}
+
+---
+Tested Status: done
+API: GET /api/v1/payments/vnpay-return
+Module: payment
+Controller: PaymentController
+Description: |
+  VNPay Return Callback — VNPay redirect trình duyệt người dùng về URL này sau khi thanh toán.
+  - Dùng chủ yếu khi TEST ở localhost (production dùng IPN)
+  - Tự động tách orderId từ vnp_TxnRef (format: orderId_timestamp)
+  - Xác minh chữ ký (SecureHash) trước khi cập nhật DB
+  - Idempotent: nếu đơn đã PAID thì không làm gì, vẫn trả 200
+  Các vnp_ResponseCode phổ biến:
+    "00" = Thành công
+    "24" = Người dùng hủy
+    "51" = Tài khoản không đủ số dư
+    "65" = Quá hạn mức giao dịch
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams:
+    - name: vnp_ResponseCode
+      type: String
+      required: true
+      description: Mã phản hồi từ VNPay (00 = thành công, 24 = hủy, ...)
+      example: "00"
+    - name: vnp_TxnRef
+      type: String
+      required: true
+      description: Mã tham chiếu duy nhất (format orderId_timestamp)
+      example: "3_1714464000000"
+    - name: vnp_Amount
+      type: String
+      required: true
+      description: Số tiền * 100 (VND, không có dấu thập phân)
+      example: "49000000"
+    - name: vnp_SecureHash
+      type: String
+      required: true
+      description: Chữ ký HMAC-SHA512 từ VNPay
+      example: "abc123..."
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_PAY_02
+    name: "VNPay Return - Payment Success"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_Amount: "49000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      body: {"success": true, "code": 200, "message": "Payment Success! You can close this tab and return to the app."}
+
+  - id: TC_PAY_02_ERR_01
+    name: "VNPay Return - User cancelled (ResponseCode=24)"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "24"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 400
+      body: {"success": false, "message": "Payment Failed or Cancelled. Error Code: 24"}
+
+  - id: TC_PAY_02_ERR_02
+    name: "VNPay Return - Invalid signature (tampered params)"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_SecureHash: "INVALID_HASH"
+    expected:
+      status: 400
+      body: {"success": false, "message": "Payment Failed or Cancelled."}
+
+  - id: TC_PAY_02_ERR_03
+    name: "VNPay Return - Duplicate (Order already PAID — idempotent)"
+    type: EDGE_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      note: "Đơn đã PAID → handlePaymentCallback trả 'Already confirmed', vnpay-return vẫn hiển thị success"
+
+---
+Tested Status: done
+API: GET /api/v1/payments/vnpay-ipn
+Module: payment
+Controller: PaymentController
+Description: |
+  VNPay IPN (Instant Payment Notification) — VNPay server gọi về backend sau khi thanh toán.
+  - Đây là channel chính trong môi trường Production (không phụ thuộc trình duyệt người dùng)
+  - Response phải đúng format JSON của VNPay: {"RspCode": "XX", "Message": "..."}
+  - VNPay sẽ retry nếu không nhận được RspCode "00"
+  - Idempotent: nếu đơn đã PAID → trả {"RspCode":"00","Message":"Already confirmed"}
+  Mã RspCode trả về VNPay:
+    "00" = Xác nhận thành công (kể cả đơn đã xử lý)
+    "97" = Chữ ký không hợp lệ
+    "01" = Order không tìm thấy
+    "04" = Số tiền không khớp
+    "99" = Lỗi khác
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams:
+    - name: vnp_ResponseCode
+      type: String
+      required: true
+      description: Mã kết quả từ VNPay
+      example: "00"
+    - name: vnp_TxnRef
+      type: String
+      required: true
+      description: Mã tham chiếu duy nhất (format orderId_timestamp)
+      example: "3_1714464000000"
+    - name: vnp_Amount
+      type: String
+      required: true
+      description: Số tiền * 100
+      example: "49000000"
+    - name: vnp_TransactionNo
+      type: String
+      required: true
+      description: Mã giao dịch từ VNPay (lưu vào Payment.transactionId)
+      example: "VNP15518671"
+    - name: vnp_SecureHash
+      type: String
+      required: true
+      description: Chữ ký HMAC-SHA512
+      example: "abc123..."
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_PAY_03
+    name: "VNPay IPN - Payment Success"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_Amount: "49000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      body: {"RspCode": "00", "Message": "Confirm success"}
+
+  - id: TC_PAY_03_ERR_01
+    name: "VNPay IPN - Invalid signature"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_SecureHash: "INVALID"
+    expected:
+      status: 200
+      body: {"RspCode": "97", "Message": "Invalid Checksum"}
+
+  - id: TC_PAY_03_ERR_02
+    name: "VNPay IPN - Order not found"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "9999_1714464000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      body: {"RspCode": "01", "Message": "Order not found"}
+
+  - id: TC_PAY_03_ERR_03
+    name: "VNPay IPN - Amount mismatch"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_Amount: "1000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      body: {"RspCode": "04", "Message": "Invalid amount"}
+
+  - id: TC_PAY_03_ERR_04
+    name: "VNPay IPN - Duplicate (Already confirmed)"
+    type: EDGE_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "00"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      body: {"RspCode": "00", "Message": "Already confirmed"}
+
+  - id: TC_PAY_03_ERR_05
+    name: "VNPay IPN - Payment failed by VNPay (user insufficient funds)"
+    type: ERROR_CASE
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams:
+        vnp_ResponseCode: "51"
+        vnp_TxnRef: "3_1714464000000"
+        vnp_SecureHash: "<valid_hash>"
+    expected:
+      status: 200
+      body: {"RspCode": "00", "Message": "Confirm success"}
+      note: "Lưu Payment(FAILED) vào DB, không cập nhật Order status, trả 00 để VNPay không retry"
+
+
+
+---
+API: POST /api/v1/logistics/suppliers
+Module: logistics
+Controller: LogisticsController
+Description: Tạo nhà cung cấp.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_WRITE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      name: {type: String, required: true, validation: NotBlank, example: "Supplier A"}
+      contactPerson: {type: String, required: true, validation: NotBlank, example: "Mr. B"}
+      phoneNumber: {type: String, required: true, validation: Phone, example: "012"}
+      email: {type: String, required: true, validation: Email, example: "a@a.com"}
+    example: |
+      {"name": "Supplier A", "contactPerson": "Mr. B", "phoneNumber": "012", "email": "a@a.com"}
+TestCases:
+  - id: TC_10
+    name: "Create supplier"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"name": "A", "contactPerson": "B", "phoneNumber": "012", "email": "a@a.com"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/logistics/suppliers
+Module: logistics
+Controller: LogisticsController
+Description: Lấy danh sách nhà cung cấp.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_READ]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_11
+    name: "List suppliers"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/purchase-orders
+Module: logistics
+Controller: LogisticsController
+Description: Tạo PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_WRITE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      supplierId: {type: Long, required: true, validation: NotNull, example: 1}
+      items: {type: List<Object>, required: true, validation: NotEmpty, example: [{"bookId": 1, "quantity": 10}]}
+    example: |
+      {"supplierId": 1, "items": [{"bookId": 1, "quantity": 10}]}
+TestCases:
+  - id: TC_12
+    name: "Create PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"supplierId": 1, "items": [{"bookId": 1, "quantity": 10}]}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/purchase-orders/{id}/submit
+Module: logistics
+Controller: LogisticsController
+Description: Submit PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_UPDATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID PO
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_13
+    name: "Submit PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/purchase-orders/{id}/approve
+Module: logistics
+Controller: LogisticsController
+Description: Approve PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_UPDATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID PO
+      example: 1
+  QueryParams:
+    - name: adminName
+      type: String
+      required: true
+      description: Tên admin phê duyệt
+      example: "Admin A"
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_14
+    name: "Approve PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/purchase-orders/{id}/return
+Module: logistics
+Controller: LogisticsController
+Description: Hoàn trả PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_UPDATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID PO
+      example: 1
+  QueryParams:
+    - name: reason
+      type: String
+      required: true
+      description: Lý do
+      example: "Hỏng"
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_15
+    name: "Return PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {"reason": "Damaged"}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/purchase-orders/{id}/receive
+Module: logistics
+Controller: LogisticsController
+Description: Nhận hàng PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_UPDATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID PO
+      example: 1
+  QueryParams:
+    - name: receiverName
+      type: String
+      required: true
+      description: Tên người nhận hàng
+      example: "Warehouse Staff B"
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_16
+    name: "Receive PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/purchase-orders/{id}/cancel
+Module: logistics
+Controller: LogisticsController
+Description: Hủy PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_UPDATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID PO
+      example: 1
+  QueryParams:
+    - name: reason
+      type: String
+      required: true
+      description: Lý do
+      example: "Sai hàng"
+    - name: userName
+      type: String
+      required: true
+      description: Tên người thực hiện hủy
+      example: "Staff C"
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_17
+    name: "Cancel PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {"reason": "Error"}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/logistics/purchase-orders
+Module: logistics
+Controller: LogisticsController
+Description: Lấy danh sách PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_READ]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_18
+    name: "List POs"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/logistics/purchase-orders/{id}
+Module: logistics
+Controller: LogisticsController
+Description: Lấy chi tiết PO.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_READ]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID PO
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_19
+    name: "Get PO"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/logistics/stock-adjustments
+Module: logistics
+Controller: LogisticsController
+Description: Điều chỉnh tồn kho thủ công.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [LOGISTICS_WRITE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      bookId: {type: Long, required: true, validation: NotNull, example: 1}
+      adjustmentQuantity: {type: Integer, required: true, validation: NotNull, example: 5}
+      reason: {type: String, required: true, validation: NotBlank, example: "Hư hỏng"}
+      userName: {type: String, required: true, validation: NotBlank, example: "Staff D"}
+    example: |
+      {"bookId": 1, "adjustmentQuantity": 5, "reason": "Damaged", "userName": "Staff D"}
+TestCases:
+  - id: TC_20
+    name: "Adjust stock"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"bookId": 1, "adjustmentQuantity": 5, "reason": "Damaged"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: GET /api/v1/catalog/categories
+Module: catalog
+Controller: CategoryController
+Description: Lấy danh sách danh mục.
+Authentication:
+  required: false
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_21
+    name: "List categories"
+    type: HAPPY_PATH
+    input:
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/catalog/categories
+Module: catalog
+Controller: CategoryController
+Description: Tạo danh mục.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CATALOG_CATEGORY_WRITE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      name: {type: String, required: true, validation: NotBlank, example: "Fiction"}
+    example: |
+      {"name": "Fiction"}
+TestCases:
+  - id: TC_22
+    name: "Create category"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"name": "Fiction"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: PATCH /api/v1/catalog/categories/{id}
+Module: catalog
+Controller: CategoryController
+Description: Cập nhật danh mục.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CATALOG_CATEGORY_WRITE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID danh mục
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      name: {type: String, required: true, validation: NotBlank, example: "Science"}
+    example: |
+      {"name": "Science"}
+TestCases:
+  - id: TC_23
+    name: "Update category"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"name": "Science"}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: DELETE /api/v1/catalog/categories/{id}
+Module: catalog
+Controller: CategoryController
+Description: Xóa danh mục.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CATALOG_CATEGORY_WRITE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID danh mục
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_24
+    name: "Delete category"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: GET /api/v1/catalog/books
+Module: catalog
+Controller: BookController
+Description: Tìm kiếm sách.
+Authentication:
+  required: false
+  type: None
+  roles: [CATALOG_READ]
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams:
+    - name: title
+      type: String
+      required: false
+      description: Tiêu đề
+      example: "Java"
+    - name: categoryId
+      type: Long
+      required: false
+      description: ID danh mục
+      example: 1
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_25
+    name: "Search books"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams: {"title": "Java"}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: GET /api/v1/catalog/books/{id}
+Module: catalog
+Controller: BookController
+Description: Lấy chi tiết sách.
+Authentication:
+  required: false
+  type: None
+  roles: [CATALOG_READ]
+Request:
+  Headers: []
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_26
+    name: "Get book"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/catalog/books
+Module: catalog
+Controller: BookController
+Description: Tạo sách mới. Hệ thống sẽ tự động khởi tạo bản ghi tồn kho (Inventory) tương ứng với số lượng 'quantity' được cung cấp.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CATALOG_BOOK_CREATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: multipart/form-data
+    schema:
+      title: {type: String, required: true, validation: NotBlank, example: "Title"}
+      author: {type: String, required: true, validation: NotBlank, example: "Author"}
+      description: {type: String, required: false, validation: None, example: "Description"}
+      price: {type: BigDecimal, required: true, validation: Positive, example: 10.0}
+      originalPrice: {type: BigDecimal, required: false, validation: Positive, example: 12.0}
+      quantity: {type: int, required: true, validation: Positive, example: 10}
+      categoryIds: {type: List<Long>, required: true, validation: NotEmpty, example: [1]}
+      image: {type: File, required: false, description: "Ảnh bìa sách"}
+      publisher: {type: String, required: false, example: "NXB Trẻ"}
+      isbn: {type: String, required: false, example: "978-604"}
+      publicationYear: {type: Integer, required: false, example: 2024}
+      language: {type: String, required: false, example: "Tiếng Việt"}
+      keywords: {type: List<String>, required: false, example: ["java", "programming"]}
+      pageCount: {type: Integer, required: false, example: 350}
+      coverType: {type: String, required: false, example: "Bìa mềm"}
+      weight: {type: Integer, required: false, description: "Gam", example: 400}
+      length: {type: Integer, required: false, description: "mm", example: 240}
+      width: {type: Integer, required: false, description: "mm", example: 160}
+      height: {type: Integer, required: false, description: "mm", example: 20}
+    example: "Multipart form data (Key-Value)"
+TestCases:
+  - id: TC_27
+    name: "Create book"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: PATCH /api/v1/catalog/books/{id}
+Module: catalog
+Controller: BookController
+Description: Cập nhật sách (Partial Update - chỉ gửi những trường cần thay đổi).
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CATALOG_BOOK_UPDATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: multipart/form-data
+    schema:
+      title: {type: String, required: false, validation: NotBlank, example: "Title"}
+      author: {type: String, required: false, validation: NotBlank, example: "Author"}
+      description: {type: String, required: false, validation: None, example: "Description"}
+      price: {type: BigDecimal, required: false, validation: Positive, example: 10.0}
+      originalPrice: {type: BigDecimal, required: false, validation: Positive, example: 12.0}
+      quantity: {type: Integer, required: false, validation: Positive, example: 10}
+      categoryIds: {type: List<Long>, required: false, validation: NotEmpty, example: [1]}
+      image: {type: File, required: false, description: "Ảnh bìa sách mới"}
+      publisher: {type: String, required: false, example: "NXB Trẻ"}
+      isbn: {type: String, required: false, example: "978-604"}
+      publicationYear: {type: Integer, required: false, example: 2024}
+      language: {type: String, required: false, example: "Tiếng Việt"}
+      keywords: {type: List<String>, required: false, example: ["java", "programming"]}
+      pageCount: {type: Integer, required: false, example: 350}
+      coverType: {type: String, required: false, example: "Bìa mềm"}
+      weight: {type: Integer, required: false, description: "Gam", example: 400}
+      length: {type: Integer, required: false, description: "mm", example: 240}
+      width: {type: Integer, required: false, description: "mm", example: 160}
+      height: {type: Integer, required: false, description: "mm", example: 20}
+    example: "Multipart form data (Gửi trường nào cập nhật trường đó)"
+TestCases:
+  - id: TC_28
+    name: "Update book"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: DELETE /api/v1/catalog/books/{id}
+Module: catalog
+Controller: BookController
+Description: Xóa sách.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CATALOG_BOOK_DELETE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_29
+    name: "Delete book"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: GET /api/v1/cart
+Module: cart
+Controller: CartController
+Description: Lấy giỏ hàng.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_30
+    name: "Get cart"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/cart/items
+Module: cart
+Controller: CartController
+Description: Thêm item vào giỏ.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      bookId: {type: Long, required: true, validation: NotNull, example: 1}
+      quantity: {type: int, required: true, validation: Positive, example: 1}
+    example: |
+      {"bookId": 1, "quantity": 1}
+TestCases:
+  - id: TC_31
+    name: "Add item"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"bookId": 1, "quantity": 1}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: PUT /api/v1/cart/items
+Module: cart
+Controller: CartController
+Description: Cập nhật số lượng item.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      bookId: {type: Long, required: true, validation: NotNull, example: 1}
+      quantity: {type: int, required: true, validation: Positive, example: 2}
+    example: |
+      {"bookId": 1, "quantity": 2}
+TestCases:
+  - id: TC_32
+    name: "Update item"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"bookId": 1, "quantity": 2}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: DELETE /api/v1/cart/items/{bookId}
+Module: cart
+Controller: CartController
+Description: Xóa item khỏi giỏ.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: bookId
+      type: Long
+      description: ID sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_33
+    name: "Remove item"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"bookId": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: DELETE /api/v1/cart
+Module: cart
+Controller: CartController
+Description: Xóa sạch giỏ hàng.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_34
+    name: "Clear cart"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/auth/login
+Module: auth
+Controller: AuthController
+Description: Đăng nhập.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers:
+    - name: X-Device-Id
+      value: "device-1"
+      required: false
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      email: {type: String, required: true, validation: Email, example: "a@a.com"}
+      password: {type: String, required: true, validation: NotBlank, example: "123"}
+    example: |
+      {"email": "a@a.com", "password": "123"}
+TestCases:
+  - id: TC_35
+    name: "Login"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {"email": "a@a.com", "password": "123"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/auth/register
+Module: auth
+Controller: AuthController
+Description: Đăng ký.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      email: {type: String, required: true, validation: Email, example: "b@b.com"}
+      password: {type: String, required: true, validation: Size(6+), example: "123456"}
+      fullName: {type: String, required: true, validation: NotBlank, example: "Nguyen Van A"}
+    example: |
+      {"email": "b@b.com", "password": "123456", "fullName": "Nguyen Van A"}
+TestCases:
+  - id: TC_36
+    name: "Register"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {"email": "b@b.com", "password": "123456", "fullName": "A"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/auth/refresh
+Module: auth
+Controller: AuthController
+Description: Refresh token.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers:
+    - name: X-Device-Id
+      value: "device-1"
+      required: false
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      refreshToken: {type: String, required: true, validation: NotBlank, example: "token-123"}
+    example: |
+      {"refreshToken": "token-123"}
+TestCases:
+  - id: TC_37
+    name: "Refresh"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {"refreshToken": "token"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/auth/logout
+Module: auth
+Controller: AuthController
+Description: Đăng xuất.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+    - name: X-Device-Id
+      value: "device-1"
+      required: false
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_38
+    name: "Logout"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/auth/forgot-password
+Module: auth
+Controller: AuthController
+Description: Quên mật khẩu.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      email: {type: String, required: true, validation: Email, example: "a@a.com"}
+    example: |
+      {"email": "a@a.com"}
+TestCases:
+  - id: TC_39
+    name: "Forgot"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {"email": "a@a.com"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/auth/reset-password
+Module: auth
+Controller: AuthController
+Description: Reset mật khẩu.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      email: {type: String, required: true, validation: Email, example: "a@a.com"}
+      token: {type: String, required: true, validation: NotBlank, example: "otp-123"}
+      newPassword: {type: String, required: true, validation: Size(6+), example: "new-password"}
+    example: |
+      {"email": "a@a.com", "otp": "123", "newPassword": "456"}
+TestCases:
+  - id: TC_40
+    name: "Reset"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {"email": "a", "token": "1", "newPassword": "1"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/ai/book-recognize
+Module: ai
+Controller: AiVisionController
+Description: Nhận diện sách từ ảnh.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers:
+    - name: Content-Type
+      value: multipart/form-data
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: multipart/form-data
+    schema:
+      image: {type: File, required: true, validation: None, example: "binary"}
+    example: "Multipart file"
+TestCases:
+  - id: TC_41
+    name: "Recognize"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/ai/search
+Module: ai
+Controller: AiSearchController
+Description: Tìm kiếm sách bằng AI.
+Authentication:
+  required: false
+  type: None
+  roles: []
+Request:
+  Headers: []
+  PathVariables: []
+  QueryParams:
+    - name: query
+      type: String
+      required: true
+      description: Câu truy vấn
+      example: "Sách cho lập trình viên"
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_42
+    name: "AI Search"
+    type: HAPPY_PATH
+    input:
+      headers: {}
+      body: {}
+      pathVars: {}
+      queryParams: {"query": "java"}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/ai/chat
+Module: ai
+Controller: AiChatController
+Description: Chat với trợ lý AI.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams:
+    - name: sessionId
+      type: String
+      required: false
+      description: ID phiên chat
+      example: "session-1"
+  RequestBody:
+    contentType: text/plain
+    schema:
+      message: {type: String, required: true, validation: NotBlank, example: "Chào bạn"}
+    example: "Chào bạn"
+TestCases:
+  - id: TC_43
+    name: "Chat"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: "Hello"
+      pathVars: {}
+      queryParams: {"sessionId": "1"}
+    expected:
+      status: 200
+
+---
+API: DELETE /api/v1/ai/chat/{sessionId}
+Module: ai
+Controller: AiChatController
+Description: Xóa lịch sử chat.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: []
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: sessionId
+      type: String
+      description: ID phiên
+      example: "session-1"
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_44
+    name: "Delete chat"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"sessionId": "1"}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/admin/ai/sync-all
+Module: ai
+Controller: AdminAiSyncController
+Description: Đồng bộ dữ liệu vector cho AI.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_45
+    name: "Sync all"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/admin/dead-letter/failed-notifications
+Module: admin
+Controller: AdminDeadLetterController
+Description: Lấy thông báo lỗi.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [DEAD_LETTER_READ]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_46
+    name: "List dead letters"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: POST /api/v1/admin/dead-letter/retry/{logId}
+Module: admin
+Controller: AdminDeadLetterController
+Description: Retry thông báo.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [DEAD_LETTER_RETRY]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: logId
+      type: Long
+      description: ID Log
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_47
+    name: "Retry notify"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"logId": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+API: GET /api/v1/admin/dashboard/metrics
+Module: admin
+Controller: AdminController
+Description: Lấy metrics quản trị.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [DASHBOARD_FULL]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_48
+    name: "Metrics"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: GET /api/v1/accounts/profile
+Module: account
+Controller: AccountController
+Description: Lấy profile.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ACCOUNT_VIEW_SELF]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_49
+    name: "Get profile"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/accounts/profile
+Module: account
+Controller: AccountController
+Description: Cập nhật profile.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ACCOUNT_UPDATE_SELF]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: multipart/form-data
+    schema:
+      phoneNumber: {type: String, required: false, validation: Phone, example: "012"}
+      avatar: {type: File, required: false, validation: Image, example: "binary"}
+    example: "Multipart data"
+TestCases:
+  - id: TC_50
+    name: "Update profile"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/accounts/address
+Module: account
+Controller: AccountController
+Description: Thêm địa chỉ.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ACCOUNT_UPDATE_SELF]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      street: {type: String, required: true, validation: NotBlank, example: "123 Street"}
+      ward: {type: String, required: true, validation: NotBlank, example: "15"}
+      district: {type: String, required: true, validation: NotBlank, example: "Gò Vấp"}
+      city: {type: String, required: true, validation: NotBlank, example: "HCM"}
+      isDefault: {type: boolean, required: true, validation: None, example: true}
+        example: |
+      {
+          "street": "616/61/11D Lê Đức Thọ",
+          "district": "Gò Vấp",
+          "ward": "15",
+          "city": "Hồ Chí Minh", 
+          "isDefault": true
+      }
+TestCases:
+  - id: TC_51
+    name: "Add address"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"street": "123", "city": "HCM", "isDefault": true}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: PUT /api/v1/accounts/address/{id}
+Module: account
+Controller: AccountController
+Description: Cập nhật địa chỉ.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ACCOUNT_UPDATE_SELF]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID địa chỉ
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      street: {type: String, required: true, validation: NotBlank, example: "123 Street"}
+      ward: {type: String, required: true, validation: NotBlank, example: "15"}
+      district: {type: String, required: true, validation: NotBlank, example: "Gò Vấp"}
+      city: {type: String, required: true, validation: NotBlank, example: "HCM"}
+      isDefault: {type: boolean, required: true, validation: None, example: true}
+    example: |
+      {
+          "street": "616/61/11D Lê Đức Thọ",
+          "district": "Gò Vấp",
+          "ward": "15",
+          "city": "Hồ Chí Minh", 
+          "isDefault": true
+      }
+TestCases:
+  - id: TC_52
+    name: "Update address"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {"street": "456 New St", "city": "HCM", "isDefault": false}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: DELETE /api/v1/accounts/address/{id}
+Module: account
+Controller: AccountController
+Description: Xóa địa chỉ.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ACCOUNT_UPDATE_SELF]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID địa chỉ
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_53
+    name: "Delete address"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+
+---
+Tested Status: done
+API: POST /api/v1/orders/checkout
+Module: order
+Controller: OrderController
+Description: >
+  Checkout và tạo đơn hàng từ toàn bộ giỏ hàng hiện tại của User.
+  Hệ thống tự động lấy shippingAddress và customerPhone từ Profile (địa chỉ mặc định)
+  nếu không được truyền trong request. Nếu truyền vào, giá trị trong request sẽ được ưu tiên.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ORDER_CREATE]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+    - name: Content-Type
+      value: application/json
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      requestId: {type: String, required: true, validation: Unique/Idempotency-Key, example: "req-uuid-001"}
+      shippingAddress: {type: String, required: false, validation: NotBlank if no default in profile, example: "123 Lê Lợi, Q1, HCM"}
+      customerPhone: {type: String, required: false, validation: NotBlank if no phone in profile, example: "0901234567"}
+      couponCode: {type: String, required: false, validation: None, example: "GIAM20K"}
+    example: |
+      {
+          "requestId": "req-uuid-001"
+      }
+    exampleWithOverride: |
+      {
+          "requestId": "req-uuid-002",
+          "shippingAddress": "456 Nguyễn Huệ, Q1, HCM",
+          "customerPhone": "0909999999",
+          "couponCode": "GIAM20K"
+      }
+Response:
+  schema:
+    success: {type: boolean}
+    data: {type: Long, description: "ID của đơn hàng vừa tạo"}
+    message: {type: String}
+  example: |
+    {"success": true, "data": 102, "message": "Operation successful"}
+Notes:
+  - requestId dùng để chống tạo đơn trùng lặp (Idempotency). Mỗi lần checkout cần requestId khác nhau.
+  - Phải có ít nhất 1 sản phẩm trong giỏ hàng, nếu không trả lỗi "Giỏ hàng rỗng".
+  - shippingAddress tự động lấy từ địa chỉ mặc định trong Profile nếu không truyền.
+  - customerPhone tự động lấy từ Profile nếu không truyền.
+  - Nếu cả request lẫn Profile đều không có địa chỉ/SĐT, trả về lỗi 400.
+  - Saga Pattern: Inventory -> Promotion (nếu có coupon) -> Complete. Bất kỳ bước nào thất bại đều rollback.
+TestCases:
+  - id: TC_54
+    name: "Checkout - Dùng thông tin từ Profile (không truyền address/phone)"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer {customer_token}", "Content-Type": "application/json"}
+      body: {"requestId": "req-uuid-001"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+      body: {success: true, data: "<orderId>"}
+    precondition: "User đã có địa chỉ mặc định và SĐT trong Profile. Giỏ hàng không rỗng."
+
+  - id: TC_55
+    name: "Checkout - Override địa chỉ giao hàng khác Profile"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer {customer_token}", "Content-Type": "application/json"}
+      body: {"requestId": "req-uuid-002", "shippingAddress": "789 Đinh Tiên Hoàng, Q1", "customerPhone": "0901111111"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+  - id: TC_56
+    name: "Checkout - Giỏ hàng rỗng"
+    type: ERROR_PATH
+    input:
+      headers: {"Authorization": "Bearer {customer_token}", "Content-Type": "application/json"}
+      body: {"requestId": "req-uuid-003"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 400
+      message: "Giỏ hàng rỗng"
+
+  - id: TC_57
+    name: "Checkout - Profile không có địa chỉ và không truyền address"
+    type: ERROR_PATH
+    input:
+      headers: {"Authorization": "Bearer {customer_token}", "Content-Type": "application/json"}
+      body: {"requestId": "req-uuid-004"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 400
+      message: "Vui lòng cung cấp địa chỉ giao hàng"
+
+  - id: TC_58
+    name: "Checkout - Idempotency (gửi requestId đã dùng)"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer {customer_token}", "Content-Type": "application/json"}
+      body: {"requestId": "req-uuid-001"}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+      body: {data: "<same orderId as TC_54>"}
+    note: "Không tạo đơn mới, trả về orderId cũ."
+  
+---
+Tested Status: done
+API: GET /api/v1/admin/inventory
+Module: inventory
+Controller: InventoryAdminController
+Description: Lấy danh sách toàn bộ tồn kho.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_INV_01
+    name: "Admin get all stocks"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+COMMENTED: true
+API: POST /api/v1/admin/inventory (DEPRECATED - Use Catalog Create instead)
+Module: inventory
+Controller: InventoryAdminController
+Description: Khởi tạo tồn kho ban đầu cho một sách mới.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      bookId: {type: Long, required: true}
+      initialQuantity: {type: Integer, required: true}
+    example: |
+      {"bookId": 1, "initialQuantity": 100}
+TestCases:
+  - id: TC_INV_02
+    name: "Admin init stock"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {"bookId": 1, "initialQuantity": 100}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 201
+
+---
+Tested Status: done
+API: GET /api/v1/admin/coupons
+Module: promotion
+Controller: PromotionAdminController
+Description: Lấy danh sách coupons.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_PRM_01
+    name: "Admin get coupons"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+---
+Tested Status: done
+API: GET /api/v1/admin/inventory/{bookId}
+Module: inventory
+Controller: InventoryAdminController
+Description: Lấy thông tin tồn kho của một sách (Admin only).
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: bookId
+      type: Long
+      description: ID của sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_INV_03
+    name: "Admin get stock by book id"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {"bookId": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: PUT /api/v1/admin/inventory/{bookId}/increase
+Module: inventory
+Controller: InventoryAdminController
+Description: Tăng số lượng tồn kho (Nhập hàng - Admin only).
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: bookId
+      type: Long
+      description: ID của sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      amount: {type: Integer, required: true, validation: Positive}
+    example: |
+      {"amount": 50}
+TestCases:
+  - id: TC_INV_04
+    name: "Admin increase stock"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {"amount": 50}
+      pathVars: {"bookId": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: PUT /api/v1/admin/inventory/{bookId}/decrease
+Module: inventory
+Controller: InventoryAdminController
+Description: Giảm số lượng tồn kho (Xuất kho thủ công - Admin only).
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: bookId
+      type: Long
+      description: ID của sách
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      amount: {type: Integer, required: true, validation: Positive}
+    example: |
+      {"amount": 10}
+TestCases:
+  - id: TC_INV_05
+    name: "Admin decrease stock"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {"amount": 10}
+      pathVars: {"bookId": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: GET /api/v1/admin/coupons/{id}
+Module: promotion
+Controller: PromotionAdminController
+Description: Lấy thông tin chi tiết một coupon.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID của coupon
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_PRM_02
+    name: "Admin get coupon by id"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: POST /api/v1/admin/coupons
+Module: promotion
+Controller: PromotionAdminController
+Description: Tạo một mã khuyến mãi mới.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      code: {type: String, required: true}
+      description: {type: String, required: false}
+      discountType: {type: String, required: true, example: "PERCENTAGE"}
+      discountValue: {type: BigDecimal, required: true, example: 10}
+      minOrderValue: {type: BigDecimal, required: true, example: 100000}
+      maxDiscountValue: {type: BigDecimal, required: false, example: 50000}
+      usageLimit: {type: Integer, required: true, example: 100}
+      startDate: {type: LocalDateTime, required: true}
+      endDate: {type: LocalDateTime, required: true}
+      isActive: {type: Boolean, required: true}
+    example: |
+      {
+        "code": "SUMMER2026",
+        "description": "Giảm 10% tối đa 50k",
+        "discountType": "PERCENTAGE",
+        "discountValue": 10,
+        "minOrderValue": 100000,
+        "maxDiscountValue": 50000,
+        "usageLimit": 100,
+        "startDate": "2026-05-01T00:00:00",
+        "endDate": "2026-12-31T23:59:59",
+        "isActive": true
+      }
+TestCases:
+  - id: TC_PRM_03
+    name: "Admin create coupon"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: { "code": "SUMMER2026", "discountType": "PERCENTAGE", "discountValue": 10, "minOrderValue": 100000, "usageLimit": 100, "startDate": "2026-05-01T00:00:00", "endDate": "2026-12-31T23:59:59", "isActive": true }
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 201
+
+---
+Tested Status: done
+API: PUT /api/v1/admin/coupons/{id}
+Module: promotion
+Controller: PromotionAdminController
+Description: Chỉnh sửa mã khuyến mãi.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID của coupon
+      example: 1
+  QueryParams: []
+    RequestBody:
+    contentType: application/json
+    schema:
+      description: {type: String, required: false}
+      discountValue: {type: BigDecimal, required: true, example: 10}
+      minOrderValue: {type: BigDecimal, required: true, example: 100000}
+      maxDiscountValue: {type: BigDecimal, required: false, example: 50000}
+      usageLimit: {type: Integer, required: true, example: 100}
+      startDate: {type: LocalDateTime, required: true}
+      endDate: {type: LocalDateTime, required: true}
+      isActive: {type: Boolean, required: true}
+    example: |
+      {
+        "description": "Giảm 15% tối đa 50k",
+        "discountValue": 15,
+        "minOrderValue": 100000,
+        "maxDiscountValue": 50000,
+        "usageLimit": 100,
+        "startDate": "2026-05-01T00:00:00",
+        "endDate": "2026-12-31T23:59:59",
+        "isActive": true
+      }
+TestCases:
+  - id: TC_PRM_04
+    name: "Admin update coupon"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: { "code": "SUMMER2026_UPDATED", "discountType": "PERCENTAGE", "discountValue": 15, "minOrderValue": 100000, "usageLimit": 100, "startDate": "2026-05-01T00:00:00", "endDate": "2026-12-31T23:59:59", "isActive": true }
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 200
+
+---
+Tested Status: done
+API: DELETE /api/v1/admin/coupons/{id}
+Module: promotion
+Controller: PromotionAdminController
+Description: Xóa mã khuyến mãi.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [ADMIN]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables:
+    - name: id
+      type: Long
+      description: ID của coupon
+      example: 1
+  QueryParams: []
+  RequestBody:
+    contentType: null
+    schema: {}
+    example: ""
+TestCases:
+  - id: TC_PRM_05
+    name: "Admin delete coupon"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer admin_token"}
+      body: {}
+      pathVars: {"id": 1}
+      queryParams: {}
+    expected:
+      status: 204
+
+---
+Tested Status: done
+API: POST /api/v1/promotions/validate
+Module: promotion
+Controller: PromotionController
+Description: Xác thực mã khuyến mãi và tính toán số tiền được giảm cho khách hàng.
+Authentication:
+  required: true
+  type: Bearer JWT
+  roles: [CUSTOMER]
+Request:
+  Headers:
+    - name: Authorization
+      value: "Bearer {token}"
+      required: true
+  PathVariables: []
+  QueryParams: []
+  RequestBody:
+    contentType: application/json
+    schema:
+      code: {type: String, required: true, example: "SUMMER2026"}
+      orderTotal: {type: BigDecimal, required: true, example: 500000}
+    example: |
+      {
+        "code": "SUMMER2026",
+        "orderTotal": 500000
+      }
+TestCases:
+  - id: TC_PRM_06
+    name: "Customer validate coupon"
+    type: HAPPY_PATH
+    input:
+      headers: {"Authorization": "Bearer customer_token"}
+      body: {"code": "SUMMER2026", "orderTotal": 500000}
+      pathVars: {}
+      queryParams: {}
+    expected:
+      status: 200
+      body: {"success": true, "message": "Mã khuyến mãi hợp lệ", "data": {"isValid": true, "discountAmount": 50000, "finalAmount": 450000}}
+
+TEST_RATE: 41/66
+TEST_STATUS:
+  - Auth: true
+    endpointcount: 6
+    donecount: 6
+  - Account: true
+    endpointcount: 5
+    donecount: 5
+  - Catalog: true
+    endpointcount: 9
+    donecount: 9
+  - Cart: true
+    endpointcount: 5
+    donecount: 5
+  - Order: true
+    endpointcount: 1
+    donecount: 1
+  - Payment: true
+    endpointcount: 3
+    donecount: 3
+  - Promotion: true
+    endpointcount: 6
+    donecount: 6
+  - Ai:
+    endpointcount: 5
+    donecount: 1
+  - Inventory:
+    endpointcount: 5
+    donecount: 5
+  - Returns:
+    endpointcount: 7
+    donecount: 0
+  - Logistics:
+    endpointcount: 11
+    donecount: 0
+  - System/Admin:
+    endpointcount: 3
+    donecount: 0
