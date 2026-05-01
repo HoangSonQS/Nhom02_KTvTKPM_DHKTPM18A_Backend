@@ -32,18 +32,18 @@ public interface OrderReportRepository extends JpaRepository<OrderReport, Long> 
     @Query("SELECT COUNT(o) FROM OrderReport o WHERE o.status = 'PAID'")
     long countPaidOrders();
 
-    @Query("""
+    @Query(value = """
         SELECT COALESCE(
             AVG(
-                EXTRACT(EPOCH FROM o.paidAt) - EXTRACT(EPOCH FROM o.checkoutAt)
+                EXTRACT(EPOCH FROM o.paid_at) - EXTRACT(EPOCH FROM o.checkout_at)
             ), 
             0.0
         )
-        FROM OrderReport o 
-        WHERE o.paidAt IS NOT NULL 
-          AND o.checkoutAt IS NOT NULL
-        """)
-    Double calculateAverageTimeToPaymentSeconds();
+        FROM adm_order_report o 
+        WHERE o.paid_at IS NOT NULL 
+          AND o.checkout_at IS NOT NULL
+        """, nativeQuery = true)
+    double calculateAverageTimeToPaymentSeconds();
 
     @Query("SELECT AVG(o.totalAmount) FROM OrderReport o WHERE o.status = 'PAID'")
     BigDecimal calculateAverageOrderValue();

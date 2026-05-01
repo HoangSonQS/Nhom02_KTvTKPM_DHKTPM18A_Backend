@@ -5,7 +5,7 @@ import lombok.Data;
 
 public interface OrderInternalUseCase {
 
-    Long checkout(Long userId, CheckoutCommand command);
+    OrderResponse checkout(Long userId, CheckoutCommand command);
 
     OrderResponse getOrderById(Long orderId);
 
@@ -19,6 +19,8 @@ public interface OrderInternalUseCase {
         private Long orderId;
         private Long userId;
         private java.math.BigDecimal totalAmount;
+        private java.math.BigDecimal discountAmount;
+        private java.math.BigDecimal finalAmount;
         private String status;
         private String sagaStatus;
         private String requestId;

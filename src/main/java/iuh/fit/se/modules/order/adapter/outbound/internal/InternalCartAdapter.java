@@ -29,4 +29,9 @@ public class InternalCartAdapter implements CartPort {
                         .collect(Collectors.toList()))
                 .build();
     }
+
+    @Override
+    public void clearCart(Long userId) {
+        cartUseCase.clearCart(userId);
+    }
 }

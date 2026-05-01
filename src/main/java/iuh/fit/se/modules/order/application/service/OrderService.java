@@ -36,30 +36,76 @@ public class OrderService implements OrderInternalUseCase {
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    public Long checkout(Long userId, CheckoutCommand command) {
+    public OrderResponse checkout(Long userId, CheckoutCommand command) {
         MDC.put("requestId", command.getRequestId());
         try {
             log.info("Starting checkout saga for user {} with ref {}", userId, command.getRequestId());
 
             // 1. Idempotency check
             Optional<Order> existing = orderPersistencePort.findByRequestId(command.getRequestId());
+            Order order;
             if (existing.isPresent()) {
-                log.info("Order with requestId {} already exists. Returning existing ID.", command.getRequestId());
-                return existing.get().getId();
+                order = existing.get();
+                if (order.getSagaStatus() == SagaStatus.COMPLETED) {
+                    log.info("Order with requestId {} already completed. Returning existing response.", command.getRequestId());
+                    cartPort.clearCart(userId);
+                    return mapToResponse(order);
+                } else if (order.getSagaStatus() == SagaStatus.FAILED) {
+                    log.info("Order with requestId {} was FAILED. Resetting for retry.", command.getRequestId());
+                    order.resetForRetry();
+                    orderPersistencePort.save(order);
+                } else {
+                    log.warn("Order with requestId {} exists in status {}. Returning current state.",
+                            command.getRequestId(), order.getSagaStatus());
+                    return mapToResponse(order);
+                }
+            } else {
+                order = null; // Will create below
             }
 
-            // 2. Fetch Cart
+            // 2. Fetch User Profile để fallback địa chỉ & SĐT
+            OrderUserPort.UserDto userProfile = orderUserPort.getUserDetails(userId);
+            String shippingAddress = (command.getShippingAddress() == null || command.getShippingAddress().isBlank())
+                    ? userProfile.getDefaultAddress()
+                    : command.getShippingAddress();
+            String customerPhone = (command.getCustomerPhone() == null || command.getCustomerPhone().isBlank())
+                    ? userProfile.getPhoneNumber()
+                    : command.getCustomerPhone();
+
+            if (shippingAddress == null || shippingAddress.isBlank()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Vui lòng cung cấp địa chỉ giao hàng hoặc thiết lập địa chỉ mặc định trong hồ sơ.");
+            }
+            if (customerPhone == null || customerPhone.isBlank()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Vui lòng cung cấp số điện thoại hoặc cập nhật số điện thoại trong hồ sơ.");
+            }
+
+            // Tạo resolved command với thông tin đã được resolve từ profile
+            CheckoutCommand resolvedCommand = CheckoutCommand.builder()
+                    .requestId(command.getRequestId())
+                    .shippingAddress(shippingAddress)
+                    .customerPhone(customerPhone)
+                    .couponCode(command.getCouponCode())
+                    .build();
+
+            // 3. Fetch Cart
             CartPort.CartDto cart = cartPort.getCartByUserId(userId);
             if (cart.getItems() == null || cart.getItems().isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_INPUT, "Giỏ hàng rỗng, không thể tạo đơn hàng.");
             }
 
-            // 3. INIT Order in DB (Local Transaction for this step)
+            // 4. INIT Order in DB if not exists
             BigDecimal totalAmount = cart.getItems().stream()
                     .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            Order order = saveInitialOrder(userId, command, cart, totalAmount);
+            if (order == null) {
+                order = saveInitialOrder(userId, resolvedCommand, cart, totalAmount);
+            } else {
+                // If retrying, update amounts and items to match current cart
+                order = updateOrderFromCart(order, resolvedCommand, cart, totalAmount);
+            }
+            
+            final Order sagaOrder = order;
             
             // Extract stock items for compensation/inventory phases
             List<InventoryPort.StockItem> stockItems = cart.getItems().stream()
@@ -69,57 +115,110 @@ public class OrderService implements OrderInternalUseCase {
                                     .build())
                             .collect(Collectors.toList());
 
-            // 4. Inventory Phase (Decrease)
+            // 5. Inventory Phase (Decrease)
             try {
-                inventoryPort.decreaseStockBulk(stockItems, command.getRequestId());
-                updateSagaStatus(order, SagaStatus.STOCK_RESERVED);
+                inventoryPort.decreaseStockBulk(stockItems, resolvedCommand.getRequestId());
+                updateSagaStatus(sagaOrder, SagaStatus.STOCK_RESERVED);
             } catch (Exception e) {
-                log.error("Inventory Phase failed for requestId {}: {}", command.getRequestId(), e.getMessage());
-                // No compensation needed yet as it failed at the first step
-                updateSagaStatus(order, SagaStatus.FAILED);
+                log.error("Inventory Phase failed for requestId {}: {}", resolvedCommand.getRequestId(), e.getMessage());
+                updateSagaStatus(sagaOrder, SagaStatus.FAILED);
                 throw e;
             }
 
-            // 5. Promotion Phase
+            // 6. Promotion Phase
             BigDecimal discount = BigDecimal.ZERO;
-            if (command.getCouponCode() != null && !command.getCouponCode().isBlank()) {
+            if (resolvedCommand.getCouponCode() != null && !resolvedCommand.getCouponCode().isBlank()) {
                 PromotionPort.PromotionResult promoResult;
                 try {
                     promoResult = promotionPort.reserveCoupon(
-                            command.getCouponCode(), totalAmount, command.getRequestId());
+                            resolvedCommand.getCouponCode(), totalAmount, resolvedCommand.getRequestId());
+                } catch (AppException e) {
+                    log.error("Promotion business error: {}. Compensating stock...", e.getMessage());
+                    inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
+                    updateSagaStatus(sagaOrder, SagaStatus.FAILED);
+                    throw e;
                 } catch (Exception e) {
                     log.error("Promotion Phase network/system error. Compensating stock...");
-                    inventoryPort.increaseStockBulk(stockItems, command.getRequestId());
-                    updateSagaStatus(order, SagaStatus.FAILED);
-                    throw e;
+                    inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
+                    updateSagaStatus(sagaOrder, SagaStatus.FAILED);
+                    throw new AppException(ErrorCode.INTERNAL_ERROR, "Lỗi hệ thống khi xử lý mã giảm giá.");
                 }
 
                 if (promoResult.isSuccess()) {
                     discount = promoResult.getDiscountAmount();
-                    updateOrderWithPromotion(order, discount, SagaStatus.COUPON_RESERVED);
+                    updateOrderWithPromotion(sagaOrder, discount, SagaStatus.COUPON_RESERVED);
                 } else {
                     log.warn("Promotion business failed: {}. Executing compensation for Stock...", promoResult.getMessage());
-                    inventoryPort.increaseStockBulk(stockItems, command.getRequestId());
-                    updateSagaStatus(order, SagaStatus.FAILED);
+                    inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
+                    updateSagaStatus(sagaOrder, SagaStatus.FAILED);
                     throw new AppException(ErrorCode.INVALID_INPUT, "Mã giảm giá không hợp lệ: " + promoResult.getMessage());
                 }
             }
 
-            // 6. Complete Phase
-            completeSaga(order);
+            // 7. Complete Phase
+            completeSaga(sagaOrder);
+            cartPort.clearCart(userId);
 
-            // 7. Publish Domain Event (Internal)
-            OrderUserPort.UserDto user = orderUserPort.getUserDetails(userId);
-            eventPublisher.publishEvent(OrderCreatedDomainEvent.of(order, user.getFullName(), user.getEmail()));
+            // 8. Re-fetch order to get updated discount and saga status from DB
+            Order finalOrder = orderPersistencePort.findById(sagaOrder.getId())
+                    .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
 
-            return order.getId();
+            // 9. Publish Domain Event (Internal)
+            eventPublisher.publishEvent(OrderCreatedDomainEvent.of(finalOrder, userProfile.getFullName(), userProfile.getEmail()));
+
+            return mapToResponse(finalOrder);
 
         } finally {
             MDC.remove("requestId");
         }
     }
 
+    private OrderResponse mapToResponse(Order order) {
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        return OrderResponse.builder()
+                .orderId(order.getId())
+                .userId(order.getUserId())
+                .totalAmount(order.getTotalAmount())
+                .discountAmount(discount)
+                .finalAmount(order.getTotalAmount().subtract(discount))
+                .status(order.getStatus().name())
+                .sagaStatus(order.getSagaStatus().name())
+                .requestId(order.getRequestId())
+                .updatedAt(order.getUpdatedAt())
+                .items(order.getItems().stream()
+                        .map(item -> OrderItemResponse.builder()
+                                .bookId(item.getBookId())
+                                .quantity(item.getQuantity())
+                                .priceAtPurchase(item.getPriceAtPurchase())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
     @Transactional
+    public Order updateOrderFromCart(Order order, CheckoutCommand command, CartPort.CartDto cart, BigDecimal totalAmount) {
+        Order o = orderPersistencePort.findById(order.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+
+        // Update fields that might have changed
+        o.resetForRetry(); // This also sets status and sagaStatus
+        
+        o.updateDetails(totalAmount, command.getShippingAddress(), command.getCustomerPhone());
+
+        List<OrderItem> items = cart.getItems().stream()
+                .map(item -> OrderItem.builder()
+                        .order(o)
+                        .bookId(item.getBookId())
+                        .bookTitle(item.getTitle())
+                        .priceAtPurchase(item.getPrice())
+                        .quantity(item.getQuantity())
+                        .build())
+                .collect(Collectors.toList());
+
+        o.setItems(items);
+        return orderPersistencePort.save(o);
+    }
+
     public Order saveInitialOrder(Long userId, CheckoutCommand command, CartPort.CartDto cart, BigDecimal totalAmount) {
         Order order = Order.builder()
                 .userId(userId)
@@ -143,46 +242,30 @@ public class OrderService implements OrderInternalUseCase {
                         .build())
                 .collect(Collectors.toList());
         
-        // Use a trick to set items if using Lombok Builder (usually items field needs to be initialized or handled)
-        // Here I'll just use a workaround if the @OneToMany doesn't have a setter
-        try {
-            java.lang.reflect.Field itemsField = Order.class.getDeclaredField("items");
-            itemsField.setAccessible(true);
-            itemsField.set(order, items);
-        } catch (Exception e) {
-            log.error("Reflection error setting items", e);
-        }
-
-        orderPersistencePort.save(order);
-        return order;
+        order.setItems(items);
+        return orderPersistencePort.save(order);
     }
 
     @Transactional
     public void updateSagaStatus(Order order, SagaStatus status) {
-        Order o = orderPersistencePort.findById(order.getId()).get();
+        Order o = orderPersistencePort.findById(order.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        
         if (status == SagaStatus.STOCK_RESERVED) o.markStockReserved();
         else if (status == SagaStatus.COUPON_RESERVED) o.markCouponReserved();
-        else if (status == SagaStatus.FAILED) {
-            // we don't have markFailed yet, let's just use reflect or add to domain
-            try {
-                java.lang.reflect.Field field = Order.class.getDeclaredField("sagaStatus");
-                field.setAccessible(true);
-                field.set(o, SagaStatus.FAILED);
-            } catch (Exception e) {}
-        }
+        else if (status == SagaStatus.FAILED) o.markFailed();
+        
         orderPersistencePort.save(o);
     }
 
     @Transactional
     public void updateOrderWithPromotion(Order order, BigDecimal discount, SagaStatus status) {
-        Order o = orderPersistencePort.findById(order.getId()).get();
-        try {
-            java.lang.reflect.Field dField = Order.class.getDeclaredField("discountAmount");
-            dField.setAccessible(true);
-            dField.set(o, discount);
-            
-            if (status == SagaStatus.COUPON_RESERVED) o.markCouponReserved();
-        } catch (Exception e) {}
+        Order o = orderPersistencePort.findById(order.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        
+        o.setDiscountAmount(discount);
+        if (status == SagaStatus.COUPON_RESERVED) o.markCouponReserved();
+        
         orderPersistencePort.save(o);
     }
 
@@ -199,22 +282,7 @@ public class OrderService implements OrderInternalUseCase {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
         
-        return OrderResponse.builder()
-                .orderId(order.getId())
-                .userId(order.getUserId())
-                .totalAmount(order.getTotalAmount())
-                .status(order.getStatus().name())
-                .sagaStatus(order.getSagaStatus().name())
-                .requestId(order.getRequestId())
-                .updatedAt(order.getUpdatedAt())
-                .items(order.getItems().stream()
-                        .map(item -> OrderItemResponse.builder()
-                                .bookId(item.getBookId())
-                                .quantity(item.getQuantity())
-                                .priceAtPurchase(item.getPriceAtPurchase())
-                                .build())
-                        .collect(Collectors.toList()))
-                .build();
+        return mapToResponse(order);
     }
 
     @Override
@@ -234,21 +302,8 @@ public class OrderService implements OrderInternalUseCase {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
         
-        // Simple logic for now: Mark as RETURNED.
-        // In a more complex scenario, we would sum all items returned
-        // for this order and compare with original quantities.
-        
-        try {
-            java.lang.reflect.Field statusField = Order.class.getDeclaredField("status");
-            statusField.setAccessible(true);
-            statusField.set(order, OrderStatus.RETURNED);
-            orderPersistencePort.save(order);
-            log.info("Order {} status updated to RETURNED", orderId);
-        } catch (Exception e) {
-            log.error("Failed to update order status via reflection", e);
-            // Fallback if field update fails
-            order.cancel(); // Not ideal but as fallback
-            orderPersistencePort.save(order);
-        }
+        order.markReturned();
+        orderPersistencePort.save(order);
+        log.info("Order {} status updated to RETURNED", orderId);
     }
 }

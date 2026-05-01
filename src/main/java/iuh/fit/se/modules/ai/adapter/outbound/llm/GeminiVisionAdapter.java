@@ -8,8 +8,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
-import org.springframework.ai.content.Media; // Fixed import
+import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeTypeUtils;
@@ -24,10 +23,9 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class AlibabaVisionAdapter implements VisionModelPort {
+public class GeminiVisionAdapter implements VisionModelPort {
 
     private final ChatModel chatModel;
-    private static final String VISION_MODEL = "qwen-vl-ocr-2025-11-20";
 
     @Override
     @SuppressWarnings("deprecation")
@@ -36,21 +34,16 @@ public class AlibabaVisionAdapter implements VisionModelPort {
             byte[] compressedImage = compressImage(file.getBytes());
 
             String systemPrompt = "You are a professional librarian. Extract the book title and author from this image. "
-                    +
-                    "Return ONLY a JSON object like: {\"title\": \"...\", \"author\": \"...\"}";
+                    + "Return ONLY a JSON object like: {\"title\": \"...\", \"author\": \"...\"}";
 
-            // Create media object with correct import
             Media media = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(compressedImage));
 
-            // Create UserMessage with just text first
-            UserMessage userMessage = new UserMessage(systemPrompt);
+            UserMessage userMessage = UserMessage.builder()
+                    .text(systemPrompt)
+                    .media(media)
+                    .build();
 
-            // Add media to it
-            userMessage.getMedia().add(media);
-
-            // Use the message in the prompt
-            ChatResponse response = chatModel.call(new Prompt(userMessage,
-                    DashScopeChatOptions.builder().withModel(VISION_MODEL).build()));
+            ChatResponse response = chatModel.call(new Prompt(userMessage));
 
             String content = response.getResult().getOutput().getText();
             log.info("OCR Response: {}", content);

@@ -87,11 +87,14 @@ public class PromotionService implements PromotionInternalUseCase {
         log.info("[{}] Reserving coupon {} for amount {}", referenceId, code, orderTotal);
 
         try {
-            Coupon coupon = persistencePort.findByCodeWithOptimisticLock(code)
-                    .orElseThrow(() -> new IllegalArgumentException("Mã khuyến mãi không tồn tại"));
+            Optional<Coupon> couponOpt = persistencePort.findByCodeWithOptimisticLock(code);
+            if (couponOpt.isEmpty()) {
+                return PromotionApplicationResult.failure("Mã khuyến mãi không tồn tại", orderTotal, referenceId);
+            }
+            Coupon coupon = couponOpt.get();
 
             if (!coupon.isAppliable(orderTotal)) {
-                return PromotionApplicationResult.failure("Mã không khả thi (hết hạn/lượt dùng)", orderTotal, referenceId);
+                return PromotionApplicationResult.failure("Mã không khả thi (hết hạn/lượt dùng hoặc không đủ điều kiện)", orderTotal, referenceId);
             }
 
             BigDecimal discount = coupon.calculateDiscount(orderTotal);

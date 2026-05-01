@@ -63,6 +63,29 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Thêm địa chỉ thành công", updated));
     }
 
+    @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")
+    @org.springframework.web.bind.annotation.PutMapping("/address/{id}")
+    public ResponseEntity<ApiResponse<Account>> updateAddress(
+            @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId,
+            @Valid @RequestBody AccountUseCase.AddressCommand command) {
+
+        Long userId = getCurrentUserId();
+        Account updated = accountUseCase.updateAddress(userId, addressId, command);
+
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật địa chỉ thành công", updated));
+    }
+
+    @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")
+    @org.springframework.web.bind.annotation.DeleteMapping("/address/{id}")
+    public ResponseEntity<ApiResponse<Account>> deleteAddress(
+            @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId) {
+
+        Long userId = getCurrentUserId();
+        Account updated = accountUseCase.deleteAddress(userId, addressId);
+
+        return ResponseEntity.ok(ApiResponse.success("Xóa địa chỉ thành công", updated));
+    }
+
     /**
      * Helper: Lấy userId từ SecurityContext (được set tại JwtAuthenticationFilter).
      */

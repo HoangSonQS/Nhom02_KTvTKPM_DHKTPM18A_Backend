@@ -16,6 +16,7 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(4004, "Không tìm thấy tài nguyên", HttpStatus.NOT_FOUND),
     ACCESS_DENIED(4003, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
     INVALID_INPUT(4001, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
+    BODY_MISSING(4002, "Thiếu request body hoặc payload không hợp lệ", HttpStatus.BAD_REQUEST),
     TOO_MANY_REQUESTS(4029, "Quá nhiều yêu cầu, vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
 
     // ===== Auth Module (AUTH_) =====
@@ -25,6 +26,9 @@ public enum ErrorCode {
     AUTH_EMAIL_ALREADY_EXISTS(4013, "Email đã được đăng ký", HttpStatus.CONFLICT),
     AUTH_USER_NOT_FOUND(4014, "Người dùng không tồn tại", HttpStatus.NOT_FOUND),
     AUTH_ACCOUNT_DISABLED(4015, "Tài khoản đã bị vô hiệu hóa", HttpStatus.FORBIDDEN),
+
+    // ===== Catalog Module (CAT_) =====
+    CAT_CATEGORY_ALREADY_EXISTS(4100, "Tên danh mục đã tồn tại", HttpStatus.CONFLICT),
 
     // ===== Inventory Module (INV_) =====
     INV_STOCK_NOT_FOUND(4200, "Không tìm thấy tồn kho cho sách này", HttpStatus.NOT_FOUND),
@@ -49,6 +53,15 @@ public enum ErrorCode {
     LOG_UNAUTHORIZED_STATE_TRANSITION(4502, "Bạn không có quyền thực hiện chuyển đổi trạng thái này", HttpStatus.FORBIDDEN),
     LOG_SUPPLIER_NOT_FOUND(4504, "Không tìm thấy nhà cung cấp", HttpStatus.NOT_FOUND),
     LOG_PO_NOT_FOUND(4505, "Không tìm thấy đơn hàng mua", HttpStatus.NOT_FOUND),
+
+    // ===== Promotion Module (PRM_) =====
+    PRM_COUPON_NOT_FOUND(4700, "Không tìm thấy mã khuyến mãi", HttpStatus.NOT_FOUND),
+    PRM_COUPON_ALREADY_EXISTS(4701, "Mã coupon đã tồn tại", HttpStatus.CONFLICT),
+    PRM_COUPON_NOT_APPLICABLE(4702, "Đơn hàng không đủ điều kiện áp dụng mã khuyến mãi", HttpStatus.BAD_REQUEST),
+    PRM_COUPON_EXPIRED(4703, "Mã khuyến mãi đã hết hạn hoặc hết lượt sử dụng", HttpStatus.GONE),
+
+    // ===== Inventory supplement =====
+    INV_STOCK_ALREADY_EXISTS(4204, "Tồn kho cho sách này đã được khởi tạo", HttpStatus.CONFLICT),
 
     // ===== Returns Module (RET_) =====
     RET_INVALID_STATE_TRANSITION(4601, "Chuyển trạng thái yêu cầu trả hàng không hợp lệ", HttpStatus.CONFLICT),

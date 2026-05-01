@@ -100,6 +100,23 @@ public class Order {
         this.status = OrderStatus.CANCELLED;
     }
 
+    public void markReturned() {
+        this.status = OrderStatus.RETURNED;
+    }
+
+    public void resetForRetry() {
+        this.status = OrderStatus.PENDING_PAYMENT;
+        this.sagaStatus = SagaStatus.INIT;
+        this.discountAmount = BigDecimal.ZERO;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateDetails(BigDecimal totalAmount, String shippingAddress, String customerPhone) {
+        this.totalAmount = totalAmount;
+        this.shippingAddress = shippingAddress;
+        this.customerPhone = customerPhone;
+    }
+
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiredAt);
     }

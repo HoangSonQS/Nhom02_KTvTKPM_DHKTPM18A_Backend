@@ -99,41 +99,49 @@ public class Book {
         this.categoryIds.remove(categoryId);
     }
 
-    public void updateBasicInfo(String title, String author, String description, BigDecimal price, int targetQuantity, Set<Long> categoryIds) {
-        this.title = title;
-        this.author = author;
-        this.description = description;
-        this.price = price;
-        this.deprecatedQuantity = targetQuantity;
+    public void updateBasicInfo(String title, String author, String description, BigDecimal price, Integer targetQuantity, Set<Long> categoryIds) {
+        // Partial Update: chỉ cập nhật những trường được gửi (khác null)
+        if (title != null) this.title = title;
+        if (author != null) this.author = author;
+        if (description != null) this.description = description;
+        if (price != null) this.price = price;
+        if (targetQuantity != null) this.deprecatedQuantity = targetQuantity;
         if (categoryIds != null) {
             this.categoryIds = new HashSet<>(categoryIds);
-        } else {
-            this.categoryIds.clear();
         }
     }
 
     /**
-     * Cập nhật Metadata phong phú.
+     * Cập nhật Metadata phống phú (Partial Update).
+     * Trường nào null = giữ nguyên giá trị cũ trong DB.
      */
     public void updateMetadata(String publisher, String isbn, Integer publicationYear, String language, Set<String> keywords,
                                Integer pageCount, String coverType, Integer weight, Integer length, Integer width, Integer height,
                                BigDecimal originalPrice) {
-        this.publisher = publisher;
-        this.isbn = isbn;
-        this.publicationYear = publicationYear;
-        this.language = language;
-        this.keywords = keywords != null ? new HashSet<>(keywords) : new HashSet<>();
-        this.pageCount = pageCount;
-        this.coverType = coverType;
-        this.weight = weight;
-        this.length = length;
-        this.width = width;
-        this.height = height;
-        this.originalPrice = originalPrice;
+        if (publisher != null) this.publisher = publisher;
+        if (isbn != null) this.isbn = isbn;
+        if (publicationYear != null) this.publicationYear = publicationYear;
+        if (language != null) this.language = language;
+        if (keywords != null) this.keywords = new HashSet<>(keywords);
+        if (pageCount != null) this.pageCount = pageCount;
+        if (coverType != null) this.coverType = coverType;
+        if (weight != null) this.weight = weight;
+        if (length != null) this.length = length;
+        if (width != null) this.width = width;
+        if (height != null) this.height = height;
+        if (originalPrice != null) this.originalPrice = originalPrice;
     }
 
     public void updateImage(String imageUrl, String imagePublicId) {
         this.imageUrl = imageUrl;
         this.imagePublicId = imagePublicId;
+    }
+
+    /**
+     * Đồng bộ số lượng tồn kho từ module Inventory.
+     * Đây là phương thức hỗ trợ cho việc chuyển đổi kiến trúc.
+     */
+    public void syncQuantity(int quantity) {
+        this.deprecatedQuantity = quantity;
     }
 }

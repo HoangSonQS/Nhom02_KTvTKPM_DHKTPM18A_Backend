@@ -20,6 +20,10 @@ public class BookMapper {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static BookDTO toDto(Book domain) {
+        return toDto(domain, null);
+    }
+
+    public static BookDTO toDto(Book domain, Integer realQuantity) {
         if (domain == null)
             return null;
 
@@ -29,7 +33,7 @@ public class BookMapper {
                 .author(domain.getAuthor())
                 .description(domain.getDescription())
                 .price(domain.getPrice())
-                .quantity(domain.getDeprecatedQuantity())
+                .quantity(realQuantity != null ? realQuantity : domain.getDeprecatedQuantity())
                 .imageUrl(domain.getImageUrl())
                 .isActive(domain.isActive())
                 .publisher(domain.getPublisher())

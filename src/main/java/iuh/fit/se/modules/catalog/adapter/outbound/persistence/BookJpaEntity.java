@@ -7,6 +7,8 @@ import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,8 +59,9 @@ public class BookJpaEntity extends BaseEntity {
     @Column(name = "language", length = 50)
     private String language;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "keywords", columnDefinition = "jsonb")
-    private String keywords; // Lưu dạng JSON string hoặc dùng converter
+    private String keywords; // Lưu dạng JSON string, Hibernate sẽ bind đúng kiểu jsonb
 
     @Column(name = "page_count")
     private Integer pageCount;

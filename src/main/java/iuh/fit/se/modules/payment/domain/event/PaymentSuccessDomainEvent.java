@@ -12,12 +12,14 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class PaymentSuccessDomainEvent extends BaseEvent {
     private final Payment payment;
+    private final String orderRequestId; // Carried for coupon confirmation
 
-    public static PaymentSuccessDomainEvent of(Payment payment) {
+    public static PaymentSuccessDomainEvent of(Payment payment, String orderRequestId) {
         return PaymentSuccessDomainEvent.builder()
                 .correlationId("PAY-" + payment.getOrderId())
                 .eventType("PAYMENT_SUCCESS_DOMAIN")
                 .payment(payment)
+                .orderRequestId(orderRequestId)
                 .build();
     }
 }

@@ -26,7 +26,7 @@ public class CartService implements CartInternalUseCase {
     private static final int MAX_PER_ITEM = 10; // Cấu hình tối đa 10 cuốn mỗi loại trong giỏ hàng
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CartResponse getCartByUserId(Long userId) {
         Cart cart = cartPersistencePort.findByUserId(userId)
                 .orElseGet(() -> {
@@ -116,10 +116,12 @@ public class CartService implements CartInternalUseCase {
     @Override
     @Transactional
     public void clearCart(Long userId) {
+        log.info("Clearing cart for user: {}", userId);
         cartPersistencePort.findByUserId(userId)
                 .ifPresent(cart -> {
                     cart.clearItems();
                     cartPersistencePort.save(cart);
+                    log.info("Cart cleared successfully for user: {}", userId);
                 });
     }
 }

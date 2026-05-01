@@ -3,6 +3,8 @@ package iuh.fit.se.modules.inventory.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -38,9 +40,11 @@ public class StockHistory {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "request_data", columnDefinition = "jsonb")
     private String requestData;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "result_data", columnDefinition = "jsonb")
     private String resultData;
 

@@ -22,14 +22,15 @@ public class OrderPaymentEventListener {
     public void handlePaymentSuccess(PaymentSuccessIntegrationEvent event) {
         log.info("PaymentSuccessIntegrationEvent received for Order {}. Finalizing status and coupon...", event.orderId());
         
-        // 1. Mark Order as PAID (Idempotent update)
+        // 1. Mark Order as PAID (Idempotent)
         orderUseCase.markOrderAsPaid(event.orderId());
         
-        // 2. Confirm Coupon Usage synchronously in the same transaction
-        OrderInternalUseCase.OrderResponse order = orderUseCase.getOrderById(event.orderId());
-        
-        // Only confirm if it was reserved (Optional logic but safe if promotionPort handles it)
-        promotionPort.confirmCouponUsage(order.getRequestId());
+        // 2. Confirm Coupon Usage — requestId is carried from checkout saga via event chain.
+        //    confirmCouponUsage is idempotent: only acts if reservation is still RESERVED.
+        if (event.orderRequestId() != null) {
+            promotionPort.confirmCouponUsage(event.orderRequestId());
+            log.info("Coupon usage confirmed for order request: {}", event.orderRequestId());
+        }
         
         log.info("Successfully finalized Order {} processing.", event.orderId());
     }

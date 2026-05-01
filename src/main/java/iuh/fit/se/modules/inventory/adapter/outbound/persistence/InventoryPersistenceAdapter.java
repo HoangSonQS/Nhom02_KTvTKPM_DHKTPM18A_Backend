@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +39,16 @@ public class InventoryPersistenceAdapter implements InventoryPersistencePort {
     @Override
     public Optional<InventoryStock> findStockByBookId(Long bookId) {
         return inventoryJpaRepository.findByBookId(bookId);
+    }
+
+    @Override
+    public List<InventoryStock> findStocksByBookIds(List<Long> bookIds) {
+        return inventoryJpaRepository.findByBookIdIn(bookIds);
+    }
+
+    @Override
+    public List<InventoryStock> findAllStocks() {
+        return inventoryJpaRepository.findAll();
     }
 
     @Override

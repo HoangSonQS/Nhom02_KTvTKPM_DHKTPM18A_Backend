@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import iuh.fit.se.shared.api.ApiResponse;
 
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -62,6 +65,33 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.AUTH_TOKEN_INVALID.getHttpStatus())
                 .body(ApiResponse.error(ErrorCode.AUTH_TOKEN_INVALID.getCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Payload invalid: {}", ex.getMessage());
+        return ResponseEntity
+                .status(ErrorCode.BODY_MISSING.getHttpStatus())
+                .body(ApiResponse.error(ErrorCode.BODY_MISSING.getCode(),
+                        ErrorCode.BODY_MISSING.getMessage()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Type mismatch: parameter [{}], message: {}", ex.getName(), ex.getMessage());
+        String msg = String.format("Tham số '%s' không đúng định dạng", ex.getName());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getHttpStatus())
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), msg));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParam(MissingServletRequestParameterException ex) {
+        log.warn("Missing param: {}", ex.getParameterName());
+        String msg = String.format("Thiếu tham số bắt buộc: %s", ex.getParameterName());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getHttpStatus())
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), msg));
     }
 
     @ExceptionHandler(Exception.class)

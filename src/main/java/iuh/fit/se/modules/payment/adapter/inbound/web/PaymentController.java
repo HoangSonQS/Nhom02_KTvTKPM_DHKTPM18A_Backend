@@ -1,12 +1,17 @@
 package iuh.fit.se.modules.payment.adapter.inbound.web;
 
 import iuh.fit.se.modules.payment.application.port.in.PaymentUseCase;
+import iuh.fit.se.modules.payment.adapter.outbound.vnpay.VnPayUtils;
+import iuh.fit.se.shared.api.ApiResponse;
+import iuh.fit.se.shared.exception.AppException;
+import iuh.fit.se.shared.exception.ErrorCode;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -25,8 +30,43 @@ public class PaymentController {
     @GetMapping("/vnpay-ipn")
     public String vnpayIpn(@RequestParam Map<String, String> allParams) {
         log.info("Received VNPay IPN Checksum Request: {}", allParams);
-        // In a real system, we must check the HMAC signature here
-        // For this task, we assume the signature is verified by the Gateway/Filter or mocked
         return paymentUseCase.processVnpayIpn(allParams);
+    }
+
+    @PreAuthorize("hasAuthority('ORDER_CREATE')")
+    @PostMapping("/create-payment-url")
+    public ResponseEntity<ApiResponse<Map<String, String>>> createPaymentUrl(@RequestParam Long orderId, HttpServletRequest request) {
+        Long requesterId = getCurrentUserId();
+        String ipAddress = VnPayUtils.getIpAddress(request);
+        String paymentUrl = paymentUseCase.createPaymentUrl(orderId, requesterId, ipAddress);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("paymentUrl", paymentUrl)));
+    }
+
+    @GetMapping("/vnpay-return")
+    public ResponseEntity<ApiResponse<String>> vnpayReturn(@RequestParam Map<String, String> allParams) {
+        log.info("Received VNPay Return Callback: {}", allParams);
+        
+        // Gọi logic xử lý thanh toán để cập nhật database (đặc biệt quan trọng khi test ở localhost)
+        boolean isSuccess = false;
+        try {
+            paymentUseCase.handlePaymentCallback(allParams);
+            isSuccess = true;
+        } catch (Exception e) {
+            log.error("Payment processing error: {}", e.getMessage());
+        }
+
+        String responseCode = allParams.get("vnp_ResponseCode");
+        if ("00".equals(responseCode) && isSuccess) {
+            return ResponseEntity.ok(ApiResponse.success("Payment Success! You can close this tab and return to the app.", null));
+        } else {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Payment Failed or Cancelled. Error Code: " + responseCode));
+        }
+    }
+    private Long getCurrentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getCredentials() == null) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Không tìm thấy thông tin xác thực");
+        }
+        return (Long) auth.getCredentials();
     }
 }

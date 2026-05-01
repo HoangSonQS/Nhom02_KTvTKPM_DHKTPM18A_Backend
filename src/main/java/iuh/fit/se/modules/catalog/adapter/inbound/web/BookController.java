@@ -23,7 +23,6 @@ public class BookController {
 
     private final BookUseCase bookUseCase;
 
-    @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<BookDTO>>> search(
             @RequestParam(required = false) String title,
@@ -31,7 +30,6 @@ public class BookController {
         return ResponseEntity.ok(ApiResponse.success(bookUseCase.searchBooks(title, categoryId)));
     }
 
-    @PreAuthorize("hasAuthority('CATALOG_READ')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookDTO>> getBook(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(bookUseCase.getBook(id)));
@@ -44,34 +42,69 @@ public class BookController {
             @RequestParam("author") String author,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("price") BigDecimal price,
+            @RequestParam(value = "originalPrice", required = false) BigDecimal originalPrice,
             @RequestParam("quantity") int quantity,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam("categoryIds") List<Long> categoryIds) throws IOException {
+            @RequestParam("categoryIds") List<Long> categoryIds,
+            // Metadata
+            @RequestParam(value = "publisher", required = false) String publisher,
+            @RequestParam(value = "isbn", required = false) String isbn,
+            @RequestParam(value = "publicationYear", required = false) Integer publicationYear,
+            @RequestParam(value = "language", required = false) String language,
+            @RequestParam(value = "keywords", required = false) List<String> keywords,
+            // Physical specs
+            @RequestParam(value = "pageCount", required = false) Integer pageCount,
+            @RequestParam(value = "coverType", required = false) String coverType,
+            @RequestParam(value = "weight", required = false) Integer weight,
+            @RequestParam(value = "length", required = false) Integer length,
+            @RequestParam(value = "width", required = false) Integer width,
+            @RequestParam(value = "height", required = false) Integer height
+    ) throws IOException {
 
         byte[] imageBytes = (image != null && !image.isEmpty()) ? image.getBytes() : null;
-        
+
         BookDTO book = bookUseCase.createBook(new BookUseCase.CreateBookCommand(
-                title, author, description, price, quantity, imageBytes, categoryIds));
-        
+                title, author, description, price, originalPrice, quantity, imageBytes, categoryIds,
+                publisher, isbn, publicationYear, language, keywords,
+                pageCount, coverType, weight, length, width, height));
+
         return ResponseEntity.ok(ApiResponse.success("Tạo sách thành công", book));
     }
 
     @PreAuthorize("hasAuthority('CATALOG_BOOK_UPDATE')")
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<BookDTO>> update(
             @PathVariable Long id,
-            @RequestParam("title") String title,
-            @RequestParam("author") String author,
+            // Tất cả fields đều optional — chỉ gửi những gì cần thay đổi (Partial Update)
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "author", required = false) String author,
             @RequestParam(value = "description", required = false) String description,
-            @RequestParam("price") BigDecimal price,
-            @RequestParam("quantity") int quantity,
+            @RequestParam(value = "price", required = false) BigDecimal price,
+            @RequestParam(value = "originalPrice", required = false) BigDecimal originalPrice,
+            @RequestParam(value = "quantity", required = false) Integer quantity,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam("categoryIds") List<Long> categoryIds) throws IOException {
+            @RequestParam(value = "categoryIds", required = false) List<Long> categoryIds,
+            // Metadata
+            @RequestParam(value = "publisher", required = false) String publisher,
+            @RequestParam(value = "isbn", required = false) String isbn,
+            @RequestParam(value = "publicationYear", required = false) Integer publicationYear,
+            @RequestParam(value = "language", required = false) String language,
+            @RequestParam(value = "keywords", required = false) List<String> keywords,
+            // Physical specs
+            @RequestParam(value = "pageCount", required = false) Integer pageCount,
+            @RequestParam(value = "coverType", required = false) String coverType,
+            @RequestParam(value = "weight", required = false) Integer weight,
+            @RequestParam(value = "length", required = false) Integer length,
+            @RequestParam(value = "width", required = false) Integer width,
+            @RequestParam(value = "height", required = false) Integer height
+    ) throws IOException {
 
         byte[] imageBytes = (image != null && !image.isEmpty()) ? image.getBytes() : null;
 
         BookDTO book = bookUseCase.updateBook(id, new BookUseCase.UpdateBookCommand(
-                title, author, description, price, quantity, imageBytes, categoryIds));
+                title, author, description, price, originalPrice, quantity, imageBytes, categoryIds,
+                publisher, isbn, publicationYear, language, keywords,
+                pageCount, coverType, weight, length, width, height));
 
         return ResponseEntity.ok(ApiResponse.success("Cập nhật sách thành công", book));
     }

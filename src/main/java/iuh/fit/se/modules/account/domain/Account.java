@@ -58,10 +58,43 @@ public class Account {
         if (addresses.isEmpty()) {
             address.setDefault(true);
         } else if (address.isDefault()) {
-            // Đảm bảo chỉ có một địa chỉ mặc định
-            addresses.forEach(a -> a.setDefault(false));
-            address.setDefault(true);
+            ensureSingleDefault(address);
         }
         addresses.add(address);
+    }
+
+    /**
+     * Cập nhật địa chỉ hiện có.
+     */
+    public void updateAddress(Long addressId, Address updatedData) {
+        Address existing = addresses.stream()
+                .filter(a -> a.getId().equals(addressId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ với ID: " + addressId));
+
+        existing.setStreet(updatedData.getStreet());
+        existing.setWard(updatedData.getWard());
+        existing.setDistrict(updatedData.getDistrict());
+        existing.setCity(updatedData.getCity());
+
+        if (updatedData.isDefault()) {
+            ensureSingleDefault(existing);
+        }
+    }
+
+    /**
+     * Xóa địa chỉ.
+     */
+    public void removeAddress(Long addressId) {
+        addresses.removeIf(a -> a.getId().equals(addressId));
+    }
+
+    private void ensureSingleDefault(Address defaultAddress) {
+        addresses.forEach(a -> {
+            if (!a.equals(defaultAddress)) {
+                a.setDefault(false);
+            }
+        });
+        defaultAddress.setDefault(true);
     }
 }

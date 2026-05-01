@@ -12,10 +12,12 @@ import java.util.UUID;
 public interface AiProcessedEventRepository extends JpaRepository<AiProcessedEventJpaEntity, UUID> {
 
     @Modifying
+    @org.springframework.transaction.annotation.Transactional
     @Query(value = "INSERT INTO ai_processed_events (event_id, status, processed_at) VALUES (:eventId, 'PROCESSING', NOW()) ON CONFLICT DO NOTHING", nativeQuery = true)
     int tryLockEvent(@Param("eventId") UUID eventId);
 
     @Modifying
+    @org.springframework.transaction.annotation.Transactional
     @Query("UPDATE AiProcessedEventJpaEntity e SET e.status = 'DONE' WHERE e.eventId = :eventId")
     void markAsDone(@Param("eventId") UUID eventId);
 }

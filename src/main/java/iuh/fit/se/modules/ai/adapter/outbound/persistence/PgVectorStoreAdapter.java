@@ -25,9 +25,11 @@ public class PgVectorStoreAdapter implements VectorStorePort {
 
     @Override
     public void saveBookVector(BookVectorMetadata metadata) {
-        // Sử dụng bookId làm ID của document để dễ dàng ghi đè/xóa
+        // Sử dụng UUID định danh từ bookId để đảm bảo tính nhất quán và tương thích với cột UUID của DB
+        String docId = java.util.UUID.nameUUIDFromBytes(String.valueOf(metadata.getBookId()).getBytes()).toString();
+
         Document doc = new Document(
-                String.valueOf(metadata.getBookId()),
+                docId,
                 metadata.toContentString(),
                 Map.of(
                         "bookId", metadata.getBookId(),
@@ -69,8 +71,9 @@ public class PgVectorStoreAdapter implements VectorStorePort {
 
     @Override
     public void deleteBookVector(Long bookId) {
-        // Spring AI xóa theo ID document (đã set là bookId)
-        vectorStore.delete(List.of(String.valueOf(bookId)));
+        // Chuyển bookId sang UUID string tương ứng để xóa chính xác document
+        String docId = java.util.UUID.nameUUIDFromBytes(String.valueOf(bookId).getBytes()).toString();
+        vectorStore.delete(List.of(docId));
     }
 
     @Override
