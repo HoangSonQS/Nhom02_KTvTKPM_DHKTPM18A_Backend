@@ -31,15 +31,11 @@ class OrderPaymentEventListenerTest {
                 "vnpay-tx-123",
                 new BigDecimal("200000"),
                 "VNPAY",
-                "PAY-" + orderId
+                "PAY-" + orderId,
+                requestId
         );
 
-        OrderInternalUseCase.OrderResponse orderResponse = OrderInternalUseCase.OrderResponse.builder()
-                .orderId(orderId)
-                .requestId(requestId)
-                .build();
 
-        when(orderUseCase.getOrderById(orderId)).thenReturn(orderResponse);
 
         // When
         listener.handlePaymentSuccess(event);
