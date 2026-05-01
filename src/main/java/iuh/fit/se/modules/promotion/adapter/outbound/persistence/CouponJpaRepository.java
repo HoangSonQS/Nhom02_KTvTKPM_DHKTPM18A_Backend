@@ -16,4 +16,6 @@ public interface CouponJpaRepository extends JpaRepository<Coupon, Long> {
     Optional<Coupon> findByCodeWithOptimisticLock(@Param("code") String code);
     
     Optional<Coupon> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

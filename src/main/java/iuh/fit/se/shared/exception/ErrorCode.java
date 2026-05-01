@@ -54,6 +54,15 @@ public enum ErrorCode {
     LOG_SUPPLIER_NOT_FOUND(4504, "Không tìm thấy nhà cung cấp", HttpStatus.NOT_FOUND),
     LOG_PO_NOT_FOUND(4505, "Không tìm thấy đơn hàng mua", HttpStatus.NOT_FOUND),
 
+    // ===== Promotion Module (PRM_) =====
+    PRM_COUPON_NOT_FOUND(4700, "Không tìm thấy mã khuyến mãi", HttpStatus.NOT_FOUND),
+    PRM_COUPON_ALREADY_EXISTS(4701, "Mã coupon đã tồn tại", HttpStatus.CONFLICT),
+    PRM_COUPON_NOT_APPLICABLE(4702, "Đơn hàng không đủ điều kiện áp dụng mã khuyến mãi", HttpStatus.BAD_REQUEST),
+    PRM_COUPON_EXPIRED(4703, "Mã khuyến mãi đã hết hạn hoặc hết lượt sử dụng", HttpStatus.GONE),
+
+    // ===== Inventory supplement =====
+    INV_STOCK_ALREADY_EXISTS(4204, "Tồn kho cho sách này đã được khởi tạo", HttpStatus.CONFLICT),
+
     // ===== Returns Module (RET_) =====
     RET_INVALID_STATE_TRANSITION(4601, "Chuyển trạng thái yêu cầu trả hàng không hợp lệ", HttpStatus.CONFLICT),
     RET_NOT_FOUND(4604, "Không tìm thấy yêu cầu trả hàng", HttpStatus.NOT_FOUND),

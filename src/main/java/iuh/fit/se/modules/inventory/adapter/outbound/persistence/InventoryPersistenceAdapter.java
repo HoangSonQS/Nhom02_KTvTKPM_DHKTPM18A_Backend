@@ -47,6 +47,11 @@ public class InventoryPersistenceAdapter implements InventoryPersistencePort {
     }
 
     @Override
+    public List<InventoryStock> findAllStocks() {
+        return inventoryJpaRepository.findAll();
+    }
+
+    @Override
     public void saveStock(InventoryStock stock) {
         inventoryJpaRepository.save(stock);
     }

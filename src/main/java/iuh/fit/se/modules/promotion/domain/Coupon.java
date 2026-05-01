@@ -111,4 +111,18 @@ public class Coupon {
         }
         this.usedCount++;
     }
+
+    /** Admin update — chỉ cho phép sửa các trường mutable, không đổi được code hay discountType. */
+    public void update(String description, java.math.BigDecimal discountValue,
+                       java.math.BigDecimal minOrderValue, java.math.BigDecimal maxDiscountValue,
+                       Integer usageLimit, LocalDateTime startDate, LocalDateTime endDate, boolean isActive) {
+        this.description = description;
+        this.discountValue = discountValue;
+        this.minOrderValue = minOrderValue;
+        this.maxDiscountValue = maxDiscountValue;
+        this.usageLimit = usageLimit;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.isActive = isActive;
+    }
 }
