@@ -54,6 +54,8 @@ public class SecurityConfig {
                                                                 "/api/v1/auth/reset-password",
                                                                 "/api/v1/catalog/**",
                                                                 "/api/v1/payments/vnpay-ipn",
+                                                                "/api/v1/payments/vnpay-return",
+                                                                "/favicon.ico",
                                                                 "/api-docs/**",
                                                                 "/swagger-ui/**",
                                                                 "/swagger-ui.html",

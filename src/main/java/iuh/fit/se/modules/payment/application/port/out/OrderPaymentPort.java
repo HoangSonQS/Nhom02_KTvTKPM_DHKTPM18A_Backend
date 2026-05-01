@@ -11,6 +11,7 @@ public interface OrderPaymentPort {
     @lombok.Builder
     class OrderPaymentDto {
         private Long orderId;
+        private Long customerId;
         private BigDecimal totalAmount;
         private String status;
         private String sagaStatus;

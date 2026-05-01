@@ -19,6 +19,7 @@ public class InternalOrderPaymentAdapter implements OrderPaymentPort {
             OrderInternalUseCase.OrderResponse order = orderUseCase.getOrderById(orderId);
             return Optional.of(OrderPaymentDto.builder()
                     .orderId(order.getOrderId())
+                    .customerId(order.getUserId())
                     .totalAmount(order.getTotalAmount())
                     .status(order.getStatus())
                     .sagaStatus(order.getSagaStatus())
