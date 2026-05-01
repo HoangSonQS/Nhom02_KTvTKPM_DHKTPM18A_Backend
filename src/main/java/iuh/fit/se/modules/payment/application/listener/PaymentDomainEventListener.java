@@ -28,7 +28,8 @@ public class PaymentDomainEventListener {
                 payment.getTransactionId(),
                 payment.getAmount(),
                 payment.getPaymentMethod(),
-                "PAY-" + payment.getOrderId()
+                "PAY-" + payment.getOrderId(),
+                domainEvent.getOrderRequestId()  // Carry requestId through for coupon confirm
         );
 
         paymentEventPort.publishPaymentSuccess(integrationEvent);

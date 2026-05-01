@@ -5,7 +5,7 @@ import java.util.Optional;
 
 public interface OrderPaymentPort {
     Optional<OrderPaymentDto> findOrderForPayment(Long orderId);
-    void updateOrderPaid(Long orderId); // Sửa tên tý cho rõ
+    void updateOrderPaid(Long orderId);
 
     @lombok.Data
     @lombok.Builder
@@ -13,7 +13,9 @@ public interface OrderPaymentPort {
         private Long orderId;
         private Long customerId;
         private BigDecimal totalAmount;
+        private BigDecimal discountAmount;
         private String status;
         private String sagaStatus;
+        private String requestId; // Coupon reservation referenceId
     }
 }

@@ -21,20 +21,23 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<InventoryStock> getAllStocks() {
-        return persistencePort.findAllStocks();
+    public List<InventoryResponse> getAllStocks() {
+        return persistencePort.findAllStocks().stream()
+                .map(InventoryResponse::from)
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public InventoryStock getStockByBookId(Long bookId) {
-        return persistencePort.findStockByBookId(bookId)
+    public InventoryResponse getStockByBookId(Long bookId) {
+        InventoryStock stock = persistencePort.findStockByBookId(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.INV_STOCK_NOT_FOUND));
+        return InventoryResponse.from(stock);
     }
 
     @Override
     @Transactional
-    public InventoryStock initializeStock(Long bookId, int initialQuantity) {
+    public InventoryResponse initializeStock(Long bookId, int initialQuantity) {
         if (persistencePort.findStockByBookId(bookId).isPresent()) {
             throw new AppException(ErrorCode.INV_STOCK_ALREADY_EXISTS);
         }
@@ -42,24 +45,24 @@ public class InventoryAdminService implements InventoryAdminUseCase {
         InventoryStock stock = InventoryStock.create(bookId, initialQuantity);
         persistencePort.saveStock(stock);
         log.info("[ADMIN] Initialized stock for bookId={} with quantity={}", bookId, initialQuantity);
-        return stock;
+        return InventoryResponse.from(stock);
     }
 
     @Override
     @Transactional
-    public InventoryStock increaseStock(Long bookId, int amount) {
+    public InventoryResponse increaseStock(Long bookId, int amount) {
         InventoryStock stock = persistencePort.findStockByBookId(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.INV_STOCK_NOT_FOUND));
 
         stock.increase(amount);
         persistencePort.saveStock(stock);
         log.info("[ADMIN] Increased stock for bookId={} by amount={}. New total={}", bookId, amount, stock.getQuantity());
-        return stock;
+        return InventoryResponse.from(stock);
     }
 
     @Override
     @Transactional
-    public InventoryStock decreaseStock(Long bookId, int amount) {
+    public InventoryResponse decreaseStock(Long bookId, int amount) {
         InventoryStock stock = persistencePort.findStockByBookId(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.INV_STOCK_NOT_FOUND));
 
@@ -68,11 +71,11 @@ public class InventoryAdminService implements InventoryAdminUseCase {
         } catch (IllegalStateException e) {
             throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
         } catch (IllegalArgumentException e) {
-            throw new AppException(ErrorCode.INV_OUT_OF_STOCK); // or better error if amount < 0, but validation should catch this
+            throw new AppException(ErrorCode.INV_OUT_OF_STOCK); 
         }
 
         persistencePort.saveStock(stock);
         log.info("[ADMIN] Decreased stock for bookId={} by amount={}. New total={}", bookId, amount, stock.getQuantity());
-        return stock;
+        return InventoryResponse.from(stock);
     }
 }

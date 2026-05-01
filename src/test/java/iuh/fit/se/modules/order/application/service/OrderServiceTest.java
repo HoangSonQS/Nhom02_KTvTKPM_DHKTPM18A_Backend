@@ -62,7 +62,7 @@ class OrderServiceTest {
         sharedOrder = null; 
 
         // Mock mặc định: Khi save thì gán ID giả lập và lưu vào sharedOrder
-        lenient().doAnswer(invocation -> {
+        lenient().when(orderPersistencePort.save(any(Order.class))).thenAnswer(invocation -> {
             Order o = invocation.getArgument(0);
             if (sharedOrder == null) {
                 // Giả lập database sinh ID bằng reflection
@@ -75,8 +75,8 @@ class OrderServiceTest {
                     // Ignore reflection errors in test
                 }
             }
-            return null; // void method returns null in Answer
-        }).when(orderPersistencePort).save(any(Order.class));
+            return o; // return the order being saved
+        });
 
         // Mock findById trả về sharedOrder (đối tượng duy nhất đang xử lý)
         lenient().when(orderPersistencePort.findById(anyLong())).thenAnswer(invocation -> Optional.ofNullable(sharedOrder));
@@ -96,10 +96,11 @@ class OrderServiceTest {
         doNothing().when(inventoryPort).decreaseStockBulk(anyList(), anyString());
 
         // When
-        Long orderId = orderService.checkout(userId, command);
+        OrderInternalUseCase.OrderResponse response = orderService.checkout(userId, command);
 
         // Then
-        assertNotNull(orderId);
+        assertNotNull(response);
+        assertNotNull(response.getOrderId());
         assertEquals(SagaStatus.COMPLETED, sharedOrder.getSagaStatus());
         assertEquals(OrderStatus.PENDING_PAYMENT, sharedOrder.getStatus());
         verify(eventPublisher, times(1)).publishEvent(any(Object.class));

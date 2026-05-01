@@ -4,7 +4,7 @@ import iuh.fit.se.modules.order.domain.Order;
 import java.util.Optional;
 
 public interface OrderPersistencePort {
-    void save(Order order);
+    Order save(Order order);
     Optional<Order> findById(Long id);
     Optional<Order> findByRequestId(String requestId);
     

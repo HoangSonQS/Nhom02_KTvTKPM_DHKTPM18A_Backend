@@ -22,10 +22,10 @@ public class OrderController {
 
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     @PostMapping("/checkout")
-    public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> checkout(@RequestBody OrderInternalUseCase.CheckoutCommand command) {
+    public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> checkout(@RequestBody OrderInternalUseCase.CheckoutCommand command) {
         Long userId = getCurrentUserId();
-        Long orderId = orderUseCase.checkout(userId, command);
-        return ResponseEntity.ok(ApiResponse.success(java.util.Map.of("orderId", orderId)));
+        OrderInternalUseCase.OrderResponse response = orderUseCase.checkout(userId, command);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     private Long getCurrentUserId() {

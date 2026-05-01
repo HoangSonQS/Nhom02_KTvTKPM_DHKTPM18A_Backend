@@ -91,8 +91,11 @@ public class PaymentService implements PaymentUseCase {
             return "{\"RspCode\":\"00\",\"Message\":\"Already confirmed\"}";
         }
 
-        if (order.getTotalAmount().compareTo(amount) != 0) {
-            log.error("Payment Error: Amount mismatch for order {}. Expected {}, got {}", orderId, order.getTotalAmount(), amount);
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal expectedFinalAmount = order.getTotalAmount().subtract(discount);
+
+        if (expectedFinalAmount.compareTo(amount) != 0) {
+            log.error("Payment Error: Amount mismatch for order {}. Expected {}, got {}", orderId, expectedFinalAmount, amount);
             return "{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}";
         }
 
@@ -129,7 +132,7 @@ public class PaymentService implements PaymentUseCase {
                 .build();
         
         paymentPersistencePort.save(payment);
-        eventPublisher.publishEvent(PaymentSuccessDomainEvent.of(payment));
+        eventPublisher.publishEvent(PaymentSuccessDomainEvent.of(payment, order.getRequestId()));
 
         log.info("Payment Callback: Successfully updated status for Order {}.", orderId);
         return "{\"RspCode\":\"00\",\"Message\":\"Confirm success\"}";
@@ -226,7 +229,9 @@ public class PaymentService implements PaymentUseCase {
         }
         String vnp_TmnCode = tmnCode;
 
-        long amount = order.getTotalAmount().multiply(new BigDecimal(100)).longValue();
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal finalAmount = order.getTotalAmount().subtract(discount);
+        long amount = finalAmount.multiply(new BigDecimal(100)).longValue();
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", vnp_Version);
         vnp_Params.put("vnp_Command", vnp_Command);
