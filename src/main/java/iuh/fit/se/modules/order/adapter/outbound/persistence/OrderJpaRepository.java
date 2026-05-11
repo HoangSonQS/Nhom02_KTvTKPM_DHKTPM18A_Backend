@@ -14,6 +14,9 @@ import java.util.Optional;
 
 public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByRequestId(String requestId);
+    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<Order> findAllByOrderByCreatedAtDesc();
+    Optional<Order> findByIdAndUserId(Long id, Long userId);
 
     @Query("SELECT o FROM Order o WHERE o.sagaStatus NOT IN (:statuses) AND o.createdAt < :before")
     List<Order> findAbandonedOrders(@Param("statuses") List<SagaStatus> statuses, 

@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.order.application.port.in;
 
+import iuh.fit.se.modules.order.domain.FulfillmentStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -9,9 +10,25 @@ public interface OrderInternalUseCase {
 
     OrderResponse getOrderById(Long orderId);
 
+    java.util.List<OrderResponse> getMyOrders(Long userId);
+
+    OrderResponse getMyOrderById(Long orderId, Long userId);
+
     void markOrderAsPaid(Long orderId);
 
-    void processReturnCompleted(Long orderId);
+    // Admin/Staff methods
+    java.util.List<OrderResponse> getAllOrders();
+
+    /**
+     * Cập nhật FulfillmentStatus đơn hàng theo luồng admin operational transition.
+     */
+    OrderResponse updateOrderStatus(Long orderId, UpdateFulfillmentStatusCommand command);
+
+    /**
+     * Force-cancel đơn hàng với lý do. Dùng cho admin override và payment timeout.
+     * Không cần đi qua transition guard isValidAdminTransition.
+     */
+    OrderResponse cancelOrder(Long orderId, String reason);
 
     @Data
     @Builder
@@ -21,7 +38,13 @@ public interface OrderInternalUseCase {
         private java.math.BigDecimal totalAmount;
         private java.math.BigDecimal discountAmount;
         private java.math.BigDecimal finalAmount;
-        private String status;
+
+        /**
+         * fulfillmentStatus — source of truth cho trạng thái xử lý đơn hàng.
+         * Các giá trị: PENDING, CONFIRMED, PROCESSING, DELIVERING, DELIVERED, CANCELLED.
+         */
+        private String fulfillmentStatus;
+
         private String sagaStatus;
         private String requestId;
         private java.time.LocalDateTime updatedAt;
@@ -43,5 +66,14 @@ public interface OrderInternalUseCase {
         private String shippingAddress;
         private String customerPhone;
         private String couponCode;
+    }
+
+    @Data
+    @Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    class UpdateFulfillmentStatusCommand {
+        private FulfillmentStatus newStatus;
+        private String reason;
     }
 }

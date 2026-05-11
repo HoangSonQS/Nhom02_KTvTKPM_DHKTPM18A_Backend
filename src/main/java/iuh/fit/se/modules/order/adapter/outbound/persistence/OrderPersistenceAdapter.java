@@ -34,8 +34,23 @@ public class OrderPersistenceAdapter implements OrderPersistencePort {
     }
 
     @Override
+    public List<Order> findByUserId(Long userId) {
+        return jpaRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Override
+    public Optional<Order> findByIdAndUserId(Long id, Long userId) {
+        return jpaRepository.findByIdAndUserId(id, userId);
+    }
+
+    @Override
     public List<Order> findAbandonedOrders(SagaStatus excludeStatus, LocalDateTime before, int limit) {
         return jpaRepository.findAbandonedOrders(Collections.singletonList(excludeStatus), before, PageRequest.of(0, limit));
+    }
+
+    @Override
+    public List<Order> findAll() {
+        return jpaRepository.findAllByOrderByCreatedAtDesc();
     }
 
     @Override

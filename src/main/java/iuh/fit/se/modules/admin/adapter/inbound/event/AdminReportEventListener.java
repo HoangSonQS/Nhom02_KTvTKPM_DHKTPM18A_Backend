@@ -63,9 +63,10 @@ public class AdminReportEventListener {
         log.info("📊 CQRS: Synchronizing PaymentSuccess for {}", event.getOrderId());
         
         // Sử dụng Native Query với State Guard: Chỉ update nếu status đang là PENDING_PAYMENT
+        // 'CONFIRMED' tương đương 'PAID' trong FulfillmentStatus domain mới
         int updatedRows = repository.updateStatusToPaidAtomic(
                 event.getOrderId(), 
-                "PAID", 
+                "CONFIRMED", 
                 event.getOccurredAt(), 
                 event.getPaymentMethod()
         );
@@ -73,7 +74,7 @@ public class AdminReportEventListener {
         if (updatedRows == 0) {
             log.warn("⚠️ State Guard Triggered: Order {} status is NOT PENDING_PAYMENT or not found. Update ignored.", event.getOrderId());
         } else {
-            log.info("✅ OrderReport for {} marked as PAID via Atomic UPSERT", event.getOrderId());
+            log.info("✅ OrderReport for {} marked as CONFIRMED (payment success) via Atomic UPSERT", event.getOrderId());
         }
     }
 

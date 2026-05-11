@@ -86,8 +86,8 @@ public class PaymentService implements PaymentUseCase {
         }
         OrderPaymentPort.OrderPaymentDto order = orderOpt.get();
 
-        if ("PAID".equals(order.getStatus())) {
-            log.info("Payment Callback: Order {} already paid.", orderId);
+        if ("CONFIRMED".equals(order.getStatus())) {
+            log.info("Payment Callback: Order {} already paid (status=CONFIRMED).", orderId);
             return "{\"RspCode\":\"00\",\"Message\":\"Already confirmed\"}";
         }
 
@@ -209,9 +209,9 @@ public class PaymentService implements PaymentUseCase {
             throw new iuh.fit.se.shared.exception.AppException(iuh.fit.se.shared.exception.ErrorCode.ACCESS_DENIED, "Bạn không có quyền thanh toán đơn hàng này");
         }
 
-        if ("PAID".equals(order.getStatus())) {
+        if ("CONFIRMED".equals(order.getStatus())) {
             throw new iuh.fit.se.shared.exception.AppException(iuh.fit.se.shared.exception.ErrorCode.ORD_ALREADY_PAID);
-        } else if (!"PENDING_PAYMENT".equals(order.getStatus())) {
+        } else if (!"PENDING".equals(order.getStatus())) {
             throw new iuh.fit.se.shared.exception.AppException(iuh.fit.se.shared.exception.ErrorCode.ORD_INVALID_STATUS, "Đơn hàng đang ở trạng thái " + order.getStatus() + ", không thể thanh toán");
         }
 

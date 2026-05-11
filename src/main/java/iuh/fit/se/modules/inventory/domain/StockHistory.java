@@ -29,6 +29,9 @@ public class StockHistory {
     @Column(nullable = false)
     private int amount;
 
+    @Column(nullable = false)
+    private String type; // INCREASE, DECREASE
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StockHistoryStatus status;

@@ -38,12 +38,21 @@ public class ReturnRequestService implements ReturnRequestUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
 
         // 2. Business Validations
-        if (!"COMPLETED".equals(orderDto.getStatus())) {
+        // FulfillmentStatus.DELIVERED is the eligibility gate for returns (replaces legacy COMPLETED)
+        if (!"DELIVERED".equals(orderDto.getStatus())) {
             throw new AppException(ErrorCode.RET_ORDER_NOT_DELIVERED);
         }
 
         if (!ReturnRequest.canCreateReturn(orderDto.getDeliveredAt(), 7)) {
             throw new AppException(ErrorCode.RET_EXCEEDED_RETURN_WINDOW);
+        }
+
+        // 2a. Check if return request already exists
+        List<ReturnRequest> existingRequests = returnRequestRepository.findByOrderId(command.getOrderId());
+        boolean hasActiveReturn = existingRequests.stream()
+                .anyMatch(r -> r.getStatus() != ReturnStatus.REJECTED);
+        if (hasActiveReturn) {
+            throw new AppException(ErrorCode.RET_ALREADY_EXISTS);
         }
 
         // Check if items match order items
