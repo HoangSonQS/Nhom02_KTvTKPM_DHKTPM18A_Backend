@@ -22,7 +22,7 @@ public class InternalOrderPaymentAdapter implements OrderPaymentPort {
                     .customerId(order.getUserId())
                     .totalAmount(order.getTotalAmount())
                     .discountAmount(order.getDiscountAmount())
-                    .status(order.getStatus())
+                    .status(order.getFulfillmentStatus())
                     .sagaStatus(order.getSagaStatus())
                     .requestId(order.getRequestId())
                     .build());

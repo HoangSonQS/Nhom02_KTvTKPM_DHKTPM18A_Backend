@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.order.application.service;
 
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
+import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase.UpdateFulfillmentStatusCommand;
 import iuh.fit.se.modules.order.application.port.out.CartPort;
 import iuh.fit.se.modules.order.application.port.out.InventoryPort;
 import iuh.fit.se.modules.order.application.port.out.OrderPersistencePort;
@@ -8,6 +9,7 @@ import iuh.fit.se.modules.order.application.port.out.OrderUserPort;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.modules.order.domain.*;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
+import iuh.fit.se.modules.order.domain.exception.InvalidOrderTransitionException;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -181,7 +183,7 @@ public class OrderService implements OrderInternalUseCase {
                 .totalAmount(order.getTotalAmount())
                 .discountAmount(discount)
                 .finalAmount(order.getTotalAmount().subtract(discount))
-                .status(order.getStatus().name())
+                .fulfillmentStatus(order.getFulfillmentStatus().name())
                 .sagaStatus(order.getSagaStatus().name())
                 .requestId(order.getRequestId())
                 .updatedAt(order.getUpdatedAt())
@@ -223,7 +225,7 @@ public class OrderService implements OrderInternalUseCase {
         Order order = Order.builder()
                 .userId(userId)
                 .requestId(command.getRequestId())
-                .status(OrderStatus.PENDING_PAYMENT)
+                .fulfillmentStatus(FulfillmentStatus.PENDING)
                 .sagaStatus(SagaStatus.INIT)
                 .totalAmount(totalAmount)
                 .discountAmount(BigDecimal.ZERO)
@@ -286,24 +288,115 @@ public class OrderService implements OrderInternalUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getMyOrders(Long userId) {
+        List<Order> orders = orderPersistencePort.findByUserId(userId);
+        return orders.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getMyOrderById(Long orderId, Long userId) {
+        Order order = orderPersistencePort.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        
+        return mapToResponse(order);
+    }
+
+    @Override
     @Transactional
     public void markOrderAsPaid(Long orderId) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
         
-        order.markPaid();
+        order.confirm(); // V28: markPaid() đã bị xoá, dùng confirm() — FulfillmentStatus → CONFIRMED
         orderPersistencePort.save(order);
-        log.info("Order {} marked as PAID", orderId);
+        log.info("Order {} fulfillment status set to CONFIRMED (via payment)", orderId);
+    }
+
+    // processReturnCompleted removed in V27 cleanup — ReturnRequest.returnStatus is now the
+    // sole source of truth for return lifecycle. Order.fulfillmentStatus stays DELIVERED.
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getAllOrders() {
+        return orderPersistencePort.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public void processReturnCompleted(Long orderId) {
+    public OrderResponse updateOrderStatus(Long orderId, UpdateFulfillmentStatusCommand command) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+
+        FulfillmentStatus fromStatus = order.getFulfillmentStatus();
+        FulfillmentStatus toStatus = command.getNewStatus();
+
+        if (!Order.isValidAdminTransition(fromStatus, toStatus)) {
+            throw new InvalidOrderTransitionException(
+                String.format("Không thể chuyển fulfillment status từ %s sang %s", fromStatus, toStatus));
+        }
+
+        switch (toStatus) {
+            case PROCESSING -> order.startProcessing();
+            case DELIVERING -> order.startDelivering();
+            case DELIVERED  -> order.markDelivered();
+            case CANCELLED  -> {
+                order.cancelByTransition();
+                // Side effect: Restore inventory
+                List<InventoryPort.StockItem> stockItems = order.getItems().stream()
+                    .map(item -> InventoryPort.StockItem.builder()
+                        .bookId(item.getBookId())
+                        .quantity(item.getQuantity())
+                        .build())
+                    .toList();
+                inventoryPort.increaseStockBulk(stockItems, order.getRequestId());
+                log.info("Inventory restored for cancelled order {}", orderId);
+            }
+            default -> throw new InvalidOrderTransitionException("Trạng thái không hợp lệ cho Admin transition");
+        }
+
+        Order saved = orderPersistencePort.save(order);
+        log.info("Order {} fulfillmentStatus: {} → {} by Admin/Staff. Reason: {}",
+            orderId, fromStatus, toStatus, command.getReason());
         
-        order.markReturned();
-        orderPersistencePort.save(order);
-        log.info("Order {} status updated to RETURNED", orderId);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId, String reason) {
+        Order order = orderPersistencePort.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+
+        FulfillmentStatus currentStatus = order.getFulfillmentStatus();
+        if (currentStatus == FulfillmentStatus.DELIVERED || currentStatus == FulfillmentStatus.CANCELLED) {
+            throw new InvalidOrderTransitionException(
+                String.format("Không thể hủy đơn hàng ở trạng thái %s", currentStatus));
+        }
+
+        order.forceCancel(reason);
+
+        // Side effect: Restore inventory nếu stock đã bị trừ
+        if (currentStatus != FulfillmentStatus.PENDING) {
+            List<InventoryPort.StockItem> stockItems = order.getItems().stream()
+                .map(item -> InventoryPort.StockItem.builder()
+                    .bookId(item.getBookId())
+                    .quantity(item.getQuantity())
+                    .build())
+                .toList();
+            inventoryPort.increaseStockBulk(stockItems, order.getRequestId());
+            log.info("Inventory restored for force-cancelled order {}", orderId);
+        }
+
+        Order saved = orderPersistencePort.save(order);
+        log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
+            orderId, currentStatus, reason);
+
+        return mapToResponse(saved);
     }
 }

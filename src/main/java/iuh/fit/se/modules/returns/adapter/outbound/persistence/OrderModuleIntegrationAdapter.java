@@ -21,8 +21,8 @@ public class OrderModuleIntegrationAdapter implements OrderQueryPort {
             return Optional.of(OrderDto.builder()
                     .orderId(response.getOrderId())
                     .customerId(response.getUserId())
-                    .status(response.getStatus())
-                    .deliveredAt(response.getUpdatedAt()) // Status COMPLETED updatedAt is used as deliveredAt
+                    .status(response.getFulfillmentStatus())
+                    .deliveredAt(response.getUpdatedAt()) // FulfillmentStatus DELIVERED updatedAt is used as deliveredAt
                     .items(response.getItems().stream()
                             .map(item -> OrderItemDto.builder()
                                     .bookId(item.getBookId())

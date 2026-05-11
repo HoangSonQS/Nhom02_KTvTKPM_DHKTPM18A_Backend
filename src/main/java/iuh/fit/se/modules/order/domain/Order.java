@@ -27,9 +27,15 @@ public class Order {
     @Column(name = "request_id", nullable = false, unique = true)
     private String requestId;
 
+    /**
+     * Trạng thái hoàn thành đơn hàng. Source of truth duy nhất kể từ V27.
+     *
+     * <p>Luồng chuẩn: PENDING → CONFIRMED → PROCESSING → DELIVERING → DELIVERED
+     * <p>Nhánh hủy: CONFIRMED / PROCESSING / DELIVERING → CANCELLED
+     */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private OrderStatus status;
+    @Column(name = "fulfillment_status", nullable = false)
+    private FulfillmentStatus fulfillmentStatus;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "saga_status", nullable = false)
@@ -62,6 +68,10 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
 
+    // =========================================================
+    // Saga State Machine Methods
+    // =========================================================
+
     public void markStockReserved() {
         this.sagaStatus = SagaStatus.STOCK_RESERVED;
     }
@@ -90,22 +100,77 @@ public class Order {
         this.discountAmount = discountAmount;
     }
 
-    public void markPaid() {
-        if (this.status == OrderStatus.PENDING_PAYMENT) {
-            this.status = OrderStatus.PAID;
+    // =========================================================
+    // FulfillmentStatus Domain Methods
+    // =========================================================
+
+    /**
+     * Xác nhận đơn hàng sau khi thanh toán thành công.
+     * Trigger: PaymentSuccessIntegrationEvent.
+     */
+    public void confirm() {
+        if (this.fulfillmentStatus == FulfillmentStatus.PENDING) {
+            this.fulfillmentStatus = FulfillmentStatus.CONFIRMED;
         }
     }
 
-    public void cancel() {
-        this.status = OrderStatus.CANCELLED;
+    /**
+     * Chuyển sang trạng thái đang xử lý (đóng gói).
+     * Trigger: Admin/Staff action qua isValidAdminTransition().
+     */
+    public void startProcessing() {
+        if (this.fulfillmentStatus == FulfillmentStatus.CONFIRMED) {
+            this.fulfillmentStatus = FulfillmentStatus.PROCESSING;
+        }
     }
 
-    public void markReturned() {
-        this.status = OrderStatus.RETURNED;
+    /**
+     * Chuyển sang trạng thái đang giao hàng.
+     * Trigger: Admin/Staff action qua isValidAdminTransition().
+     */
+    public void startDelivering() {
+        if (this.fulfillmentStatus == FulfillmentStatus.PROCESSING) {
+            this.fulfillmentStatus = FulfillmentStatus.DELIVERING;
+        }
     }
 
+    /**
+     * Đánh dấu đã giao hàng thành công (terminal positive state).
+     * Trigger: Admin/Staff action qua isValidAdminTransition().
+     */
+    public void markDelivered() {
+        if (this.fulfillmentStatus == FulfillmentStatus.DELIVERING) {
+            this.fulfillmentStatus = FulfillmentStatus.DELIVERED;
+        }
+    }
+
+    /**
+     * Hủy đơn hàng theo luồng admin transition chuẩn.
+     * Áp dụng cho: CONFIRMED, PROCESSING, DELIVERING → CANCELLED.
+     *
+     * <p>Lưu ý: Không dùng method này cho PENDING. Xem {@link #forceCancel(String)}.
+     */
+    public void cancelByTransition() {
+        this.fulfillmentStatus = FulfillmentStatus.CANCELLED;
+    }
+
+    /**
+     * Hủy đơn hàng bắt buộc — bỏ qua luồng admin transition thông thường.
+     * Dùng cho: hệ thống tự cancel (payment timeout), admin override với lý do rõ ràng.
+     *
+     * @param reason Lý do bắt buộc phải ghi rõ — dùng cho audit log.
+     */
+    public void forceCancel(String reason) {
+        // reason được caller dùng để ghi audit log — không lưu trong entity
+        // để tránh làm nặng domain model với concern của audit layer.
+        this.fulfillmentStatus = FulfillmentStatus.CANCELLED;
+    }
+
+    /**
+     * Reset để thử lại checkout saga.
+     */
     public void resetForRetry() {
-        this.status = OrderStatus.PENDING_PAYMENT;
+        this.fulfillmentStatus = FulfillmentStatus.PENDING;
         this.sagaStatus = SagaStatus.INIT;
         this.discountAmount = BigDecimal.ZERO;
         this.updatedAt = LocalDateTime.now();
@@ -119,5 +184,33 @@ public class Order {
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiredAt);
+    }
+
+    // =========================================================
+    // Admin Transition Guard
+    // =========================================================
+
+    /**
+     * Kiểm tra tính hợp lệ của admin/staff transition theo luồng operational.
+     *
+     * <p>Luồng hợp lệ:
+     * <pre>
+     *   CONFIRMED  → PROCESSING  (xác nhận xử lý)
+     *   CONFIRMED  → CANCELLED   (hủy trước khi đóng gói)
+     *   PROCESSING → DELIVERING  (bắt đầu giao hàng)
+     *   PROCESSING → CANCELLED   (hủy trong quá trình xử lý)
+     *   DELIVERING → DELIVERED   (giao hàng thành công)
+     *   DELIVERING → PROCESSING  (giao hàng thất bại — quay lại xử lý)
+     * </pre>
+     *
+     * <p>PENDING → CANCELLED KHÔNG nằm ở đây. Dùng {@link #forceCancel(String)} thay thế.
+     */
+    public static boolean isValidAdminTransition(FulfillmentStatus from, FulfillmentStatus to) {
+        return switch (from) {
+            case CONFIRMED  -> to == FulfillmentStatus.PROCESSING || to == FulfillmentStatus.CANCELLED;
+            case PROCESSING -> to == FulfillmentStatus.DELIVERING || to == FulfillmentStatus.CANCELLED;
+            case DELIVERING -> to == FulfillmentStatus.DELIVERED  || to == FulfillmentStatus.PROCESSING;
+            default         -> false;
+        };
     }
 }
