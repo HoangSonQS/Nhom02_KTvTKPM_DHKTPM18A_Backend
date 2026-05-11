@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,23 @@ public class AuthController {
 
         private final AuthUseCase authUseCase;
         private final PasswordResetUseCase passwordResetUseCase;
+
+        /**
+         * Bật {@code Secure} cho cookie refreshToken (chỉ gửi qua HTTPS).
+         * - Dev (HTTP localhost): để false để browser chấp nhận cookie.
+         * - Production (HTTPS): bắt buộc true.
+         * Cấu hình qua {@code app.auth.cookie.secure}.
+         */
+        @Value("${app.auth.cookie.secure:false}")
+        private boolean cookieSecure;
+
+        /**
+         * SameSite cho cookie refreshToken.
+         * - Same-site dev (FE/BE cùng origin qua Vite proxy): {@code Lax} là đủ.
+         * - Cross-site prod (FE/BE khác origin, đều HTTPS): {@code None} (yêu cầu Secure=true).
+         */
+        @Value("${app.auth.cookie.same-site:Lax}")
+        private String cookieSameSite;
 
         @PostMapping("/login")
         public ResponseEntity<ApiResponse<AuthUseCase.TokenPair>> login(
@@ -105,10 +123,10 @@ public class AuthController {
         private void setRefreshTokenCookie(HttpServletResponse response, String token) {
                 ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
                                 .httpOnly(true)
-                                .secure(true) // Bật lên trong production (HTTPS)
+                                .secure(cookieSecure)
                                 .path("/")
                                 .maxAge(7 * 24 * 3600)
-                                .sameSite("Lax") // UX ổn định, chặn CSRF cho POST
+                                .sameSite(cookieSameSite)
                                 .build();
                 response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
@@ -116,10 +134,10 @@ public class AuthController {
         private void clearRefreshTokenCookie(HttpServletResponse response) {
                 ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                                 .httpOnly(true)
-                                .secure(true)
+                                .secure(cookieSecure)
                                 .path("/")
                                 .maxAge(0)
-                                .sameSite("Lax")
+                                .sameSite(cookieSameSite)
                                 .build();
                 response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }

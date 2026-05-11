@@ -3,12 +3,10 @@ package iuh.fit.se.modules.account.adapter.inbound.web;
 import iuh.fit.se.modules.account.application.port.in.AccountUseCase;
 import iuh.fit.se.modules.account.domain.Account;
 import iuh.fit.se.shared.api.ApiResponse;
-import iuh.fit.se.shared.exception.AppException;
-import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,7 +31,7 @@ public class AccountController {
     @PreAuthorize("hasAuthority('ACCOUNT_VIEW_SELF')")
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<Account>> getProfile() {
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.success(accountUseCase.getProfile(userId)));
     }
 
@@ -43,7 +41,7 @@ public class AccountController {
             @RequestParam(value = "phoneNumber", required = false) String phoneNumber,
             @RequestParam(value = "avatar", required = false) MultipartFile avatar) throws IOException {
 
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         byte[] avatarBytes = (avatar != null && !avatar.isEmpty()) ? avatar.getBytes() : null;
 
         Account updated = accountUseCase.updateProfile(userId,
@@ -57,7 +55,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Account>> addAddress(
             @Valid @RequestBody AccountUseCase.AddressCommand command) {
 
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         Account updated = accountUseCase.addAddress(userId, command);
 
         return ResponseEntity.ok(ApiResponse.success("Thêm địa chỉ thành công", updated));
@@ -69,7 +67,7 @@ public class AccountController {
             @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId,
             @Valid @RequestBody AccountUseCase.AddressCommand command) {
 
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         Account updated = accountUseCase.updateAddress(userId, addressId, command);
 
         return ResponseEntity.ok(ApiResponse.success("Cập nhật địa chỉ thành công", updated));
@@ -80,7 +78,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Account>> deleteAddress(
             @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId) {
 
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         Account updated = accountUseCase.deleteAddress(userId, addressId);
 
         return ResponseEntity.ok(ApiResponse.success("Xóa địa chỉ thành công", updated));
@@ -89,11 +87,4 @@ public class AccountController {
     /**
      * Helper: Lấy userId từ SecurityContext (được set tại JwtAuthenticationFilter).
      */
-    private Long getCurrentUserId() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getCredentials() == null) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Không tìm thấy thông tin xác thực");
-        }
-        return (Long) auth.getCredentials();
-    }
 }

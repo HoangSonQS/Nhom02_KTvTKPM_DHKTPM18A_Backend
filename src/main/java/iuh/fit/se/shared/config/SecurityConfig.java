@@ -15,6 +15,7 @@ import iuh.fit.se.shared.security.CustomAccessDeniedHandler;
 import iuh.fit.se.shared.security.JwtAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Cấu hình Spring Security — Stateless JWT.
@@ -30,6 +31,7 @@ public class SecurityConfig {
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final JwtAuthenticationEntryPoint authenticationEntryPoint;
         private final CustomAccessDeniedHandler accessDeniedHandler;
+        private final UrlBasedCorsConfigurationSource corsConfigurationSource;
 
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -39,6 +41,7 @@ public class SecurityConfig {
                 requestHandler.setCsrfRequestAttributeName("_csrf");
 
                 http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

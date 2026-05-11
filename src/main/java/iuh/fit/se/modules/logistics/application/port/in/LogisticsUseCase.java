@@ -15,7 +15,7 @@ public interface LogisticsUseCase {
     List<Supplier> getAllSuppliers();
 
     // --- Purchase Order Operations ---
-    PurchaseOrder createPurchaseOrder(CreatePOCommand command);
+    PurchaseOrder createPurchaseOrder(CreatePOCommand command, String createdBy);
     PurchaseOrder submitPurchaseOrder(Long poId, String userRole);
     PurchaseOrder approvePurchaseOrder(Long poId, String userRole, String adminName);
     PurchaseOrder returnPurchaseOrder(Long poId, String userRole, String reason);
@@ -25,7 +25,7 @@ public interface LogisticsUseCase {
     PurchaseOrder getPurchaseOrderById(Long id);
 
     // --- Inventory Adjustment (Manual) ---
-    void confirmStockAdjustment(StockAdjustmentCommand command);
+    void confirmStockAdjustment(StockAdjustmentCommand command, String userName);
 
     @Data
     @Builder
@@ -42,7 +42,6 @@ public interface LogisticsUseCase {
     @Builder
     class CreatePOCommand {
         private Long supplierId;
-        private String createdBy;
         private String note;
         private List<POItemCommand> items;
     }
@@ -61,6 +60,5 @@ public interface LogisticsUseCase {
         private Long bookId;
         private Integer adjustmentQuantity; // Có thể âm hoặc dương
         private String reason;
-        private String userName;
     }
 }

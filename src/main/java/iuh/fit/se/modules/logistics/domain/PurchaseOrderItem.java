@@ -41,6 +41,12 @@ public class PurchaseOrderItem {
     private LocalDateTime createdAt;
 
     public static PurchaseOrderItem create(Long bookId, Integer quantity, BigDecimal priceAtOrder) {
+        if (priceAtOrder == null) {
+            throw new IllegalArgumentException("Giá sản phẩm (bookId=" + bookId + ") không được để trống");
+        }
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException("Số lượng sản phẩm (bookId=" + bookId + ") phải lớn hơn 0");
+        }
         return PurchaseOrderItem.builder()
                 .bookId(bookId)
                 .quantity(quantity)

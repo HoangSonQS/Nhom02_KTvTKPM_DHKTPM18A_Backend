@@ -2,11 +2,9 @@ package iuh.fit.se.modules.order.adapter.inbound.web;
 
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import iuh.fit.se.shared.api.ApiResponse;
-import iuh.fit.se.shared.exception.AppException;
-import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +24,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     @PostMapping("/checkout")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> checkout(@RequestBody OrderInternalUseCase.CheckoutCommand command) {
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         OrderInternalUseCase.OrderResponse response = orderUseCase.checkout(userId, command);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -34,7 +32,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('ORDER_READ_SELF')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderInternalUseCase.OrderResponse>>> getMyOrders() {
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         List<OrderInternalUseCase.OrderResponse> response = orderUseCase.getMyOrders(userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -42,16 +40,8 @@ public class OrderController {
     @PreAuthorize("hasAuthority('ORDER_READ_SELF')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> getMyOrderById(@PathVariable Long id) {
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
         OrderInternalUseCase.OrderResponse response = orderUseCase.getMyOrderById(id, userId);
         return ResponseEntity.ok(ApiResponse.success(response));
-    }
-
-    private Long getCurrentUserId() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getCredentials() == null) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Không tìm thấy thông tin xác thực");
-        }
-        return (Long) auth.getCredentials();
     }
 }
