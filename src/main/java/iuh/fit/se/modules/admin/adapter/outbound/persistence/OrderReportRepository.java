@@ -18,7 +18,7 @@ public interface OrderReportRepository extends JpaRepository<OrderReport, Long> 
 
     /**
      * Atomic UPSERT với State Guard để tránh lùi trạng thái (State Downgrade).
-     * Chỉ cho phép cập nhật trạng thái từ 'PENDING_PAYMENT' sang 'PAID' hoặc 'CANCELLED'.
+     * Cho phép cập nhật từ 'PENDING_PAYMENT' sang trạng thái mới (CONFIRMED, CANCELLED).
      */
     @Modifying
     @Query(value = "UPDATE adm_order_report SET status = :status, paid_at = :paidAt, payment_method = :paymentMethod " +
@@ -29,7 +29,8 @@ public interface OrderReportRepository extends JpaRepository<OrderReport, Long> 
                                  @Param("paymentMethod") String paymentMethod);
 
     // Dashboard Metrics
-    @Query("SELECT COUNT(o) FROM OrderReport o WHERE o.status = 'PAID'")
+    // "Đã thanh toán" = mọi đơn hàng đã qua bước confirm payment (CONFIRMED, PROCESSING, DELIVERING, DELIVERED)
+    @Query("SELECT COUNT(o) FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
     long countPaidOrders();
 
     @Query(value = """
@@ -45,9 +46,9 @@ public interface OrderReportRepository extends JpaRepository<OrderReport, Long> 
         """, nativeQuery = true)
     double calculateAverageTimeToPaymentSeconds();
 
-    @Query("SELECT AVG(o.totalAmount) FROM OrderReport o WHERE o.status = 'PAID'")
+    @Query("SELECT AVG(o.totalAmount) FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
     BigDecimal calculateAverageOrderValue();
 
-    @Query("SELECT COUNT(DISTINCT o.customerName) FROM OrderReport o WHERE o.status = 'PAID'")
+    @Query("SELECT COUNT(DISTINCT o.customerName) FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
     long countUniqueBuyers();
 }

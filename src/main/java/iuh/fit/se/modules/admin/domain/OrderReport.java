@@ -38,7 +38,7 @@ public class OrderReport {
     private BigDecimal totalAmount;
 
     @Column(length = 20)
-    private String status; // PENDING_PAYMENT, PAID, CANCELLED
+    private String status; // PENDING_PAYMENT, CONFIRMED, PROCESSING, DELIVERING, DELIVERED, CANCELLED, REFUNDED
 
     @Column(name = "coupon_code")
     private String couponCode;
@@ -76,8 +76,12 @@ public class OrderReport {
     @Column(name = "updated_at")
     private java.time.Instant updatedAt;
 
+    /**
+     * Đánh dấu đơn hàng đã được thanh toán và xác nhận.
+     * Sử dụng status 'CONFIRMED' để đồng bộ với FulfillmentStatus domain.
+     */
     public void markPaid(Instant paidAt, String paymentMethod) {
-        this.status = "PAID";
+        this.status = "CONFIRMED";
         this.paidAt = paidAt;
         this.paymentMethod = paymentMethod;
     }
