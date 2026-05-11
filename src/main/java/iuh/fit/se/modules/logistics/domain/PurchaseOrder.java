@@ -95,7 +95,11 @@ public class PurchaseOrder {
 
     private void calculateTotalAmount() {
         this.totalAmount = items.stream()
-                .map(item -> item.getPriceAtOrder().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .map(item -> {
+                    BigDecimal price = item.getPriceAtOrder();
+                    if (price == null) return BigDecimal.ZERO;
+                    return price.multiply(BigDecimal.valueOf(item.getQuantity()));
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

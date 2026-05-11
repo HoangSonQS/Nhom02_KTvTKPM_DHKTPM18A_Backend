@@ -32,7 +32,8 @@ public class OrderAdminController {
 
     /**
      * Generic status update — Admin/Staff gửi FulfillmentStatus target.
-     * Đây là endpoint tổng quát; các endpoint cụ thể bên dưới là shortcut tiện dụng.
+     * Đây là endpoint tổng quát; các endpoint cụ thể bên dưới là shortcut tiện
+     * dụng.
      */
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
@@ -69,7 +70,8 @@ public class OrderAdminController {
     }
 
     /**
-     * DELIVERING → DELIVERED: Xác nhận giao hàng thành công (terminal positive state).
+     * DELIVERING → DELIVERED: Xác nhận giao hàng thành công (terminal positive
+     * state).
      */
     @PutMapping("/{id}/complete")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
@@ -83,7 +85,8 @@ public class OrderAdminController {
 
     /**
      * Force-cancel đơn hàng với lý do rõ ràng.
-     * Sử dụng cancelOrder() — bỏ qua transition guard, nhưng chặn DELIVERED và CANCELLED.
+     * Sử dụng cancelOrder() — bỏ qua transition guard, nhưng chặn DELIVERED và
+     * CANCELLED.
      */
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
@@ -96,5 +99,6 @@ public class OrderAdminController {
         return ResponseEntity.ok(ApiResponse.success(orderUseCase.cancelOrder(id, reason)));
     }
 
-    record CancelOrderRequest(String reason) {}
+    record CancelOrderRequest(String reason) {
+    }
 }

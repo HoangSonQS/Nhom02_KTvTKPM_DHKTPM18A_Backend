@@ -51,17 +51,31 @@ public class LogisticsService implements LogisticsUseCase {
 
     @Override
     @Transactional
-    public PurchaseOrder createPurchaseOrder(CreatePOCommand command) {
+    public PurchaseOrder createPurchaseOrder(CreatePOCommand command, String createdBy) {
         Supplier supplier = supplierPort.findById(command.getSupplierId())
                 .orElseThrow(() -> new AppException(ErrorCode.LOG_SUPPLIER_NOT_FOUND));
 
+        if (command.getItems() == null || command.getItems().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Đơn hàng phải có ít nhất một sản phẩm");
+        }
+
         List<PurchaseOrderItem> items = command.getItems().stream()
-                .map(item -> PurchaseOrderItem.create(item.getBookId(), item.getQuantity(), item.getPrice()))
+                .map(item -> {
+                    if (item.getPrice() == null) {
+                        throw new AppException(ErrorCode.INVALID_INPUT,
+                                "Giá sản phẩm (bookId=" + item.getBookId() + ") không được để trống");
+                    }
+                    if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                        throw new AppException(ErrorCode.INVALID_INPUT,
+                                "Số lượng sản phẩm (bookId=" + item.getBookId() + ") phải lớn hơn 0");
+                    }
+                    return PurchaseOrderItem.create(item.getBookId(), item.getQuantity(), item.getPrice());
+                })
                 .collect(Collectors.toList());
 
         PurchaseOrder po = PurchaseOrder.create(
                 supplier,
-                command.getCreatedBy(),
+                createdBy,
                 command.getNote(),
                 items
         );
@@ -161,13 +175,12 @@ public class LogisticsService implements LogisticsUseCase {
 
     @Override
     @Transactional
-    public void confirmStockAdjustment(StockAdjustmentCommand command) {
-        // Logic nghiệp vụ kiểm kê: Phát hành event qua Outbox
+    public void confirmStockAdjustment(StockAdjustmentCommand command, String userName) {
         createStockAdjustmentOutbox(
                 command.getBookId(),
                 command.getAdjustmentQuantity(),
                 command.getReason(),
-                command.getUserName()
+                userName
         );
     }
 

@@ -3,14 +3,12 @@ package iuh.fit.se.modules.payment.adapter.inbound.web;
 import iuh.fit.se.modules.payment.application.port.in.PaymentUseCase;
 import iuh.fit.se.modules.payment.adapter.outbound.vnpay.VnPayUtils;
 import iuh.fit.se.shared.api.ApiResponse;
-import iuh.fit.se.shared.exception.AppException;
-import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -36,7 +34,7 @@ public class PaymentController {
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     @PostMapping("/create-payment-url")
     public ResponseEntity<ApiResponse<Map<String, String>>> createPaymentUrl(@RequestParam Long orderId, HttpServletRequest request) {
-        Long requesterId = getCurrentUserId();
+        Long requesterId = SecurityUtils.getCurrentUserId();
         String ipAddress = VnPayUtils.getIpAddress(request);
         String paymentUrl = paymentUseCase.createPaymentUrl(orderId, requesterId, ipAddress);
         return ResponseEntity.ok(ApiResponse.success(Map.of("paymentUrl", paymentUrl)));
@@ -61,12 +59,5 @@ public class PaymentController {
         } else {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, "Payment Failed or Cancelled. Error Code: " + responseCode));
         }
-    }
-    private Long getCurrentUserId() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getCredentials() == null) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Không tìm thấy thông tin xác thực");
-        }
-        return (Long) auth.getCredentials();
     }
 }
