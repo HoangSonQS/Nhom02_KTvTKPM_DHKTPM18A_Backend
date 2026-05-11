@@ -62,16 +62,24 @@ public class ReturnRequest {
     private LocalDateTime updatedAt;
 
     public static ReturnRequest create(Long orderId, Long customerId, ReturnReason reason, String notes, List<ReturnItem> items) {
-        String id = UUID.randomUUID().toString();
+        String requestId = UUID.randomUUID().toString();
         ReturnRequest request = ReturnRequest.builder()
-                .id(id)
+                .id(requestId)
                 .orderId(orderId)
                 .customerId(customerId)
                 .status(ReturnStatus.PENDING)
                 .reason(reason)
                 .notes(notes)
-                .items(items != null ? items : new ArrayList<>())
+                .items(new ArrayList<>())
+                .histories(new ArrayList<>())
                 .build();
+
+        if (items != null) {
+            for (ReturnItem item : items) {
+                item.setReturnRequestId(requestId);
+                request.items.add(item);
+            }
+        }
 
         request.addHistory(null, ReturnStatus.PENDING, "SYSTEM", "Yêu cầu đổi trả được tạo");
         return request;
@@ -123,7 +131,9 @@ public class ReturnRequest {
     }
 
     private void addHistory(ReturnStatus from, ReturnStatus to, String by, String note) {
-        this.histories.add(ReturnHistory.of(UUID.randomUUID().toString(), from, to, by, note));
+        ReturnHistory history = ReturnHistory.of(UUID.randomUUID().toString(), from, to, by, note);
+        history.setReturnRequestId(this.id);
+        this.histories.add(history);
     }
 
     public static boolean canCreateReturn(LocalDateTime deliveredAt, int returnWindowDays) {

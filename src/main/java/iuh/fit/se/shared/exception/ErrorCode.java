@@ -68,7 +68,8 @@ public enum ErrorCode {
     RET_NOT_FOUND(4604, "Không tìm thấy yêu cầu trả hàng", HttpStatus.NOT_FOUND),
     RET_ORDER_NOT_DELIVERED(4605, "Chỉ có thể trả hàng cho đơn hàng đã giao thành công", HttpStatus.BAD_REQUEST),
     RET_EXCEEDED_RETURN_WINDOW(4606, "Đã quá thời hạn 7 ngày để yêu cầu trả hàng", HttpStatus.BAD_REQUEST),
-    RET_INVALID_ITEMS(4607, "Danh sách hàng trả không hợp lệ", HttpStatus.BAD_REQUEST);
+    RET_INVALID_ITEMS(4607, "Danh sách hàng trả không hợp lệ", HttpStatus.BAD_REQUEST),
+    RET_ALREADY_EXISTS(4608, "Đơn hàng đã có yêu cầu trả hàng đang được xử lý", HttpStatus.CONFLICT);
 
 
     private final int code;

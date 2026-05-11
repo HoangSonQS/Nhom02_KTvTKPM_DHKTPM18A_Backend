@@ -3,7 +3,7 @@ package iuh.fit.se.modules.order.application.service;
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import iuh.fit.se.modules.order.application.port.out.*;
 import iuh.fit.se.modules.order.domain.Order;
-import iuh.fit.se.modules.order.domain.OrderStatus;
+import iuh.fit.se.modules.order.domain.FulfillmentStatus;
 import iuh.fit.se.modules.order.domain.SagaStatus;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -102,7 +102,7 @@ class OrderServiceTest {
         assertNotNull(response);
         assertNotNull(response.getOrderId());
         assertEquals(SagaStatus.COMPLETED, sharedOrder.getSagaStatus());
-        assertEquals(OrderStatus.PENDING_PAYMENT, sharedOrder.getStatus());
+        assertEquals(FulfillmentStatus.PENDING, sharedOrder.getFulfillmentStatus());
         verify(eventPublisher, times(1)).publishEvent(any(Object.class));
     }
 

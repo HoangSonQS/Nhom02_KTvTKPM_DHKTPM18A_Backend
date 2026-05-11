@@ -25,10 +25,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -153,22 +150,14 @@ public class InventoryService implements InventoryInternalUseCase {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 3)
-    public StockResult executeTransactionalOperation(Long bookId, int amount, String referenceId, String type) {
+    public StockResult executeTransactionalOperation(Long bookId, int amount, String baseReferenceId, String type) {
+        String referenceId = baseReferenceId + "_" + type;
         boolean isIncrease = "INCREASE".equals(type);
-        // 1. UPSERT IDEMPOTENCY
-        try {
-            StockHistory history = StockHistory.builder()
-                    .referenceId(referenceId)
-                    .bookId(bookId)
-                    .amount(amount)
-                    .status(StockHistoryStatus.PENDING)
-                    .build();
-            persistencePort.saveHistory(history);
-        } catch (DataIntegrityViolationException e) {
-            // Already exists (UNIQUE(reference_id))
-            StockHistory existing = persistencePort.findHistoryByReferenceId(referenceId)
-                    .orElseThrow(() -> new IllegalStateException("History record disappeared!"));
-            
+        
+        // 1. IDEMPOTENCY CHECK (Read first to avoid transaction failure on duplicate key)
+        Optional<StockHistory> existingOpt = persistencePort.findHistoryByReferenceId(referenceId);
+        if (existingOpt.isPresent()) {
+            StockHistory existing = existingOpt.get();
             if (existing.getStatus() == StockHistoryStatus.SUCCESS) {
                 return StockResult.builder()
                         .status(StockResult.Status.ALREADY_PROCESSED)
@@ -178,21 +167,32 @@ public class InventoryService implements InventoryInternalUseCase {
             }
             
             if (existing.getStatus() == StockHistoryStatus.PENDING) {
-                // Check stale (5s) for eventual recovery if background job not run yet
                 if (existing.getLockedAt().isBefore(LocalDateTime.now().minusSeconds(5))) {
                     log.warn("Stale PENDING for ref {}. Overriding...", referenceId);
-                    int updated = persistencePort.updateHistoryStatusAtomically(referenceId, StockHistoryStatus.PENDING, StockHistoryStatus.PENDING, LocalDateTime.now());
-                    if (updated == 0) {
-                        log.warn("CAS retry failed for ref: {}. Someone else took it.", referenceId);
-                    }
+                    persistencePort.updateHistoryStatusAtomically(referenceId, StockHistoryStatus.PENDING, StockHistoryStatus.PENDING, LocalDateTime.now());
                 } else {
                     throw new PendingIdempotencyException();
                 }
             }
-            // If FAILED, we let it fall through to restart the flow
+        } else {
+            // 2. CREATE PENDING HISTORY
+            try {
+                StockHistory history = StockHistory.builder()
+                        .referenceId(referenceId)
+                        .bookId(bookId)
+                        .amount(amount)
+                        .type(type)
+                        .status(StockHistoryStatus.PENDING)
+                        .build();
+                persistencePort.saveHistory(history);
+            } catch (DataIntegrityViolationException e) {
+                // Concurrent insertion - TX is tainted. Throw for retry.
+                log.info("Concurrent idempotency record creation for ref: {}. Retrying...", referenceId);
+                throw new ObjectOptimisticLockingFailureException(StockHistory.class, referenceId);
+            }
         }
 
-        // 2. LOAD STOCK FOR VALIDATION (NOT MODIFICATION)
+        // 3. LOAD STOCK FOR VALIDATION (NOT MODIFICATION)
         InventoryStock stock = persistencePort.findStockByBookId(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.INV_STOCK_NOT_FOUND));
 
@@ -201,31 +201,27 @@ public class InventoryService implements InventoryInternalUseCase {
                 throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
             }
             
-            // 3. ATOMIC UPDATE (SQL UPDATE ONLY)
-            // Do NOT call stock.decrease() or stock.increase() here, 
-            // because Hibernate will track dirty state and throw OptimisticLockException on Flush
+            // 4. ATOMIC UPDATE (Native SQL)
             int rowsAffected = isIncrease 
                     ? persistencePort.increaseStockAtomically(bookId, amount, stock.getVersion())
                     : persistencePort.decreaseStockAtomically(bookId, amount, stock.getVersion());
             
             if (rowsAffected == 0) {
-                // If rowsAffected is 0, it means the version has changed (Concurrent modification)
                 throw new ObjectOptimisticLockingFailureException(InventoryStock.class, bookId);
             }
 
-            // 4. FINALIZE HISTORY
+            // 5. FINALIZE HISTORY
             int newQuantity = isIncrease ? stock.getQuantity() + amount : stock.getQuantity() - amount;
             
-            StockHistory updatedHistory = persistencePort.findHistoryByReferenceId(referenceId).get();
+            StockHistory updatedHistory = persistencePort.findHistoryByReferenceId(referenceId)
+                    .orElseThrow(() -> new IllegalStateException("History record disappeared: " + referenceId));
             updatedHistory.markSuccess("{\"remaining\":" + newQuantity + "}");
             persistencePort.saveHistory(updatedHistory);
 
-            // 5. EVENT PUBLISH (AFTER_COMMIT handles by TransactionalEventListener)
+            // 6. EVENT PUBLISHING
             if (isIncrease) {
-                log.info("📡 Publishing InventoryStockIncreasedEvent for book {}: new quantity {}", bookId, newQuantity);
                 eventPublisher.publishEvent(InventoryStockIncreasedEvent.create(bookId, amount, newQuantity));
             } else {
-                log.info("📡 Publishing InventoryStockDecreasedEvent for book {}: new quantity {}", bookId, newQuantity);
                 eventPublisher.publishEvent(InventoryStockDecreasedEvent.create(bookId, amount, newQuantity));
             }
 
@@ -236,12 +232,14 @@ public class InventoryService implements InventoryInternalUseCase {
                     .version(stock.getVersion() + 1)
                     .build();
 
-        } catch (IllegalStateException e) {
-            // Out of stock or invalid amount
-            StockHistory updatedHistory = persistencePort.findHistoryByReferenceId(referenceId).get();
-            updatedHistory.markFailed("{\"error\":\"" + e.getMessage() + "\"}");
-            persistencePort.saveHistory(updatedHistory);
-            throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
+        } catch (AppException e) {
+            log.warn("Business failure in inventory operation for ref {}: {}", referenceId, e.getMessage());
+            throw e;
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected failure in inventory operation for ref {}: ", referenceId, e);
+            throw e;
         }
     }
 
