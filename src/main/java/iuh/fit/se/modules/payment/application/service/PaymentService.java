@@ -91,6 +91,11 @@ public class PaymentService implements PaymentUseCase {
             return "{\"RspCode\":\"00\",\"Message\":\"Already confirmed\"}";
         }
 
+        if ("CANCELLED".equals(order.getStatus())) {
+            log.info("Payment Callback: Order {} already cancelled.", orderId);
+            return "{\"RspCode\":\"00\",\"Message\":\"Order already cancelled\"}";
+        }
+
         BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
         BigDecimal expectedFinalAmount = order.getTotalAmount().subtract(discount);
 
@@ -138,7 +143,7 @@ public class PaymentService implements PaymentUseCase {
         return "{\"RspCode\":\"00\",\"Message\":\"Confirm success\"}";
     }
 
-    private boolean verifyChecksum(Map<String, String> params) {
+    protected boolean verifyChecksum(Map<String, String> params) {
         String vnp_SecureHash = params.get("vnp_SecureHash");
         if (vnp_SecureHash == null) return false;
 

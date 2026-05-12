@@ -6,6 +6,7 @@ import iuh.fit.se.shared.api.ApiResponse;
 import iuh.fit.se.shared.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import java.io.IOException;
 /**
  * AccountController — Inbound Adapter cho Account.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
@@ -53,11 +55,10 @@ public class AccountController {
     @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")
     @PostMapping("/address")
     public ResponseEntity<ApiResponse<Account>> addAddress(
-            @Valid @RequestBody AccountUseCase.AddressCommand command) {
-
+            @Valid @RequestBody AddressRequestBody body) {
         Long userId = SecurityUtils.getCurrentUserId();
-        Account updated = accountUseCase.addAddress(userId, command);
-
+        log.debug("[BE] addAddress userId={}", userId);
+        Account updated = accountUseCase.addAddress(userId, body.toCommand());
         return ResponseEntity.ok(ApiResponse.success("Thêm địa chỉ thành công", updated));
     }
 
@@ -65,11 +66,10 @@ public class AccountController {
     @org.springframework.web.bind.annotation.PutMapping("/address/{id}")
     public ResponseEntity<ApiResponse<Account>> updateAddress(
             @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId,
-            @Valid @RequestBody AccountUseCase.AddressCommand command) {
-
+            @Valid @RequestBody AddressRequestBody body) {
         Long userId = SecurityUtils.getCurrentUserId();
-        Account updated = accountUseCase.updateAddress(userId, addressId, command);
-
+        log.debug("[BE] updateAddress userId={} addressId={}", userId, addressId);
+        Account updated = accountUseCase.updateAddress(userId, addressId, body.toCommand());
         return ResponseEntity.ok(ApiResponse.success("Cập nhật địa chỉ thành công", updated));
     }
 

@@ -39,12 +39,15 @@ class InventoryServiceTest {
     @Mock
     private ApplicationContext applicationContext;
 
-    @InjectMocks
     private InventoryService inventoryService;
-
+ 
     @BeforeEach
     void setUp() {
-        // Mock applicationContext to return the service itself for getSelf()
+        // Manually create and spy
+        InventoryService raw = new InventoryService(persistencePort, eventPublisher, applicationContext);
+        inventoryService = spy(raw);
+        
+        // Mock applicationContext to return the spy itself for getSelf()
         lenient().when(applicationContext.getBean(InventoryService.class)).thenReturn(inventoryService);
     }
 

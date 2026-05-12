@@ -156,6 +156,7 @@ public class AuthService implements AuthUseCase, AuthInternalUseCase {
         Map<String, Object> accessClaims = new HashMap<>();
         accessClaims.put("userId", user.getId());
         accessClaims.put("role", user.getRole().name());
+        accessClaims.put("fullName", user.getFullName());
         accessClaims.put("permissions", user.getRole().getPermissions().stream()
                 .map(Permission::name)
                 .collect(Collectors.toSet()));

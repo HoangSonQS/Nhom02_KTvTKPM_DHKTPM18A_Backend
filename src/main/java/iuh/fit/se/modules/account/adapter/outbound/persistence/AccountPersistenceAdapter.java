@@ -77,7 +77,7 @@ public class AccountPersistenceAdapter implements AccountPersistencePort {
     }
 
     private AddressJpaEntity mapToJpaAddress(Address domainAddress, AccountJpaEntity accountEntity) {
-        return AddressJpaEntity.builder()
+        AddressJpaEntity entity = AddressJpaEntity.builder()
                 .account(accountEntity)
                 .street(domainAddress.getStreet())
                 .ward(domainAddress.getWard())
@@ -85,5 +85,11 @@ public class AccountPersistenceAdapter implements AccountPersistencePort {
                 .city(domainAddress.getCity())
                 .isDefault(domainAddress.isDefault())
                 .build();
+        
+        if (domainAddress.getId() != null) {
+            entity.setId(domainAddress.getId());
+        }
+        
+        return entity;
     }
 }
