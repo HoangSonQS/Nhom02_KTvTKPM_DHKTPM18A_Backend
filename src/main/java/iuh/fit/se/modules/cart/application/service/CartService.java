@@ -22,8 +22,6 @@ public class CartService implements CartInternalUseCase {
     private final CartPersistencePort cartPersistencePort;
     private final BookUseCase bookUseCase; // Catalog Integration
     private final InventoryInternalUseCase inventoryInternalUseCase; // Inventory Integration
-    
-    private static final int MAX_PER_ITEM = 10; // Cấu hình tối đa 10 cuốn mỗi loại trong giỏ hàng
 
     @Override
     @Transactional
@@ -81,8 +79,8 @@ public class CartService implements CartInternalUseCase {
             throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
         }
 
-        // 4. Áp dụng Domain Logic
-        cart.addItem(book.id(), command.getQuantity(), book.price(), book.title(), MAX_PER_ITEM);
+        // 4. Áp dụng Domain Logic - dùng tồn kho sách thực tế làm giới hạn
+        cart.addItem(book.id(), command.getQuantity(), book.price(), book.title(), book.quantity());
         
         // 5. Save
         cartPersistencePort.save(cart);
@@ -93,13 +91,17 @@ public class CartService implements CartInternalUseCase {
     public void updateItemQuantity(Long userId, UpdateQuantityCommand command) {
         Cart cart = getCartEntity(userId);
         
+        // Lấy tồn kho sách thực tế để làm giới hạn
+        BookDTO book = bookUseCase.getBook(command.getBookId());
+        int maxQuantity = (book != null) ? book.quantity() : command.getQuantity();
+
         // Soft-check Inventory nếu tăng số lượng
         StockResult stock = inventoryInternalUseCase.getAvailableStock(command.getBookId());
         if (stock.getStatus() == StockResult.Status.SUCCESS && stock.getRemainingQuantity() < command.getQuantity()) {
             throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
         }
 
-        cart.updateItemQuantity(command.getBookId(), command.getQuantity(), MAX_PER_ITEM);
+        cart.updateItemQuantity(command.getBookId(), command.getQuantity(), maxQuantity);
         cartPersistencePort.save(cart);
     }
 
