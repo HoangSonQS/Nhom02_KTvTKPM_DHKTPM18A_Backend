@@ -55,11 +55,10 @@ public class AccountController {
     @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")
     @PostMapping("/address")
     public ResponseEntity<ApiResponse<Account>> addAddress(
-            @Valid @RequestBody AccountUseCase.AddressCommand command) {
+            @Valid @RequestBody AddressRequestBody body) {
         Long userId = SecurityUtils.getCurrentUserId();
-        log.info("[BE] Received addAddress request for userId: {}. Command: {}", userId, command);
-        Account updated = accountUseCase.addAddress(userId, command);
-        log.info("[BE] Address added successfully for userId: {}", userId);
+        log.debug("[BE] addAddress userId={}", userId);
+        Account updated = accountUseCase.addAddress(userId, body.toCommand());
         return ResponseEntity.ok(ApiResponse.success("Thêm địa chỉ thành công", updated));
     }
 
@@ -67,11 +66,10 @@ public class AccountController {
     @org.springframework.web.bind.annotation.PutMapping("/address/{id}")
     public ResponseEntity<ApiResponse<Account>> updateAddress(
             @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId,
-            @Valid @RequestBody AccountUseCase.AddressCommand command) {
+            @Valid @RequestBody AddressRequestBody body) {
         Long userId = SecurityUtils.getCurrentUserId();
-        log.info("[BE] Received updateAddress request for userId: {}, addressId: {}. Command: {}", userId, addressId, command);
-        Account updated = accountUseCase.updateAddress(userId, addressId, command);
-        log.info("[BE] Address updated successfully for userId: {}, addressId: {}", userId, addressId);
+        log.debug("[BE] updateAddress userId={} addressId={}", userId, addressId);
+        Account updated = accountUseCase.updateAddress(userId, addressId, body.toCommand());
         return ResponseEntity.ok(ApiResponse.success("Cập nhật địa chỉ thành công", updated));
     }
 

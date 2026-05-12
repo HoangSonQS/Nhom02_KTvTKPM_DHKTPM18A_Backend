@@ -21,7 +21,11 @@ Get-Content $envFile | ForEach-Object {
         $key   = $parts[0].Trim()
         $value = $parts[1].Trim()
         [System.Environment]::SetEnvironmentVariable($key, $value, "Process")
-        Write-Host "  $key = $value" -ForegroundColor DarkGray
+        if ($key -match '(?i)(PASSWORD|SECRET|KEY|TOKEN|PRIVATE)') {
+            Write-Host "  $key = ***" -ForegroundColor DarkGray
+        } else {
+            Write-Host "  Loaded: $key" -ForegroundColor DarkGray
+        }
     }
 }
 

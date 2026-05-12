@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.account.application.service;
 
+import iuh.fit.se.modules.account.application.port.in.AccountUseCase;
 import iuh.fit.se.modules.account.application.port.out.AccountPersistencePort;
 import iuh.fit.se.modules.account.application.port.out.ProfileImagePort;
 import iuh.fit.se.modules.account.domain.Account;
@@ -43,7 +44,7 @@ class AccountServiceTest {
         when(accountPersistencePort.findByUserId(userId)).thenReturn(Optional.of(account));
         when(accountPersistencePort.save(any(Account.class))).thenAnswer(i -> i.getArgument(0));
 
-        var command = new AccountService.AddressCommand("123 Street", "Ward 1", "Dist 1", "City", false);
+        var command = new AccountUseCase.AddressCommand("123 Street", "Ward 1", "Dist 1", "City", false);
 
         // Act
         Account result = accountService.addAddress(userId, command);

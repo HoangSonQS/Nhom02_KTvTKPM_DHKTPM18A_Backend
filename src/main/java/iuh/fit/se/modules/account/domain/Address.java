@@ -1,6 +1,5 @@
 package iuh.fit.se.modules.account.domain;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,7 +24,6 @@ public class Address {
     private String district;
     private String city;
     
-    @Setter
-    @JsonProperty("isDefault")
+    @Setter(AccessLevel.PROTECTED)
     private boolean isDefault;
 }

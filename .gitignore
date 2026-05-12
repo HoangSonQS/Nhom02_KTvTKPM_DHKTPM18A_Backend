@@ -33,6 +33,7 @@ build/
 .vscode/
 
 .env
+compose.override.yaml
 certs/
 config/keys/
 scratch/
