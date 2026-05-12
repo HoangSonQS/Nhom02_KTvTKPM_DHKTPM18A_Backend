@@ -6,6 +6,7 @@ import iuh.fit.se.shared.api.ApiResponse;
 import iuh.fit.se.shared.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import java.io.IOException;
 /**
  * AccountController — Inbound Adapter cho Account.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
@@ -54,10 +56,10 @@ public class AccountController {
     @PostMapping("/address")
     public ResponseEntity<ApiResponse<Account>> addAddress(
             @Valid @RequestBody AccountUseCase.AddressCommand command) {
-
         Long userId = SecurityUtils.getCurrentUserId();
+        log.info("[BE] Received addAddress request for userId: {}. Command: {}", userId, command);
         Account updated = accountUseCase.addAddress(userId, command);
-
+        log.info("[BE] Address added successfully for userId: {}", userId);
         return ResponseEntity.ok(ApiResponse.success("Thêm địa chỉ thành công", updated));
     }
 
@@ -66,10 +68,10 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Account>> updateAddress(
             @jakarta.validation.constraints.NotNull @org.springframework.web.bind.annotation.PathVariable("id") Long addressId,
             @Valid @RequestBody AccountUseCase.AddressCommand command) {
-
         Long userId = SecurityUtils.getCurrentUserId();
+        log.info("[BE] Received updateAddress request for userId: {}, addressId: {}. Command: {}", userId, addressId, command);
         Account updated = accountUseCase.updateAddress(userId, addressId, command);
-
+        log.info("[BE] Address updated successfully for userId: {}, addressId: {}", userId, addressId);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật địa chỉ thành công", updated));
     }
 

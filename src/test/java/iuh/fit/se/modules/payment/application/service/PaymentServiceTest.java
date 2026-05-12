@@ -29,18 +29,24 @@ class PaymentServiceTest {
     @Mock private OrderPaymentPort orderPaymentPort;
     @Mock private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks private PaymentService paymentService;
+    private PaymentService paymentService;
 
     private Map<String, String> vnpParams;
     private OrderPaymentPort.OrderPaymentDto orderDto;
 
     @BeforeEach
     void setUp() {
+        PaymentService rawService = new PaymentService(paymentPersistencePort, orderPaymentPort, eventPublisher);
+        paymentService = spy(rawService);
+
         vnpParams = new HashMap<>();
         vnpParams.put("vnp_ResponseCode", "00");
         vnpParams.put("vnp_TxnRef", "1");
         vnpParams.put("vnp_Amount", "20000000"); // 200,000 VND
         vnpParams.put("vnp_TransactionNo", "vnp-12345");
+        vnpParams.put("vnp_SecureHash", "mock-hash");
+
+        doReturn(true).when(paymentService).verifyChecksum(anyMap());
 
         orderDto = OrderPaymentPort.OrderPaymentDto.builder()
                 .orderId(1L)

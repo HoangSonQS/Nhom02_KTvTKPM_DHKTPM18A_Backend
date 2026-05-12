@@ -76,9 +76,11 @@ public class Account {
         existing.setWard(updatedData.getWard());
         existing.setDistrict(updatedData.getDistrict());
         existing.setCity(updatedData.getCity());
-
+        
         if (updatedData.isDefault()) {
             ensureSingleDefault(existing);
+        } else {
+            existing.setDefault(false);
         }
     }
 

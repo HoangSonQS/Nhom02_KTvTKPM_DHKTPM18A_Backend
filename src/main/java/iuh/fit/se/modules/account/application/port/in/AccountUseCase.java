@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.account.application.port.in;
 
 import iuh.fit.se.modules.account.domain.Account;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -36,7 +37,8 @@ public interface AccountUseCase {
             String district,
             @NotBlank(message = "Tỉnh/Thành phố không được để trống")
             String city,
+            @JsonProperty("isDefault")
             @NotNull(message = "Trạng thái mặc định không được để trống")
-            boolean isDefault) {
+            Boolean isDefault) {
     }
 }
