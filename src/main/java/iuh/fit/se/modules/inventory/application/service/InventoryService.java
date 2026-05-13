@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Primary;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -150,6 +152,11 @@ public class InventoryService implements InventoryInternalUseCase {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 3)
+    @Caching(evict = {
+            @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),
+            @CacheEvict(value = "books", allEntries = true)
+    })
     public StockResult executeTransactionalOperation(Long bookId, int amount, String baseReferenceId, String type) {
         String referenceId = baseReferenceId + "_" + type;
         boolean isIncrease = "INCREASE".equals(type);

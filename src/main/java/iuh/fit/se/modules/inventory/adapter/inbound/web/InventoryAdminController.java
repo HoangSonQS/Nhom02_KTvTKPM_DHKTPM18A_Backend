@@ -18,7 +18,7 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/inventory")
 @RequiredArgsConstructor
 @Tag(name = "Inventory Admin", description = "APIs quản lý tồn kho dành cho Admin")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ADMIN') or hasAuthority('INVENTORY_READ')")
 public class InventoryAdminController {
 
     private final InventoryAdminUseCase adminUseCase;
@@ -49,6 +49,7 @@ public class InventoryAdminController {
 
     @PutMapping("/{bookId}/increase")
     @Operation(summary = "Tăng số lượng tồn kho (Nhập hàng)")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('INVENTORY_IMPORT_STOCK')")
     public ResponseEntity<ApiResponse<InventoryResponse>> increaseStock(
             @PathVariable Long bookId,
             @Valid @RequestBody AdjustStockRequest req) {
@@ -58,6 +59,7 @@ public class InventoryAdminController {
 
     @PutMapping("/{bookId}/decrease")
     @Operation(summary = "Giảm số lượng tồn kho (Hủy hàng/Xuất kho thủ công)")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('INVENTORY_IMPORT_STOCK')")
     public ResponseEntity<ApiResponse<InventoryResponse>> decreaseStock(
             @PathVariable Long bookId,
             @Valid @RequestBody AdjustStockRequest req) {

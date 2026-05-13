@@ -9,6 +9,7 @@ import iuh.fit.se.modules.order.application.port.out.OrderUserPort;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.modules.order.domain.*;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
+import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import iuh.fit.se.modules.order.domain.exception.InvalidOrderTransitionException;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -439,6 +440,7 @@ public class OrderService implements OrderInternalUseCase {
         }
 
         switch (toStatus) {
+            case CONFIRMED -> order.confirm();
             case PROCESSING -> order.startProcessing();
             case DELIVERING -> order.startDelivering();
             case DELIVERED  -> order.markDelivered();
@@ -458,6 +460,12 @@ public class OrderService implements OrderInternalUseCase {
         }
 
         Order saved = orderPersistencePort.save(order);
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                fromStatus,
+                toStatus,
+                command.getReason()
+        ));
         log.info("Order {} fulfillmentStatus: {} → {} by Admin/Staff. Reason: {}",
             orderId, fromStatus, toStatus, command.getReason());
         
@@ -491,6 +499,12 @@ public class OrderService implements OrderInternalUseCase {
         }
 
         Order saved = orderPersistencePort.save(order);
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                currentStatus,
+                FulfillmentStatus.CANCELLED,
+                reason
+        ));
         log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
             orderId, currentStatus, reason);
 

@@ -22,7 +22,7 @@ public class OrderAdminV2Controller {
     private final OrderInternalUseCase orderUseCase;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_READ_ALL')")
     public ResponseEntity<ApiResponse<List<OrderInternalUseCase.AdminOrderResponse>>> searchOrders(
             @RequestParam(required = false) FulfillmentStatus status,
             @RequestParam(required = false) String customerKeyword) {
@@ -34,7 +34,7 @@ public class OrderAdminV2Controller {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_READ_ALL')")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.AdminOrderResponse>> getOrderDetails(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(orderUseCase.getAdminOrderById(id)));
     }

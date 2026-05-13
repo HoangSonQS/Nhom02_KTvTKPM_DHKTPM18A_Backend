@@ -16,7 +16,8 @@ class AdminReportEventListenerTest {
         assertDashboardCacheEvicted("onOrderCreated", "OrderCreatedDomainEvent");
         assertDashboardCacheEvicted("onPaymentSuccess", "PaymentSuccessEvent");
         assertDashboardCacheEvicted("onOrderCancelled", "OrderCancelledEvent");
-        assertDashboardCacheEvicted("onReturnRefunded", "ReturnRequestRefundedEvent");
+        assertDashboardCacheEvicted("onOrderFulfillmentStatusChanged", "OrderFulfillmentStatusChangedEvent");
+        assertDashboardCacheEvicted("onReturnRefunded", "ReturnRequestRefundedDomainEvent");
     }
 
     private static void assertDashboardCacheEvicted(String methodName, String eventSimpleName) {
