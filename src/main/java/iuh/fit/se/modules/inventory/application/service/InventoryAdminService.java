@@ -7,6 +7,8 @@ import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,11 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),
+            @CacheEvict(value = "books", allEntries = true)
+    })
     public InventoryResponse initializeStock(Long bookId, int initialQuantity) {
         if (persistencePort.findStockByBookId(bookId).isPresent()) {
             throw new AppException(ErrorCode.INV_STOCK_ALREADY_EXISTS);
@@ -50,6 +57,11 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),
+            @CacheEvict(value = "books", allEntries = true)
+    })
     public InventoryResponse increaseStock(Long bookId, int amount) {
         InventoryStock stock = persistencePort.findStockByBookId(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.INV_STOCK_NOT_FOUND));
@@ -62,6 +74,11 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
+            @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),
+            @CacheEvict(value = "books", allEntries = true)
+    })
     public InventoryResponse decreaseStock(Long bookId, int amount) {
         InventoryStock stock = persistencePort.findStockByBookId(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.INV_STOCK_NOT_FOUND));

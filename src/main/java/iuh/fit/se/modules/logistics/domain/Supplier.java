@@ -36,6 +36,10 @@ public class Supplier {
     @Column(name = "tax_code")
     private String taxCode;
 
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -52,6 +56,11 @@ public class Supplier {
                 .email(email)
                 .address(address)
                 .taxCode(taxCode)
+                .deleted(false)
                 .build();
+    }
+
+    public void softDelete() {
+        this.deleted = true;
     }
 }

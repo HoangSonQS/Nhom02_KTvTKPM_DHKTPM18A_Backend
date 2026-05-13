@@ -91,6 +91,16 @@ public class OrderReport {
         this.cancellationReason = reason;
     }
 
+    public void markFulfillmentStatus(String status, Instant occurredAt, String reason) {
+        this.status = status;
+        if ("DELIVERED".equals(status)) {
+            this.completedAt = occurredAt;
+        }
+        if ("CANCELLED".equals(status)) {
+            this.cancellationReason = reason;
+        }
+    }
+
     public void markRefunded(BigDecimal amount, java.time.Instant refundedAt) {
         this.status = "REFUNDED";
         this.refundAmount = amount;

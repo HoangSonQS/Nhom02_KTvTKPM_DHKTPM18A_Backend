@@ -9,6 +9,7 @@ import iuh.fit.se.modules.order.application.port.out.OrderUserPort;
 import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.modules.order.domain.*;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
+import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import iuh.fit.se.modules.order.domain.exception.InvalidOrderTransitionException;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -21,7 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -203,6 +207,7 @@ public class OrderService implements OrderInternalUseCase {
                 .items(order.getItems().stream()
                         .map(item -> OrderItemResponse.builder()
                                 .bookId(item.getBookId())
+                                .title(item.getBookTitle())
                                 .quantity(item.getQuantity())
                                 .priceAtPurchase(item.getPriceAtPurchase())
                                 .build())
@@ -360,6 +365,91 @@ public class OrderService implements OrderInternalUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<AdminOrderResponse> searchAdminOrders(AdminOrderSearchCriteria criteria) {
+        FulfillmentStatus status = criteria == null ? null : criteria.getStatus();
+        Map<Long, OrderUserPort.UserDto> userCache = new HashMap<>();
+        return orderPersistencePort.searchAdminOrders(status).stream()
+                .map(order -> mapToAdminResponse(order, userCache))
+                .filter(order -> criteria == null || matchesCustomerKeyword(order, criteria.getCustomerKeyword()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdminOrderResponse getAdminOrderById(Long orderId) {
+        Order order = orderPersistencePort.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        return mapToAdminResponse(order, new HashMap<>());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TopSellingBookResponse> getTopSellingBooks(int limit) {
+        int effectiveLimit = limit > 0 ? limit : 5;
+        List<FulfillmentStatus> paidStatuses = List.of(
+                FulfillmentStatus.CONFIRMED,
+                FulfillmentStatus.PROCESSING,
+                FulfillmentStatus.DELIVERING,
+                FulfillmentStatus.DELIVERED
+        );
+        return orderPersistencePort.findTopSellingBooks(paidStatuses, effectiveLimit).stream()
+                .map(book -> new TopSellingBookResponse(
+                        book.bookId(),
+                        book.title(),
+                        book.quantitySold(),
+                        book.revenue() != null ? book.revenue() : BigDecimal.ZERO
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private AdminOrderResponse mapToAdminResponse(Order order, Map<Long, OrderUserPort.UserDto> userCache) {
+        OrderUserPort.UserDto user = userCache.computeIfAbsent(order.getUserId(), orderUserPort::getUserDetails);
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+
+        return AdminOrderResponse.builder()
+                .orderId(order.getId())
+                .userId(order.getUserId())
+                .customerName(user.getFullName())
+                .customerEmail(user.getEmail())
+                .customerPhone(user.getPhoneNumber() != null ? user.getPhoneNumber() : order.getCustomerPhone())
+                .shippingAddress(order.getShippingAddress())
+                .totalAmount(order.getTotalAmount())
+                .discountAmount(discount)
+                .finalAmount(order.getTotalAmount().subtract(discount))
+                .fulfillmentStatus(order.getFulfillmentStatus().name())
+                .sagaStatus(order.getSagaStatus().name())
+                .requestId(order.getRequestId())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .items(order.getItems().stream()
+                        .map(item -> OrderItemResponse.builder()
+                                .bookId(item.getBookId())
+                                .title(item.getBookTitle())
+                                .quantity(item.getQuantity())
+                                .priceAtPurchase(item.getPriceAtPurchase())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    private boolean matchesCustomerKeyword(AdminOrderResponse order, String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return true;
+        }
+        String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
+        return Map.of(
+                        "userId", String.valueOf(order.getUserId()),
+                        "name", order.getCustomerName() != null ? order.getCustomerName() : "",
+                        "email", order.getCustomerEmail() != null ? order.getCustomerEmail() : "",
+                        "phone", order.getCustomerPhone() != null ? order.getCustomerPhone() : ""
+                )
+                .values()
+                .stream()
+                .anyMatch(value -> value.toLowerCase(Locale.ROOT).contains(normalizedKeyword));
+    }
+
+    @Override
     @Transactional
     public OrderResponse updateOrderStatus(Long orderId, UpdateFulfillmentStatusCommand command) {
         Order order = orderPersistencePort.findById(orderId)
@@ -374,6 +464,7 @@ public class OrderService implements OrderInternalUseCase {
         }
 
         switch (toStatus) {
+            case CONFIRMED -> order.confirm();
             case PROCESSING -> order.startProcessing();
             case DELIVERING -> order.startDelivering();
             case DELIVERED  -> order.markDelivered();
@@ -386,6 +477,12 @@ public class OrderService implements OrderInternalUseCase {
         }
 
         Order saved = orderPersistencePort.save(order);
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                fromStatus,
+                toStatus,
+                command.getReason()
+        ));
         log.info("Order {} fulfillmentStatus: {} → {} by Admin/Staff. Reason: {}",
             orderId, fromStatus, toStatus, command.getReason());
         
@@ -411,6 +508,12 @@ public class OrderService implements OrderInternalUseCase {
         promotionPort.releaseCoupon(order.getRequestId());
 
         Order saved = orderPersistencePort.save(order);
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                currentStatus,
+                FulfillmentStatus.CANCELLED,
+                reason
+        ));
         log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
             orderId, currentStatus, reason);
 

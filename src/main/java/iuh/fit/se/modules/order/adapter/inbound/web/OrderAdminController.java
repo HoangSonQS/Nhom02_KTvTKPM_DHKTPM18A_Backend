@@ -12,22 +12,28 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/admin/orders")
+@RequestMapping("/api/v2/admin/orders")
 @RequiredArgsConstructor
 public class OrderAdminController {
 
     private final OrderInternalUseCase orderUseCase;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResponse<List<OrderInternalUseCase.OrderResponse>>> getAllOrders() {
-        return ResponseEntity.ok(ApiResponse.success(orderUseCase.getAllOrders()));
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_READ_ALL')")
+    public ResponseEntity<ApiResponse<List<OrderInternalUseCase.AdminOrderResponse>>> searchOrders(
+            @RequestParam(required = false) FulfillmentStatus status,
+            @RequestParam(required = false) String customerKeyword) {
+        OrderInternalUseCase.AdminOrderSearchCriteria criteria = OrderInternalUseCase.AdminOrderSearchCriteria.builder()
+                .status(status)
+                .customerKeyword(customerKeyword)
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(orderUseCase.searchAdminOrders(criteria)));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> getOrderDetails(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(orderUseCase.getOrderById(id)));
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_READ_ALL')")
+    public ResponseEntity<ApiResponse<OrderInternalUseCase.AdminOrderResponse>> getOrderDetails(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(orderUseCase.getAdminOrderById(id)));
     }
 
     /**
@@ -36,7 +42,7 @@ public class OrderAdminController {
      * dụng.
      */
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_UPDATE_STATUS')")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> updateOrderStatus(
             @PathVariable Long id,
             @RequestBody UpdateFulfillmentStatusCommand command) {
@@ -47,7 +53,7 @@ public class OrderAdminController {
      * CONFIRMED → PROCESSING: Bắt đầu xử lý đơn hàng.
      */
     @PutMapping("/{id}/process")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_UPDATE_STATUS')")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> processOrder(@PathVariable Long id) {
         UpdateFulfillmentStatusCommand command = UpdateFulfillmentStatusCommand.builder()
                 .newStatus(FulfillmentStatus.PROCESSING)
@@ -60,7 +66,7 @@ public class OrderAdminController {
      * PROCESSING → DELIVERING: Bắt đầu giao hàng.
      */
     @PutMapping("/{id}/ship")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_UPDATE_STATUS')")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> shipOrder(@PathVariable Long id) {
         UpdateFulfillmentStatusCommand command = UpdateFulfillmentStatusCommand.builder()
                 .newStatus(FulfillmentStatus.DELIVERING)
@@ -74,7 +80,7 @@ public class OrderAdminController {
      * state).
      */
     @PutMapping("/{id}/complete")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_UPDATE_STATUS')")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> completeOrder(@PathVariable Long id) {
         UpdateFulfillmentStatusCommand command = UpdateFulfillmentStatusCommand.builder()
                 .newStatus(FulfillmentStatus.DELIVERED)
@@ -89,7 +95,7 @@ public class OrderAdminController {
      * CANCELLED.
      */
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ORDER_UPDATE_STATUS')")
     public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> cancelOrder(
             @PathVariable Long id,
             @RequestBody(required = false) CancelOrderRequest request) {

@@ -5,6 +5,7 @@ import iuh.fit.se.modules.auth.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,6 +39,13 @@ public class UserPersistenceAdapter implements UserPersistencePort {
         UserJpaEntity entity = toJpaEntity(user);
         UserJpaEntity saved = userJpaRepository.save(entity);
         return toDomain(saved);
+    }
+
+    @Override
+    public List<User> findAll() {
+        return userJpaRepository.findAllByOrderByIdAsc().stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     // ===== Mapping Methods =====

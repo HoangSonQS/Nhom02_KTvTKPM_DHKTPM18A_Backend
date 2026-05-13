@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.inventory.adapter.inbound.event;
 
+import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
 import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnRequestReceivedIntegrationEvent;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReturnRequestReceivedEventListener {
 
     private final InventoryPersistencePort inventoryPort;
+    private final InventoryInternalUseCase inventoryUseCase;
 
     @EventListener
     @Transactional
@@ -29,14 +31,28 @@ public class ReturnRequestReceivedEventListener {
             return;
         }
 
-        // 2. Process each item
-        for (ReturnedItemCondition item : event.items()) {
-            if (item.condition() == ItemCondition.GOOD) {
-                log.info("Restocking GOOD item: bookId={}, quantity={}", item.bookId(), item.quantity());
-                inventoryPort.updateStockAtomic(item.bookId(), item.quantity());
-            } else {
-                log.warn("Item condition is DEFECTIVE for bookId={}, skipping restock.", item.bookId());
-            }
+        // 2. Process each item through InventoryService so cache eviction and catalog sync always run.
+        var restockItems = event.items().stream()
+                .filter(item -> item.condition() == ItemCondition.GOOD)
+                .map(item -> {
+                    log.info("Restocking GOOD item: bookId={}, quantity={}", item.bookId(), item.quantity());
+                    return InventoryInternalUseCase.StockItemRequest.builder()
+                            .bookId(item.bookId())
+                            .amount(item.quantity())
+                            .build();
+                })
+                .toList();
+
+        event.items().stream()
+                .filter(item -> item.condition() != ItemCondition.GOOD)
+                .forEach(item -> log.warn(
+                        "Item condition is {} for bookId={}, skipping restock.",
+                        item.condition(),
+                        item.bookId()
+                ));
+
+        if (!restockItems.isEmpty()) {
+            inventoryUseCase.increaseStockBulk(restockItems, "RET_RECEIVED_" + event.returnRequestId());
         }
 
         // 3. Mark as processed

@@ -8,4 +8,5 @@ public interface SupplierPersistencePort {
     Supplier save(Supplier supplier);
     Optional<Supplier> findById(Long id);
     List<Supplier> findAll();
+    List<Supplier> findAllActive();
 }

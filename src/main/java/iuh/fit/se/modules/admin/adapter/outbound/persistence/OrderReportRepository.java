@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -49,6 +50,15 @@ public interface OrderReportRepository extends JpaRepository<OrderReport, Long> 
     @Query("SELECT AVG(o.totalAmount) FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
     BigDecimal calculateAverageOrderValue();
 
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
+    BigDecimal calculateTotalRevenue();
+
+    @Query("SELECT COALESCE(SUM(o.refundAmount), 0) FROM OrderReport o WHERE o.refundAmount IS NOT NULL")
+    BigDecimal calculateRefundAmount();
+
     @Query("SELECT COUNT(DISTINCT o.customerName) FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
     long countUniqueBuyers();
+
+    @Query("SELECT o FROM OrderReport o WHERE o.status IN ('CONFIRMED', 'PROCESSING', 'DELIVERING', 'DELIVERED')")
+    List<OrderReport> findPaidReports();
 }

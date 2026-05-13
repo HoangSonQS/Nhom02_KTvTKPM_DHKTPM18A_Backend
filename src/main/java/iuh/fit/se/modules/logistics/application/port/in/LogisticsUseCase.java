@@ -13,6 +13,7 @@ public interface LogisticsUseCase {
     // --- Supplier Operations ---
     Supplier createSupplier(CreateSupplierCommand command);
     List<Supplier> getAllSuppliers();
+    void deleteSupplier(Long id);
 
     // --- Purchase Order Operations ---
     PurchaseOrder createPurchaseOrder(CreatePOCommand command, String createdBy);
