@@ -87,6 +87,7 @@ public class OrderService implements OrderInternalUseCase {
                     .shippingAddress(shippingAddress)
                     .customerPhone(customerPhone)
                     .couponCode(command.getCouponCode())
+                    .paymentMethod(command.getPaymentMethod())
                     .build();
 
             // 3. Fetch Cart
@@ -164,6 +165,13 @@ public class OrderService implements OrderInternalUseCase {
             // 8. Re-fetch order to get updated discount and saga status from DB
             Order finalOrder = orderPersistencePort.findById(sagaOrder.getId())
                     .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+            if (isCashOnDelivery(resolvedCommand)) {
+                finalOrder.confirm();
+                if (resolvedCommand.getCouponCode() != null && !resolvedCommand.getCouponCode().isBlank()) {
+                    promotionPort.confirmCouponUsage(resolvedCommand.getRequestId());
+                }
+                finalOrder = orderPersistencePort.save(finalOrder);
+            }
 
             // 9. Publish Domain Event (Internal)
             eventPublisher.publishEvent(OrderCreatedDomainEvent.of(finalOrder, userProfile.getFullName(), userProfile.getEmail()));
@@ -173,6 +181,11 @@ public class OrderService implements OrderInternalUseCase {
         } finally {
             MDC.remove("requestId");
         }
+    }
+
+    private boolean isCashOnDelivery(CheckoutCommand command) {
+        return "COD".equalsIgnoreCase(command.getPaymentMethod())
+                || "CASH".equalsIgnoreCase(command.getPaymentMethod());
     }
 
     private OrderResponse mapToResponse(Order order) {
@@ -307,6 +320,25 @@ public class OrderService implements OrderInternalUseCase {
 
     @Override
     @Transactional
+    public OrderResponse cancelMyPendingOrder(Long orderId, Long userId, String reason) {
+        Order order = orderPersistencePort.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+
+        if (order.getFulfillmentStatus() != FulfillmentStatus.PENDING) {
+            throw new InvalidOrderTransitionException("Chỉ có thể hủy đơn hàng khi chưa được xác nhận");
+        }
+
+        order.forceCancel(reason == null || reason.isBlank() ? "Customer cancelled pending order" : reason);
+        restoreInventoryIfReserved(order);
+        promotionPort.releaseCoupon(order.getRequestId());
+
+        Order saved = orderPersistencePort.save(order);
+        log.info("Order {} cancelled by customer {} before confirmation. Reason: {}", orderId, userId, reason);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public void markOrderAsPaid(Long orderId) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
@@ -347,15 +379,8 @@ public class OrderService implements OrderInternalUseCase {
             case DELIVERED  -> order.markDelivered();
             case CANCELLED  -> {
                 order.cancelByTransition();
-                // Side effect: Restore inventory
-                List<InventoryPort.StockItem> stockItems = order.getItems().stream()
-                    .map(item -> InventoryPort.StockItem.builder()
-                        .bookId(item.getBookId())
-                        .quantity(item.getQuantity())
-                        .build())
-                    .toList();
-                inventoryPort.increaseStockBulk(stockItems, order.getRequestId());
-                log.info("Inventory restored for cancelled order {}", orderId);
+                restoreInventoryIfReserved(order);
+                promotionPort.releaseCoupon(order.getRequestId());
             }
             default -> throw new InvalidOrderTransitionException("Trạng thái không hợp lệ cho Admin transition");
         }
@@ -382,21 +407,28 @@ public class OrderService implements OrderInternalUseCase {
         order.forceCancel(reason);
 
         // Side effect: Restore inventory nếu stock đã bị trừ
-        if (currentStatus != FulfillmentStatus.PENDING) {
-            List<InventoryPort.StockItem> stockItems = order.getItems().stream()
-                .map(item -> InventoryPort.StockItem.builder()
-                    .bookId(item.getBookId())
-                    .quantity(item.getQuantity())
-                    .build())
-                .toList();
-            inventoryPort.increaseStockBulk(stockItems, order.getRequestId());
-            log.info("Inventory restored for force-cancelled order {}", orderId);
-        }
+        restoreInventoryIfReserved(order);
+        promotionPort.releaseCoupon(order.getRequestId());
 
         Order saved = orderPersistencePort.save(order);
         log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
             orderId, currentStatus, reason);
 
         return mapToResponse(saved);
+    }
+
+    private void restoreInventoryIfReserved(Order order) {
+        if (order.getSagaStatus() == SagaStatus.INIT || order.getSagaStatus() == SagaStatus.FAILED) {
+            return;
+        }
+
+        List<InventoryPort.StockItem> stockItems = order.getItems().stream()
+                .map(item -> InventoryPort.StockItem.builder()
+                        .bookId(item.getBookId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+        inventoryPort.increaseStockBulk(stockItems, order.getRequestId());
+        log.info("Inventory restored for cancelled order {}", order.getId());
     }
 }

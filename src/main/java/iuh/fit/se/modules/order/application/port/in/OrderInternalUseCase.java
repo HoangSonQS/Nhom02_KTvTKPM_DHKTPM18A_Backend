@@ -14,6 +14,8 @@ public interface OrderInternalUseCase {
 
     OrderResponse getMyOrderById(Long orderId, Long userId);
 
+    OrderResponse cancelMyPendingOrder(Long orderId, Long userId, String reason);
+
     void markOrderAsPaid(Long orderId);
 
     // Admin/Staff methods
@@ -66,6 +68,7 @@ public interface OrderInternalUseCase {
         private String shippingAddress;
         private String customerPhone;
         private String couponCode;
+        private String paymentMethod;
     }
 
     @Data
