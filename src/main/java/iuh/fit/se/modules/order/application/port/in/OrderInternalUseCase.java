@@ -19,6 +19,12 @@ public interface OrderInternalUseCase {
     // Admin/Staff methods
     java.util.List<OrderResponse> getAllOrders();
 
+    java.util.List<AdminOrderResponse> searchAdminOrders(AdminOrderSearchCriteria criteria);
+
+    AdminOrderResponse getAdminOrderById(Long orderId);
+
+    java.util.List<TopSellingBookResponse> getTopSellingBooks(int limit);
+
     /**
      * Cập nhật FulfillmentStatus đơn hàng theo luồng admin operational transition.
      */
@@ -53,11 +59,46 @@ public interface OrderInternalUseCase {
 
     @Data
     @Builder
+    class AdminOrderResponse {
+        private Long orderId;
+        private Long userId;
+        private String customerName;
+        private String customerEmail;
+        private String customerPhone;
+        private String shippingAddress;
+        private java.math.BigDecimal totalAmount;
+        private java.math.BigDecimal discountAmount;
+        private java.math.BigDecimal finalAmount;
+        private String fulfillmentStatus;
+        private String sagaStatus;
+        private String requestId;
+        private java.time.LocalDateTime createdAt;
+        private java.time.LocalDateTime updatedAt;
+        private java.util.List<OrderItemResponse> items;
+    }
+
+    @Data
+    @Builder
     class OrderItemResponse {
         private Long bookId;
+        private String title;
         private int quantity;
         private java.math.BigDecimal priceAtPurchase;
     }
+
+    @Data
+    @Builder
+    class AdminOrderSearchCriteria {
+        private FulfillmentStatus status;
+        private String customerKeyword;
+    }
+
+    record TopSellingBookResponse(
+            Long bookId,
+            String title,
+            long quantitySold,
+            java.math.BigDecimal revenue
+    ) {}
 
     @Data
     @Builder

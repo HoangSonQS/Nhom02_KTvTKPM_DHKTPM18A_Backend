@@ -27,4 +27,9 @@ public class SupplierPersistenceAdapter implements SupplierPersistencePort {
     public List<Supplier> findAll() {
         return repository.findAll();
     }
+
+    @Override
+    public List<Supplier> findAllActive() {
+        return repository.findAllByDeletedFalseOrderByIdAsc();
+    }
 }

@@ -6,20 +6,13 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
-/**
- * Port/In cho các báo cáo quản trị.
- */
 public interface AdminReportUseCase {
     DashboardDto getDashboardMetrics();
 
-    /**
-     * DTO cho Dashboard metrics.
-     *
-     * Annotation @JsonDeserialize + @JsonPOJOBuilder là bắt buộc để Jackson có thể
-     * deserialize object này khi đọc từ Redis cache (GenericJackson2JsonRedisSerializer).
-     * Lombok @Builder không tự sinh @JsonCreator, nên cần chỉ định tường minh.
-     */
+    DashboardV2Dto getDashboardMetricsV2();
+
     @Getter
     @Builder
     @JsonDeserialize(builder = DashboardDto.DashboardDtoBuilder.class)
@@ -33,7 +26,33 @@ public interface AdminReportUseCase {
 
         @JsonPOJOBuilder(withPrefix = "")
         public static class DashboardDtoBuilder {
-            // Lombok tự sinh phần còn lại — class này chỉ để gắn @JsonPOJOBuilder
         }
     }
+
+    @Getter
+    @Builder
+    @JsonDeserialize(builder = DashboardV2Dto.DashboardV2DtoBuilder.class)
+    class DashboardV2Dto {
+        private long totalOrders;
+        private long paidOrders;
+        private double conversionRate;
+        private double averageTimeToPaymentSeconds;
+        private BigDecimal averageOrderValue;
+        private long uniqueBuyers;
+        private BigDecimal totalRevenue;
+        private BigDecimal netRevenue;
+        private BigDecimal refundAmount;
+        private List<TopBookDto> topBooks;
+
+        @JsonPOJOBuilder(withPrefix = "")
+        public static class DashboardV2DtoBuilder {
+        }
+    }
+
+    record TopBookDto(
+            Long bookId,
+            String title,
+            long quantitySold,
+            BigDecimal revenue
+    ) {}
 }

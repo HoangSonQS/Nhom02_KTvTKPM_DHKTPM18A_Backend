@@ -44,4 +44,8 @@ public class User {
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
+
+    public void disable() {
+        this.enabled = false;
+    }
 }

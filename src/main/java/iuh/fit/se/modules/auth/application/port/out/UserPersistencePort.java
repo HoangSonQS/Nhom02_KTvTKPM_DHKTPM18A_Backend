@@ -2,6 +2,7 @@ package iuh.fit.se.modules.auth.application.port.out;
 
 import iuh.fit.se.modules.auth.domain.User;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -18,4 +19,6 @@ public interface UserPersistencePort {
     boolean existsByEmail(String email);
 
     User save(User user);
+
+    List<User> findAll();
 }

@@ -36,6 +36,13 @@ public class LogisticsController {
         );
     }
 
+    @DeleteMapping("/suppliers/{id}")
+    @PreAuthorize("hasAuthority('PURCHASE_ORDER_CREATE') or hasRole('ADMIN')")
+    public ApiResponse<Void> deleteSupplier(@PathVariable Long id) {
+        logisticsUseCase.deleteSupplier(id);
+        return ApiResponse.success(null);
+    }
+
     // --- Purchase Orders ---
 
     @PostMapping("/purchase-orders")

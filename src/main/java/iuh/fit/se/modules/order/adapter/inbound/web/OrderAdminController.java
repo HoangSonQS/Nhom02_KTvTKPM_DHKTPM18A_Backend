@@ -20,14 +20,20 @@ public class OrderAdminController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResponse<List<OrderInternalUseCase.OrderResponse>>> getAllOrders() {
-        return ResponseEntity.ok(ApiResponse.success(orderUseCase.getAllOrders()));
+    public ResponseEntity<ApiResponse<List<OrderInternalUseCase.AdminOrderResponse>>> searchOrders(
+            @RequestParam(required = false) FulfillmentStatus status,
+            @RequestParam(required = false) String customerKeyword) {
+        OrderInternalUseCase.AdminOrderSearchCriteria criteria = OrderInternalUseCase.AdminOrderSearchCriteria.builder()
+                .status(status)
+                .customerKeyword(customerKeyword)
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(orderUseCase.searchAdminOrders(criteria)));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> getOrderDetails(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(orderUseCase.getOrderById(id)));
+    public ResponseEntity<ApiResponse<OrderInternalUseCase.AdminOrderResponse>> getOrderDetails(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(orderUseCase.getAdminOrderById(id)));
     }
 
     /**

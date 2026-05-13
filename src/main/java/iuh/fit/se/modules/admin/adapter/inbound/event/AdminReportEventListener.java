@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.admin.adapter.inbound.event;
 
-import iuh.fit.se.modules.admin.adapter.outbound.persistence.OrderReportRepository;
+import iuh.fit.se.modules.admin.application.port.out.OrderReportPersistencePort;
 import iuh.fit.se.modules.admin.domain.OrderReport;
 import iuh.fit.se.modules.order.domain.OrderCancelledEvent;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
@@ -8,6 +8,8 @@ import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -27,11 +29,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 public class AdminReportEventListener {
 
-    private final OrderReportRepository repository;
+    private final OrderReportPersistencePort repository;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Caching(evict = @CacheEvict(value = "dashboardStats", allEntries = true))
     public void onOrderCreated(OrderCreatedDomainEvent event) {
         log.info("📊 CQRS: Synchronizing OrderCreated for {}", event.getOrderId());
         
@@ -59,6 +62,7 @@ public class AdminReportEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Caching(evict = @CacheEvict(value = "dashboardStats", allEntries = true))
     public void onPaymentSuccess(PaymentSuccessEvent event) {
         log.info("📊 CQRS: Synchronizing PaymentSuccess for {}", event.getOrderId());
         
@@ -81,6 +85,7 @@ public class AdminReportEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Caching(evict = @CacheEvict(value = "dashboardStats", allEntries = true))
     public void onOrderCancelled(OrderCancelledEvent event) {
         log.info("📊 CQRS: Synchronizing OrderCancelled for {}", event.getOrderId());
         
@@ -99,6 +104,7 @@ public class AdminReportEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Caching(evict = @CacheEvict(value = "dashboardStats", allEntries = true))
     public void onReturnRefunded(iuh.fit.se.modules.returns.domain.ReturnRequestRefundedEvent event) {
         log.info("📊 CQRS: Synchronizing ReturnRefunded for order {}", event.getOrderId());
         

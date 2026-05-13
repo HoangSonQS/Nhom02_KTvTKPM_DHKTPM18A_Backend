@@ -2,6 +2,7 @@ package iuh.fit.se.modules.auth.adapter.outbound.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -13,4 +14,6 @@ interface UserJpaRepository extends JpaRepository<UserJpaEntity, Long> {
     Optional<UserJpaEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    List<UserJpaEntity> findAllByOrderByIdAsc();
 }

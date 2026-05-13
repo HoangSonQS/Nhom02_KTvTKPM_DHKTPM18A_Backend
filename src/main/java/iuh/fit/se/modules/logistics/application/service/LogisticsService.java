@@ -46,7 +46,16 @@ public class LogisticsService implements LogisticsUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<Supplier> getAllSuppliers() {
-        return supplierPort.findAll();
+        return supplierPort.findAllActive();
+    }
+
+    @Override
+    @Transactional
+    public void deleteSupplier(Long id) {
+        Supplier supplier = supplierPort.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.LOG_SUPPLIER_NOT_FOUND));
+        supplier.softDelete();
+        supplierPort.save(supplier);
     }
 
     @Override
