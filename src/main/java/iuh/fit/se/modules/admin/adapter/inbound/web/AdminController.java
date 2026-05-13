@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/admin/dashboard")
+@RequestMapping("/api/v2/admin/dashboard")
 @RequiredArgsConstructor
 @Tag(name = "Admin Dashboard", description = "APIs cho báo cáo và giám sát hệ thống (CQRS)")
 @PreAuthorize("hasAuthority('DASHBOARD_REVENUE') or hasAuthority('DASHBOARD_INVENTORY') or hasAuthority('DASHBOARD_FULL')")

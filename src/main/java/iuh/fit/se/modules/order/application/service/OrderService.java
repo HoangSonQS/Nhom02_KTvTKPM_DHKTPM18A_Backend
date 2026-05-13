@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -335,10 +335,10 @@ public class OrderService implements OrderInternalUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<AdminOrderResponse> searchAdminOrders(AdminOrderSearchCriteria criteria) {
-        return orderPersistencePort.findAll().stream()
-                .filter(order -> criteria == null || criteria.getStatus() == null
-                        || order.getFulfillmentStatus() == criteria.getStatus())
-                .map(this::mapToAdminResponse)
+        FulfillmentStatus status = criteria == null ? null : criteria.getStatus();
+        Map<Long, OrderUserPort.UserDto> userCache = new HashMap<>();
+        return orderPersistencePort.searchAdminOrders(status).stream()
+                .map(order -> mapToAdminResponse(order, userCache))
                 .filter(order -> criteria == null || matchesCustomerKeyword(order, criteria.getCustomerKeyword()))
                 .collect(Collectors.toList());
     }
@@ -348,39 +348,31 @@ public class OrderService implements OrderInternalUseCase {
     public AdminOrderResponse getAdminOrderById(Long orderId) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
-        return mapToAdminResponse(order);
+        return mapToAdminResponse(order, new HashMap<>());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TopSellingBookResponse> getTopSellingBooks(int limit) {
         int effectiveLimit = limit > 0 ? limit : 5;
-        return orderPersistencePort.findAll().stream()
-                .filter(order -> order.getFulfillmentStatus() == FulfillmentStatus.CONFIRMED
-                        || order.getFulfillmentStatus() == FulfillmentStatus.PROCESSING
-                        || order.getFulfillmentStatus() == FulfillmentStatus.DELIVERING
-                        || order.getFulfillmentStatus() == FulfillmentStatus.DELIVERED)
-                .flatMap(order -> order.getItems().stream())
-                .collect(Collectors.groupingBy(
-                        OrderItem::getBookId,
-                        Collectors.collectingAndThen(Collectors.toList(), items -> {
-                            OrderItem first = items.get(0);
-                            long quantity = items.stream().mapToLong(OrderItem::getQuantity).sum();
-                            BigDecimal revenue = items.stream()
-                                    .map(item -> item.getPriceAtPurchase().multiply(BigDecimal.valueOf(item.getQuantity())))
-                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-                            return new TopSellingBookResponse(first.getBookId(), first.getBookTitle(), quantity, revenue);
-                        })
+        List<FulfillmentStatus> paidStatuses = List.of(
+                FulfillmentStatus.CONFIRMED,
+                FulfillmentStatus.PROCESSING,
+                FulfillmentStatus.DELIVERING,
+                FulfillmentStatus.DELIVERED
+        );
+        return orderPersistencePort.findTopSellingBooks(paidStatuses, effectiveLimit).stream()
+                .map(book -> new TopSellingBookResponse(
+                        book.bookId(),
+                        book.title(),
+                        book.quantitySold(),
+                        book.revenue() != null ? book.revenue() : BigDecimal.ZERO
                 ))
-                .values()
-                .stream()
-                .sorted(Comparator.comparingLong(TopSellingBookResponse::quantitySold).reversed())
-                .limit(effectiveLimit)
                 .collect(Collectors.toList());
     }
 
-    private AdminOrderResponse mapToAdminResponse(Order order) {
-        OrderUserPort.UserDto user = orderUserPort.getUserDetails(order.getUserId());
+    private AdminOrderResponse mapToAdminResponse(Order order, Map<Long, OrderUserPort.UserDto> userCache) {
+        OrderUserPort.UserDto user = userCache.computeIfAbsent(order.getUserId(), orderUserPort::getUserDetails);
         BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
 
         return AdminOrderResponse.builder()

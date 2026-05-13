@@ -14,7 +14,7 @@ class AdminReportEventListenerTest {
     @Test
     void givenReportMutationEvents_whenInspectCacheEviction_thenDashboardStatsAreEvicted() {
         assertDashboardCacheEvicted("onOrderCreated", "OrderCreatedDomainEvent");
-        assertDashboardCacheEvicted("onPaymentSuccess", "PaymentSuccessEvent");
+        assertDashboardCacheEvicted("onPaymentSuccess", "PaymentSuccessIntegrationEvent");
         assertDashboardCacheEvicted("onOrderCancelled", "OrderCancelledEvent");
         assertDashboardCacheEvicted("onOrderFulfillmentStatusChanged", "OrderFulfillmentStatusChangedEvent");
         assertDashboardCacheEvicted("onReturnRefunded", "ReturnRequestRefundedDomainEvent");

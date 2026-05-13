@@ -4,6 +4,7 @@ import iuh.fit.se.modules.admin.application.port.in.AdminReportUseCase;
 import iuh.fit.se.shared.api.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,7 +17,7 @@ import static org.mockito.Mockito.when;
 class AdminControllerTest {
 
     @Test
-    void givenV1DashboardMetrics_whenGetMetrics_thenReturnRevenueAndTopBooksContract() {
+    void givenV2DashboardMetrics_whenGetMetrics_thenReturnRevenueAndTopBooksContract() {
         AdminReportUseCase useCase = mock(AdminReportUseCase.class);
         AdminReportUseCase.DashboardV2Dto metrics = AdminReportUseCase.DashboardV2Dto.builder()
                 .totalOrders(10)
@@ -39,5 +40,11 @@ class AdminControllerTest {
         assertThat(response.getBody().getData().getNetRevenue()).isEqualByComparingTo("900000");
         assertThat(response.getBody().getData().getTopBooks()).hasSize(1);
         verify(useCase).getDashboardMetricsV2();
+    }
+
+    @Test
+    void adminDashboardControllerUsesV2Mapping() {
+        RequestMapping mapping = AdminController.class.getAnnotation(RequestMapping.class);
+        assertThat(mapping.value()).containsExactly("/api/v2/admin/dashboard");
     }
 }

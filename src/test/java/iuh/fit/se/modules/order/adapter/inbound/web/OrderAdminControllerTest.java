@@ -5,6 +5,7 @@ import iuh.fit.se.modules.order.domain.FulfillmentStatus;
 import iuh.fit.se.shared.api.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
 
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.when;
 class OrderAdminControllerTest {
 
     @Test
-    void givenV1AdminOrders_whenSearchWithStatusAndCustomerKeyword_thenDelegatesSearchCriteria() {
+    void givenV2AdminOrders_whenSearchWithStatusAndCustomerKeyword_thenDelegatesSearchCriteria() {
         OrderInternalUseCase useCase = mock(OrderInternalUseCase.class);
         OrderInternalUseCase.AdminOrderResponse order = OrderInternalUseCase.AdminOrderResponse.builder()
                 .orderId(1L)
@@ -36,5 +37,11 @@ class OrderAdminControllerTest {
         verify(useCase).searchAdminOrders(argThat(criteria ->
                 criteria.getStatus() == FulfillmentStatus.PROCESSING
                         && "nguyen".equals(criteria.getCustomerKeyword())));
+    }
+
+    @Test
+    void orderAdminControllerUsesV2Mapping() {
+        RequestMapping mapping = OrderAdminController.class.getAnnotation(RequestMapping.class);
+        assertThat(mapping.value()).containsExactly("/api/v2/admin/orders");
     }
 }

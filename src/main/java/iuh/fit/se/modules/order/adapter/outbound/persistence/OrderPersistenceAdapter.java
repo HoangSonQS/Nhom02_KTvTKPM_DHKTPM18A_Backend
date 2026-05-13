@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.order.adapter.outbound.persistence;
 
 import iuh.fit.se.modules.order.application.port.out.OrderPersistencePort;
+import iuh.fit.se.modules.order.domain.FulfillmentStatus;
 import iuh.fit.se.modules.order.domain.Order;
 import iuh.fit.se.modules.order.domain.SagaStatus;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,27 @@ public class OrderPersistenceAdapter implements OrderPersistencePort {
     @Override
     public List<Order> findAll() {
         return jpaRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Override
+    public List<Order> searchAdminOrders(FulfillmentStatus status) {
+        if (status == null) {
+            return jpaRepository.findAllByOrderByCreatedAtDesc();
+        }
+        return jpaRepository.findAllByFulfillmentStatusOrderByCreatedAtDesc(status);
+    }
+
+    @Override
+    public List<TopSellingBookProjection> findTopSellingBooks(List<FulfillmentStatus> statuses, int limit) {
+        int effectiveLimit = limit > 0 ? limit : 5;
+        return jpaRepository.findTopSellingBooks(statuses, PageRequest.of(0, effectiveLimit)).stream()
+                .map(row -> new TopSellingBookProjection(
+                        row.getBookId(),
+                        row.getTitle(),
+                        row.getQuantitySold() != null ? row.getQuantitySold() : 0L,
+                        row.getRevenue()
+                ))
+                .toList();
     }
 
     @Override

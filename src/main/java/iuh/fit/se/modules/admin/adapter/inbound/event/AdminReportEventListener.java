@@ -5,9 +5,9 @@ import iuh.fit.se.modules.admin.domain.OrderReport;
 import iuh.fit.se.modules.order.domain.OrderCancelledEvent;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
-import iuh.fit.se.modules.payment.domain.PaymentSuccessEvent;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.ReturnRequestRefundedDomainEvent;
+import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.time.ZoneId;
 
 @Component
 @RequiredArgsConstructor
@@ -56,20 +58,20 @@ public class AdminReportEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Caching(evict = @CacheEvict(value = "dashboardStats", allEntries = true))
-    public void onPaymentSuccess(PaymentSuccessEvent event) {
-        log.info("CQRS: Synchronizing PaymentSuccess for {}", event.getOrderId());
+    public void onPaymentSuccess(PaymentSuccessIntegrationEvent event) {
+        log.info("CQRS: Synchronizing PaymentSuccess for {}", event.orderId());
 
         int updatedRows = repository.updateStatusToPaidAtomic(
-                event.getOrderId(),
+                event.orderId(),
                 "CONFIRMED",
-                event.getOccurredAt(),
-                event.getPaymentMethod()
+                event.occurredAt().atZone(ZoneId.systemDefault()).toInstant(),
+                event.paymentMethod()
         );
 
         if (updatedRows == 0) {
-            log.warn("State guard: Order {} status is not PENDING_PAYMENT or not found.", event.getOrderId());
+            log.warn("State guard: Order {} status is not PENDING_PAYMENT or not found.", event.orderId());
         } else {
-            log.info("OrderReport for {} marked as CONFIRMED via atomic update.", event.getOrderId());
+            log.info("OrderReport for {} marked as CONFIRMED via atomic update.", event.orderId());
         }
     }
 
