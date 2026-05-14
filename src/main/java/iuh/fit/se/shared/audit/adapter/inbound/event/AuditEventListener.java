@@ -1,7 +1,6 @@
 package iuh.fit.se.shared.audit.adapter.inbound.event;
 
-import iuh.fit.se.shared.audit.adapter.outbound.persistence.AuditLogJpaEntity;
-import iuh.fit.se.shared.audit.adapter.outbound.persistence.AuditLogJpaRepository;
+import iuh.fit.se.shared.audit.application.port.out.AuditLogWritePort;
 import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,24 +16,22 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuditEventListener {
 
-    private final AuditLogJpaRepository auditLogJpaRepository;
+    private final AuditLogWritePort auditLogWritePort;
 
     @Async
     @EventListener
     public void handleUserActionAudited(UserActionAuditedEvent event) {
         log.debug("Processing audit event async: {}", event.action());
         try {
-            AuditLogJpaEntity entity = AuditLogJpaEntity.builder()
-                .userId(event.userId())
-                .role(event.role())
-                .action(event.action())
-                .target(event.target())
-                .oldValue(event.oldValue())
-                .newValue(event.newValue())
-                .createdAt(event.timestamp())
-                .build();
-            
-            auditLogJpaRepository.save(entity);
+            auditLogWritePort.save(new AuditLogWritePort.UserActionAuditRecord(
+                    event.userId(),
+                    event.role(),
+                    event.action(),
+                    event.target(),
+                    event.oldValue(),
+                    event.newValue(),
+                    event.timestamp()
+            ));
             
         } catch (Exception e) {
             log.error("Failed to persist audit log async", e);

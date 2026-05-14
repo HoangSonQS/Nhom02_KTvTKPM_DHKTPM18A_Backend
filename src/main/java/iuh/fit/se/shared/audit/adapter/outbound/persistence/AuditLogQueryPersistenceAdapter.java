@@ -2,6 +2,7 @@ package iuh.fit.se.shared.audit.adapter.outbound.persistence;
 
 import iuh.fit.se.shared.audit.application.port.in.AuditLogQueryUseCase;
 import iuh.fit.se.shared.audit.application.port.out.AuditLogQueryPort;
+import iuh.fit.se.shared.audit.application.port.out.AuditLogWritePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -9,9 +10,24 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class AuditLogQueryPersistenceAdapter implements AuditLogQueryPort {
+public class AuditLogQueryPersistenceAdapter implements AuditLogQueryPort, AuditLogWritePort {
 
     private final AuditLogJpaRepository auditLogJpaRepository;
+
+    @Override
+    public void save(UserActionAuditRecord record) {
+        AuditLogJpaEntity entity = AuditLogJpaEntity.builder()
+                .userId(record.userId())
+                .role(record.role())
+                .action(record.action())
+                .target(record.target())
+                .oldValue(record.oldValue())
+                .newValue(record.newValue())
+                .createdAt(record.createdAt())
+                .build();
+
+        auditLogJpaRepository.save(entity);
+    }
 
     @Override
     public List<AuditLogQueryUseCase.AuditLogResponse> findRecentStaffLogs(List<String> roles) {
