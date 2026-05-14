@@ -53,7 +53,8 @@ VALUES
         TRUE
     )
 ON CONFLICT (email) DO UPDATE
-SET role = EXCLUDED.role,
+SET password = EXCLUDED.password,
+    role = EXCLUDED.role,
     enabled = TRUE,
     full_name = EXCLUDED.full_name,
     updated_at = NOW();

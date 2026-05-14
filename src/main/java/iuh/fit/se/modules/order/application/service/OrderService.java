@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -61,7 +62,9 @@ public class OrderService implements OrderInternalUseCase {
                 order = existing.get();
                 if (order.getSagaStatus() == SagaStatus.COMPLETED) {
                     log.info("Order with requestId {} already completed. Returning existing response.", command.getRequestId());
-                    cartPort.clearCart(userId);
+                    if (command.getSelectedBookIds() == null || command.getSelectedBookIds().isEmpty()) {
+                        cartPort.clearCart(userId);
+                    }
                     return mapToResponse(order);
                 } else if (order.getSagaStatus() == SagaStatus.FAILED) {
                     log.info("Order with requestId {} was FAILED. Resetting for retry.", command.getRequestId());
@@ -99,12 +102,17 @@ public class OrderService implements OrderInternalUseCase {
                     .customerPhone(customerPhone)
                     .couponCode(command.getCouponCode())
                     .paymentMethod(command.getPaymentMethod())
+                    .selectedBookIds(command.getSelectedBookIds())
                     .build();
 
             // 3. Fetch Cart
             CartPort.CartDto cart = cartPort.getCartByUserId(userId);
             if (cart.getItems() == null || cart.getItems().isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_INPUT, "Giỏ hàng rỗng, không thể tạo đơn hàng.");
+            }
+            cart = filterCartBySelectedBookIds(cart, resolvedCommand.getSelectedBookIds());
+            if (cart.getItems() == null || cart.getItems().isEmpty()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Vui lòng chọn ít nhất một sách để thanh toán.");
             }
 
             // 4. INIT Order in DB if not exists
@@ -171,7 +179,7 @@ public class OrderService implements OrderInternalUseCase {
 
             // 7. Complete Phase
             completeSaga(sagaOrder);
-            cartPort.clearCart(userId);
+            removeCheckedOutItems(userId, cart, resolvedCommand.getSelectedBookIds());
 
             // 8. Re-fetch order to get updated discount and saga status from DB
             Order finalOrder = orderPersistencePort.findById(sagaOrder.getId())
@@ -223,6 +231,31 @@ public class OrderService implements OrderInternalUseCase {
     }
 
     @Transactional
+    private CartPort.CartDto filterCartBySelectedBookIds(CartPort.CartDto cart, List<Long> selectedBookIds) {
+        if (selectedBookIds == null || selectedBookIds.isEmpty()) {
+            return cart;
+        }
+
+        Set<Long> selectedIds = Set.copyOf(selectedBookIds);
+        List<CartPort.CartItemDto> selectedItems = cart.getItems().stream()
+                .filter(item -> selectedIds.contains(item.getBookId()))
+                .collect(Collectors.toList());
+
+        return CartPort.CartDto.builder()
+                .userId(cart.getUserId())
+                .items(selectedItems)
+                .build();
+    }
+
+    private void removeCheckedOutItems(Long userId, CartPort.CartDto checkedOutCart, List<Long> selectedBookIds) {
+        if (selectedBookIds == null || selectedBookIds.isEmpty()) {
+            cartPort.clearCart(userId);
+            return;
+        }
+
+        checkedOutCart.getItems().forEach(item -> cartPort.removeItem(userId, item.getBookId()));
+    }
+
     public Order updateOrderFromCart(Order order, CheckoutCommand command, CartPort.CartDto cart, BigDecimal totalAmount) {
         Order o = orderPersistencePort.findById(order.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));

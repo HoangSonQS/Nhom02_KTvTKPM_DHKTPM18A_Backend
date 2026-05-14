@@ -31,6 +31,11 @@ public class InternalCartAdapter implements CartPort {
     }
 
     @Override
+    public void removeItem(Long userId, Long bookId) {
+        cartUseCase.removeItem(userId, bookId);
+    }
+
+    @Override
     public void clearCart(Long userId) {
         cartUseCase.clearCart(userId);
     }

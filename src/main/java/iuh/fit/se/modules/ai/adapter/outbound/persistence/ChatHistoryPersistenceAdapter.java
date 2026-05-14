@@ -6,6 +6,7 @@ import iuh.fit.se.modules.ai.domain.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -18,6 +19,11 @@ public class ChatHistoryPersistenceAdapter implements ChatHistoryPersistencePort
     @Override
     public Optional<ChatSession> findById(String sessionId) {
         return sessionRepository.findById(sessionId);
+    }
+
+    @Override
+    public List<ChatMessage> findMessagesBySessionId(String sessionId) {
+        return messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
     }
 
     @Override

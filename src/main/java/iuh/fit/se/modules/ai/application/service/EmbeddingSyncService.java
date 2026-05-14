@@ -2,15 +2,14 @@ package iuh.fit.se.modules.ai.application.service;
 
 import iuh.fit.se.modules.ai.application.port.in.EmbeddingSyncUseCase;
 import iuh.fit.se.modules.ai.application.port.out.AiProcessedEventPort;
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort;
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort.BookDocument;
 import iuh.fit.se.modules.ai.application.port.out.VectorStorePort;
 import iuh.fit.se.modules.ai.domain.BookVectorMetadata;
-import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
-import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EmbeddingSyncService implements EmbeddingSyncUseCase {
 
-    private final BookUseCase bookUseCase;
+    private final CatalogBookPort catalogBookPort;
     private final VectorStorePort vectorStorePort;
     private final SemanticDocumentFactory documentFactory;
     private final AiProcessedEventPort idempotencyPort;
@@ -37,7 +36,7 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
         log.info("Starting strict sync flow for bookId: {}, eventId: {}", bookId, eventId);
 
         try {
-            BookDTO book = bookUseCase.getBook(bookId);
+            BookDocument book = catalogBookPort.getBookDocument(bookId);
             if (book == null) {
                 log.warn("Book not found for sync: {}", bookId);
                 return;
@@ -60,7 +59,6 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
             // Step 3: Idempotency Lock (Status-aware)
             int lockResult = idempotencyPort.tryLockEvent(eventId);
             if (lockResult == 0) {
-                // Đã tồn tại record, kiểm tra status
                 if (idempotencyPort.isDone(eventId)) {
                     log.info("Event {} already processed successfully. Skipping.", eventId);
                 } else {
@@ -75,7 +73,7 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
                     .bookId(book.id())
                     .title(book.title())
                     .author(book.author())
-                    .description(richText) // Dùng text đã gán label làm content
+                    .description(richText)
                     .category(book.categoryIds() != null
                             ? book.categoryIds().stream().map(String::valueOf).collect(Collectors.joining(", "))
                             : "General")
@@ -112,9 +110,9 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
     @Override
     public void syncAllBooks() {
         log.info("Bulk sync triggered. Note: Simple loop, no individual idempotency IDs provided here.");
-        List<BookDTO> books = bookUseCase.searchBooks(null, null);
+        List<BookDocument> books = catalogBookPort.searchBooks(null, null);
         if (books != null) {
-            for (BookDTO book : books) {
+            for (BookDocument book : books) {
                 self.syncBook(book.id(), UUID.randomUUID());
             }
         }

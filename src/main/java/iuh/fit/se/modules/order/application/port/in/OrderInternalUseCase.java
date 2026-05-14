@@ -110,6 +110,7 @@ public interface OrderInternalUseCase {
         private String customerPhone;
         private String couponCode;
         private String paymentMethod;
+        private java.util.List<Long> selectedBookIds;
     }
 
     @Data
