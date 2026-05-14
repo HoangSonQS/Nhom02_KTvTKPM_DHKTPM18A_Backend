@@ -39,6 +39,7 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_INIT_STOCK")
     @Caching(evict = {
             @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
             @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),
@@ -57,6 +58,7 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_INCREASE_STOCK")
     @Caching(evict = {
             @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
             @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),
@@ -74,6 +76,7 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_DECREASE_STOCK")
     @Caching(evict = {
             @CacheEvict(value = "inventory_stock_cache", key = "#bookId"),
             @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #bookId)"),

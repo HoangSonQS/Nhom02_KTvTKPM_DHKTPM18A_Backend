@@ -11,16 +11,22 @@ import iuh.fit.se.modules.order.domain.*;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import iuh.fit.se.modules.order.domain.exception.InvalidOrderTransitionException;
+import iuh.fit.se.shared.audit.application.port.out.AuditEventPublisherPort;
+import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
+import iuh.fit.se.shared.config.UserPrincipal;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +46,7 @@ public class OrderService implements OrderInternalUseCase {
     private final PromotionPort promotionPort;
     private final OrderUserPort orderUserPort;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisherPort auditEventPublisherPort;
 
     @Override
     public OrderResponse checkout(Long userId, CheckoutCommand command) {
@@ -485,6 +492,7 @@ public class OrderService implements OrderInternalUseCase {
         ));
         log.info("Order {} fulfillmentStatus: {} → {} by Admin/Staff. Reason: {}",
             orderId, fromStatus, toStatus, command.getReason());
+        publishAudit("STAFF_UPDATE_ORDER_STATUS", orderId, fromStatus, toStatus, command.getReason());
         
         return mapToResponse(saved);
     }
@@ -516,8 +524,58 @@ public class OrderService implements OrderInternalUseCase {
         ));
         log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
             orderId, currentStatus, reason);
+        publishAudit("STAFF_CANCEL_ORDER", orderId, currentStatus, FulfillmentStatus.CANCELLED, reason);
 
         return mapToResponse(saved);
+    }
+
+    private void publishAudit(
+            String action,
+            Long orderId,
+            FulfillmentStatus fromStatus,
+            FulfillmentStatus toStatus,
+            String reason
+    ) {
+        auditEventPublisherPort.publish(new UserActionAuditedEvent(
+                getCurrentUserIdForAudit(),
+                getCurrentRoleForAudit(),
+                action,
+                String.valueOf(orderId),
+                "Trạng thái đơn hàng: " + fromStatus,
+                "Trạng thái đơn hàng: " + fromStatus + " -> " + toStatus + formatReason(reason),
+                Instant.now()
+        ));
+    }
+
+    private String formatReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "";
+        }
+        return ". Lý do: " + reason;
+    }
+
+    private String getCurrentUserIdForAudit() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "SYSTEM";
+        }
+        return authentication.getName();
+    }
+
+    private String getCurrentRoleForAudit() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "";
+        }
+        if (authentication.getPrincipal() instanceof UserPrincipal principal && principal.role() != null) {
+            return principal.role();
+        }
+        return authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(authority -> authority.startsWith("ROLE_"))
+                .map(authority -> authority.substring("ROLE_".length()))
+                .findFirst()
+                .orElse("");
     }
 
     private void restoreInventoryIfReserved(Order order) {

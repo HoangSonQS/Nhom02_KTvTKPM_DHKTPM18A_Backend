@@ -1,0 +1,2 @@
+ALTER TABLE sys_audit_logs
+    ADD COLUMN IF NOT EXISTS role VARCHAR(50);

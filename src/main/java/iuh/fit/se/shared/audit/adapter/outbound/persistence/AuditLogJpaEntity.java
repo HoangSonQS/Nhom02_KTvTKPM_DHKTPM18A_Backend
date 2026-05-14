@@ -20,6 +20,9 @@ public class AuditLogJpaEntity {
     @Column(name = "user_id")
     private String userId;
 
+    @Column(length = 50)
+    private String role;
+
     @Column(nullable = false)
     private String action;
 

@@ -3,6 +3,7 @@ package iuh.fit.se.shared.audit.aspect;
 import iuh.fit.se.shared.audit.annotation.Auditable;
 import iuh.fit.se.shared.audit.application.port.out.AuditEventPublisherPort;
 import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
+import iuh.fit.se.shared.config.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -13,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.Collection;
 
 /**
  * Aspect để tự động ghi log khi phương thức được đánh dấu @Auditable hoàn thành thành công.
@@ -40,10 +42,11 @@ public class AuditLogAspect {
 
             UserActionAuditedEvent event = new UserActionAuditedEvent(
                 userId,
+                getCurrentRole(),
                 action,
                 target,
                 null, // Sẽ mở rộng lấy old/new value nếu cần phức tạp hơn
-                result != null ? result.toString() : "SUCCESS",
+                summarizeResult(result),
                 Instant.now()
             );
 
@@ -60,5 +63,44 @@ public class AuditLogAspect {
             return authentication.getName(); // Thường là email hoặc ID
         }
         return "ANONYMOUS";
+    }
+
+    private String getCurrentRole() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            if (authentication.getPrincipal() instanceof UserPrincipal principal && principal.role() != null) {
+                return principal.role();
+            }
+            return authentication.getAuthorities().stream()
+                    .map(authority -> authority.getAuthority())
+                    .filter(authority -> authority.startsWith("ROLE_"))
+                    .map(authority -> authority.substring("ROLE_".length()))
+                    .findFirst()
+                    .orElse("");
+        }
+        return "";
+    }
+
+    private String summarizeResult(Object result) {
+        if (result == null) {
+            return "Thao tác thành công";
+        }
+        if (result instanceof Collection<?> collection) {
+            return "Thao tác thành công, số bản ghi: " + collection.size();
+        }
+        if (result.getClass().isArray()) {
+            return "Thao tác thành công, số bản ghi: " + java.lang.reflect.Array.getLength(result);
+        }
+        if (isSimpleValue(result)) {
+            return result.toString();
+        }
+        return "Thao tác thành công";
+    }
+
+    private boolean isSimpleValue(Object value) {
+        return value instanceof CharSequence
+                || value instanceof Number
+                || value instanceof Boolean
+                || value instanceof Enum<?>;
     }
 }

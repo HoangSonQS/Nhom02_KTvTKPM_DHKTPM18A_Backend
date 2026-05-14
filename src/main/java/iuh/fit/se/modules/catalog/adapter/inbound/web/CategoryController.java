@@ -30,22 +30,26 @@ public class CategoryController {
     private final CategoryUseCase categoryUseCase;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Category>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(categoryUseCase.getAllCategories()));
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAll() {
+        List<CategoryResponse> categories = categoryUseCase.getAllCategories().stream()
+                .map(CategoryResponse::from)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(categories));
     }
 
     @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
     @PostMapping
-    public ResponseEntity<ApiResponse<Category>> create(@Valid @RequestBody CategoryRequest request) {
+    public ResponseEntity<ApiResponse<CategoryResponse>> create(@Valid @RequestBody CategoryRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo danh mục thành công",
-                categoryUseCase.createCategory(request.name())));
+                CategoryResponse.from(categoryUseCase.createCategory(request.name()))));
     }
 
     @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
     @PatchMapping("/{id}")
-    public ResponseEntity<ApiResponse<Category>> update(@PathVariable Long id, @Valid @RequestBody CategoryRequest request) {
+    public ResponseEntity<ApiResponse<CategoryResponse>> update(@PathVariable Long id,
+            @Valid @RequestBody CategoryRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật danh mục thành công",
-                categoryUseCase.updateCategory(id, request.name())));
+                CategoryResponse.from(categoryUseCase.updateCategory(id, request.name()))));
     }
 
     @PreAuthorize("hasAuthority('CATALOG_CATEGORY_WRITE')")
@@ -56,5 +60,11 @@ public class CategoryController {
     }
 
     record CategoryRequest(@NotBlank(message = "Tên danh mục không được để trống") String name) {
+    }
+
+    record CategoryResponse(Long id, String name, boolean active) {
+        static CategoryResponse from(Category category) {
+            return new CategoryResponse(category.getId(), category.getName(), category.isActive());
+        }
     }
 }

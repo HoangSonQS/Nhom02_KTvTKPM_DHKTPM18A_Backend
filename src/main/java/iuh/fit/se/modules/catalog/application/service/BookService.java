@@ -42,6 +42,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_CREATE_BOOK")
     @CacheEvict(value = "books", allEntries = true)
     public BookDTO createBook(CreateBookCommand command) {
         String imageUrl = null;
@@ -87,6 +88,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_UPDATE_BOOK")
     @Caching(evict = {
             @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
             @CacheEvict(value = "books", allEntries = true)

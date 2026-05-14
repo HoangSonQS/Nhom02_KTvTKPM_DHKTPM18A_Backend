@@ -6,7 +6,16 @@ public interface AdminUserUseCase {
 
     List<UserSummary> listUsers();
 
+    UserSummary createStaff(CreateStaffCommand command);
+
     UserSummary lockUser(Long id);
+
+    record CreateStaffCommand(
+            String email,
+            String fullName,
+            String password,
+            String role
+    ) {}
 
     record UserSummary(
             Long id,

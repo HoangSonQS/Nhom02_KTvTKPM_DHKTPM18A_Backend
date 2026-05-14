@@ -96,6 +96,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_APPROVE_RETURN")
     public void approve(String returnRequestId, String approvedBy) {
         ReturnRequest request = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new AppException(ErrorCode.RET_NOT_FOUND));
@@ -108,6 +109,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_RECEIVE_RETURN")
     public void markAsReceived(String returnRequestId, String receivedBy, List<ItemCondition> conditions) {
         ReturnRequest request = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new AppException(ErrorCode.RET_NOT_FOUND));
@@ -135,6 +137,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_REFUND_RETURN")
     public void refund(String returnRequestId, String processedBy) {
         ReturnRequest request = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new AppException(ErrorCode.RET_NOT_FOUND));
@@ -151,6 +154,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_REJECT_RETURN")
     public void reject(String returnRequestId, String reason, String rejectedBy) {
         ReturnRequest request = returnRequestRepository.findById(returnRequestId)
                 .orElseThrow(() -> new AppException(ErrorCode.RET_NOT_FOUND));

@@ -8,6 +8,7 @@ import java.time.Instant;
  */
 public record UserActionAuditedEvent(
     String userId,
+    String role,
     String action,
     String target,
     String oldValue,

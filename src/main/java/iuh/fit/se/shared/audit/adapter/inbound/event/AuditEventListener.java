@@ -26,6 +26,7 @@ public class AuditEventListener {
         try {
             AuditLogJpaEntity entity = AuditLogJpaEntity.builder()
                 .userId(event.userId())
+                .role(event.role())
                 .action(event.action())
                 .target(event.target())
                 .oldValue(event.oldValue())

@@ -22,6 +22,7 @@ public class CategoryService implements CategoryUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_CREATE_CATEGORY")
     public Category createCategory(String name) {
         if (categoryPersistencePort.existsByName(name)) {
             throw new AppException(ErrorCode.CAT_CATEGORY_ALREADY_EXISTS);
@@ -35,6 +36,7 @@ public class CategoryService implements CategoryUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_UPDATE_CATEGORY")
     public Category updateCategory(Long id, String newName) {
         Category category = categoryPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục"));
@@ -49,6 +51,7 @@ public class CategoryService implements CategoryUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_DELETE_CATEGORY")
     public void deleteCategory(Long id) {
         categoryPersistencePort.delete(id);
     }
