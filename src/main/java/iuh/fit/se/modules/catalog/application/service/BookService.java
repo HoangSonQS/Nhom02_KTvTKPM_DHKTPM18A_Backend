@@ -1,6 +1,5 @@
 package iuh.fit.se.modules.catalog.application.service;
 
-import iuh.fit.se.modules.catalog.adapter.outbound.persistence.BookMapper;
 import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.BookImagePort;
@@ -42,6 +41,7 @@ public class BookService implements BookUseCase {
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_CREATE_BOOK")
     @CacheEvict(value = "books", allEntries = true)
     public BookDTO createBook(CreateBookCommand command) {
         String imageUrl = null;
@@ -82,11 +82,12 @@ public class BookService implements BookUseCase {
                 .initialQuantity(command.quantity())
                 .build());
 
-        return BookMapper.toDto(savedBook);
+        return BookDtoMapper.toDto(savedBook);
     }
 
     @Override
     @Transactional
+    @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_UPDATE_BOOK")
     @Caching(evict = {
             @CacheEvict(value = "bookDetails", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('bookDetails', #id)"),
             @CacheEvict(value = "books", allEntries = true)
@@ -132,7 +133,7 @@ public class BookService implements BookUseCase {
                 .description(updatedBook.getDescription())
                 .build());
 
-        return BookMapper.toDto(updatedBook);
+        return BookDtoMapper.toDto(updatedBook);
     }
 
     @Override
@@ -173,7 +174,7 @@ public class BookService implements BookUseCase {
             realStock = book.getDeprecatedQuantity(); // Fallback to stale local data
         }
         
-        return BookMapper.toDto(book, realStock);
+        return BookDtoMapper.toDto(book, realStock);
     }
 
     @Override
@@ -194,7 +195,7 @@ public class BookService implements BookUseCase {
 
         final java.util.Map<Long, Integer> finalStocks = stocks;
         return books.stream()
-                .map(book -> BookMapper.toDto(book, finalStocks.get(book.getId())))
+                .map(book -> BookDtoMapper.toDto(book, finalStocks.get(book.getId())))
                 .collect(Collectors.toList());
     }
 

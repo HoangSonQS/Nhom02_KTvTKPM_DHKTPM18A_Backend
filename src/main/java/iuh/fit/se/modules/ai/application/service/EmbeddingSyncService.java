@@ -1,8 +1,8 @@
 package iuh.fit.se.modules.ai.application.service;
 
 import iuh.fit.se.modules.ai.application.port.in.EmbeddingSyncUseCase;
+import iuh.fit.se.modules.ai.application.port.out.AiProcessedEventPort;
 import iuh.fit.se.modules.ai.application.port.out.VectorStorePort;
-import iuh.fit.se.modules.ai.adapter.outbound.persistence.AiProcessedEventRepository;
 import iuh.fit.se.modules.ai.domain.BookVectorMetadata;
 import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
@@ -25,7 +25,7 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
     private final BookUseCase bookUseCase;
     private final VectorStorePort vectorStorePort;
     private final SemanticDocumentFactory documentFactory;
-    private final AiProcessedEventRepository idempotencyRepository;
+    private final AiProcessedEventPort idempotencyPort;
 
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
@@ -58,16 +58,14 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
             }
 
             // Step 3: Idempotency Lock (Status-aware)
-            int lockResult = idempotencyRepository.tryLockEvent(eventId);
+            int lockResult = idempotencyPort.tryLockEvent(eventId);
             if (lockResult == 0) {
                 // Đã tồn tại record, kiểm tra status
-                idempotencyRepository.findById(eventId).ifPresent(event -> {
-                    if ("DONE".equals(event.getStatus())) {
-                        log.info("Event {} already processed successfully. Skipping.", eventId);
-                    } else {
-                        log.warn("Event {} is currently in PROCESSING or crashed. Logic might retry or wait.", eventId);
-                    }
-                });
+                if (idempotencyPort.isDone(eventId)) {
+                    log.info("Event {} already processed successfully. Skipping.", eventId);
+                } else {
+                    log.warn("Event {} is currently in PROCESSING or crashed. Logic might retry or wait.", eventId);
+                }
                 return;
             }
 
@@ -88,7 +86,7 @@ public class EmbeddingSyncService implements EmbeddingSyncUseCase {
             vectorStorePort.saveBookVector(metadata);
 
             // Step 5: Finalize Status
-            idempotencyRepository.markAsDone(eventId);
+            idempotencyPort.markAsDone(eventId);
             log.info("Successfully synced bookId: {} and finalized event: {}", bookId, eventId);
 
         } catch (Exception e) {

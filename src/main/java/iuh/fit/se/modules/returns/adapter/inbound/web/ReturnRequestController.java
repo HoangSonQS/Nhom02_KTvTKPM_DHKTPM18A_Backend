@@ -5,6 +5,7 @@ import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.modules.returns.domain.ReturnItem;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import iuh.fit.se.shared.api.ApiResponse;
+import iuh.fit.se.shared.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -61,32 +62,28 @@ public class ReturnRequestController {
     @PutMapping("/admin/returns/{id}/approve")
     @PreAuthorize("hasAuthority('RETURN_APPROVE')")
     public ApiResponse<Void> approveReturn(@PathVariable String id) {
-        String adminName = "ADMIN_USER"; // Get from SecurityContext
-        returnRequestUseCase.approve(id, adminName);
+        returnRequestUseCase.approve(id, SecurityUtils.getCurrentEmail());
         return ApiResponse.success(null);
     }
 
     @PutMapping("/admin/returns/{id}/receive")
     @PreAuthorize("hasAuthority('RETURN_RECEIVE')")
     public ApiResponse<Void> receiveReturn(@PathVariable String id, @RequestBody List<ItemCondition> conditions) {
-        String warehouseStaff = "WAREHOUSE_USER"; // Get from SecurityContext
-        returnRequestUseCase.markAsReceived(id, warehouseStaff, conditions);
+        returnRequestUseCase.markAsReceived(id, SecurityUtils.getCurrentEmail(), conditions);
         return ApiResponse.success(null);
     }
 
     @PutMapping("/admin/returns/{id}/refund")
     @PreAuthorize("hasAuthority('RETURN_APPROVE')") // Refund trigger by admin
     public ApiResponse<Void> refundReturn(@PathVariable String id) {
-        String adminName = "ADMIN_USER";
-        returnRequestUseCase.refund(id, adminName);
+        returnRequestUseCase.refund(id, SecurityUtils.getCurrentEmail());
         return ApiResponse.success(null);
     }
 
     @PutMapping("/admin/returns/{id}/reject")
     @PreAuthorize("hasAuthority('RETURN_APPROVE')")
     public ApiResponse<Void> rejectReturn(@PathVariable String id, @RequestParam String reason) {
-        String adminName = "ADMIN_USER";
-        returnRequestUseCase.reject(id, reason, adminName);
+        returnRequestUseCase.reject(id, reason, SecurityUtils.getCurrentEmail());
         return ApiResponse.success(null);
     }
 

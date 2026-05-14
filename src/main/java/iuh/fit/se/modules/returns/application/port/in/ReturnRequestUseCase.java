@@ -3,6 +3,7 @@ package iuh.fit.se.modules.returns.application.port.in;
 import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.modules.returns.domain.ReturnReason;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
+import iuh.fit.se.shared.audit.annotation.Auditable;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,12 +13,16 @@ public interface ReturnRequestUseCase {
 
     ReturnRequest createReturn(CreateReturnCommand command);
 
+    @Auditable(action = "STAFF_APPROVE_RETURN")
     void approve(String returnRequestId, String approvedBy);
 
+    @Auditable(action = "STAFF_RECEIVE_RETURN")
     void markAsReceived(String returnRequestId, String receivedBy, List<ItemCondition> conditions);
 
+    @Auditable(action = "STAFF_REFUND_RETURN")
     void refund(String returnRequestId, String processedBy);
 
+    @Auditable(action = "STAFF_REJECT_RETURN")
     void reject(String returnRequestId, String reason, String rejectedBy);
 
     ReturnRequest getById(String id);

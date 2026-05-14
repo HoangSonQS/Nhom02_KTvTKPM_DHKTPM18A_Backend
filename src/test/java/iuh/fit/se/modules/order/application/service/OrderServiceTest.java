@@ -5,15 +5,22 @@ import iuh.fit.se.modules.order.application.port.out.*;
 import iuh.fit.se.modules.order.domain.Order;
 import iuh.fit.se.modules.order.domain.FulfillmentStatus;
 import iuh.fit.se.modules.order.domain.SagaStatus;
+import iuh.fit.se.shared.audit.application.port.out.AuditEventPublisherPort;
+import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -32,6 +39,7 @@ class OrderServiceTest {
     @Mock private CartPort cartPort;
     @Mock private OrderUserPort orderUserPort;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private AuditEventPublisherPort auditEventPublisherPort;
 
     @InjectMocks private OrderService orderService;
 
@@ -88,6 +96,11 @@ class OrderServiceTest {
                 .build());
     }
 
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void testCheckout_Success() {
         // Given
@@ -139,5 +152,45 @@ class OrderServiceTest {
         verify(inventoryPort).increaseStockBulk(anyList(), eq(command.getRequestId()));
         assertNotNull(sharedOrder);
         assertEquals(SagaStatus.FAILED, sharedOrder.getSagaStatus());
+    }
+
+    @Test
+    void givenOrderStatusChanged_whenUpdateOrderStatus_thenAuditValueDescribesDiff() {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                "seller@example.com",
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_STAFF_SELLER"))));
+        sharedOrder = Order.builder()
+                .id(10L)
+                .userId(userId)
+                .requestId("req-order-10")
+                .fulfillmentStatus(FulfillmentStatus.CONFIRMED)
+                .sagaStatus(SagaStatus.COMPLETED)
+                .totalAmount(new BigDecimal("100000"))
+                .discountAmount(BigDecimal.ZERO)
+                .shippingAddress("123 Test St")
+                .customerPhone("0901234567")
+                .expiredAt(java.time.LocalDateTime.now().plusHours(1))
+                .items(List.of())
+                .build();
+
+        OrderInternalUseCase.UpdateFulfillmentStatusCommand statusCommand =
+                OrderInternalUseCase.UpdateFulfillmentStatusCommand.builder()
+                        .newStatus(FulfillmentStatus.PROCESSING)
+                        .reason("Đơn hàng đã được xác nhận và đang xử lý")
+                        .build();
+
+        orderService.updateOrderStatus(10L, statusCommand);
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(auditEventPublisherPort).publish(eventCaptor.capture());
+        UserActionAuditedEvent event = (UserActionAuditedEvent) eventCaptor.getValue();
+
+        assertEquals("STAFF_UPDATE_ORDER_STATUS", event.action());
+        assertEquals("10", event.target());
+        assertEquals("Trạng thái đơn hàng: CONFIRMED", event.oldValue());
+        assertEquals(
+                "Trạng thái đơn hàng: CONFIRMED -> PROCESSING. Lý do: Đơn hàng đã được xác nhận và đang xử lý",
+                event.newValue());
     }
 }
