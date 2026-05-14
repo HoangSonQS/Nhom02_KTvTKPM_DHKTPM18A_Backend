@@ -33,8 +33,8 @@ public class GeminiVisionAdapter implements VisionModelPort {
         try {
             byte[] compressedImage = compressImage(file.getBytes());
 
-            String systemPrompt = "You are a professional librarian. Extract the book title and author from this image. "
-                    + "Return ONLY a JSON object like: {\"title\": \"...\", \"author\": \"...\"}";
+            String systemPrompt = "Bạn là thủ thư chuyên nghiệp. Hãy trích xuất tên sách và tác giả từ ảnh này. "
+                    + "Chỉ trả về JSON theo dạng: {\"title\": \"...\", \"author\": \"...\"}";
 
             Media media = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(compressedImage));
 
@@ -52,7 +52,7 @@ public class GeminiVisionAdapter implements VisionModelPort {
 
         } catch (Exception e) {
             log.error("Failed to extract book data from image", e);
-            return OcrResult.builder().detected(false).rawText("Error processing image: " + e.getMessage()).build();
+            return OcrResult.builder().detected(false).rawText("Lỗi xử lý ảnh: " + e.getMessage()).build();
         }
     }
 
@@ -107,6 +107,6 @@ public class GeminiVisionAdapter implements VisionModelPort {
         if (start > 5 && end > start) {
             return json.substring(start, end);
         }
-        return "Unknown";
+        return "Không rõ";
     }
 }

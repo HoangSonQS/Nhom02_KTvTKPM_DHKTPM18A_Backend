@@ -49,4 +49,8 @@ public class ChatSession {
         this.messages.add(message);
         this.lastActiveAt = LocalDateTime.now();
     }
+
+    public void markActive() {
+        this.lastActiveAt = LocalDateTime.now();
+    }
 }

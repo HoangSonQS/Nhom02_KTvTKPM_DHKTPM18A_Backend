@@ -4,6 +4,7 @@ import java.util.List;
 
 public interface CartPort {
     CartDto getCartByUserId(Long userId);
+    void removeItem(Long userId, Long bookId);
     void clearCart(Long userId);
 
     @lombok.Data
