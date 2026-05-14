@@ -1,12 +1,12 @@
 package iuh.fit.se.modules.ai.application.service;
 
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort;
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort.BookContext;
 import iuh.fit.se.modules.ai.application.port.out.ChatHistoryPersistencePort;
 import iuh.fit.se.modules.ai.application.port.out.LlmPort;
 import iuh.fit.se.modules.ai.application.port.out.VectorStorePort;
 import iuh.fit.se.modules.ai.domain.ChatMessage;
 import iuh.fit.se.modules.ai.domain.ChatRole;
-import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
-import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,13 +39,13 @@ class AiChatServiceTest {
     private VectorStorePort vectorStorePort;
 
     @Mock
-    private BookUseCase bookUseCase;
+    private CatalogBookPort catalogBookPort;
 
     private AiChatService aiChatService;
 
     @BeforeEach
     void setUp() {
-        aiChatService = new AiChatService(llmPort, historyPort, vectorStorePort, bookUseCase);
+        aiChatService = new AiChatService(llmPort, historyPort, vectorStorePort, catalogBookPort);
     }
 
     @Test
@@ -97,7 +97,7 @@ class AiChatServiceTest {
         when(historyPort.findById("session-1")).thenReturn(Optional.empty());
         when(historyPort.findMessagesBySessionId("session-1")).thenReturn(List.of());
         when(vectorStorePort.findSimilarBooks("goi y sach van hoc", 5)).thenReturn(List.of(10L, 11L));
-        when(bookUseCase.getBook(10L)).thenReturn(BookDTO.builder()
+        when(catalogBookPort.getBook(10L)).thenReturn(BookContext.builder()
                 .id(10L)
                 .title("Tat den")
                 .author("Ngo Tat To")
@@ -105,7 +105,7 @@ class AiChatServiceTest {
                 .quantity(7)
                 .isActive(true)
                 .build());
-        when(bookUseCase.getBook(11L)).thenReturn(BookDTO.builder()
+        when(catalogBookPort.getBook(11L)).thenReturn(BookContext.builder()
                 .id(11L)
                 .title("So do")
                 .author("Vu Trong Phung")
@@ -134,7 +134,7 @@ class AiChatServiceTest {
         when(historyPort.findById("session-1")).thenReturn(Optional.empty());
         when(historyPort.findMessagesBySessionId("session-1")).thenReturn(List.of());
         when(vectorStorePort.findSimilarBooks("goi y sach van hoc", 5)).thenReturn(List.of(10L));
-        when(bookUseCase.getBook(10L)).thenReturn(BookDTO.builder()
+        when(catalogBookPort.getBook(10L)).thenReturn(BookContext.builder()
                 .id(10L)
                 .title("Tat den")
                 .author("Ngo Tat To")
@@ -156,21 +156,21 @@ class AiChatServiceTest {
         when(historyPort.findById("session-1")).thenReturn(Optional.empty());
         when(historyPort.findMessagesBySessionId("session-1")).thenReturn(List.of());
         when(vectorStorePort.findSimilarBooks("goi y 2 quyen sach van hoc", 5)).thenReturn(List.of(10L, 11L, 12L));
-        when(bookUseCase.getBook(10L)).thenReturn(BookDTO.builder()
+        when(catalogBookPort.getBook(10L)).thenReturn(BookContext.builder()
                 .id(10L)
                 .title("Tat den")
                 .author("Ngo Tat To")
                 .quantity(7)
                 .isActive(true)
                 .build());
-        when(bookUseCase.getBook(11L)).thenReturn(BookDTO.builder()
+        when(catalogBookPort.getBook(11L)).thenReturn(BookContext.builder()
                 .id(11L)
                 .title("So do")
                 .author("Vu Trong Phung")
                 .quantity(5)
                 .isActive(true)
                 .build());
-        when(bookUseCase.getBook(12L)).thenReturn(BookDTO.builder()
+        when(catalogBookPort.getBook(12L)).thenReturn(BookContext.builder()
                 .id(12L)
                 .title("Lao Hac")
                 .author("Nam Cao")

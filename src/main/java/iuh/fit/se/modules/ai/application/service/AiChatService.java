@@ -1,14 +1,14 @@
 package iuh.fit.se.modules.ai.application.service;
 
 import iuh.fit.se.modules.ai.application.port.in.AiChatUseCase;
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort;
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort.BookContext;
 import iuh.fit.se.modules.ai.application.port.out.ChatHistoryPersistencePort;
 import iuh.fit.se.modules.ai.application.port.out.LlmPort;
 import iuh.fit.se.modules.ai.application.port.out.VectorStorePort;
 import iuh.fit.se.modules.ai.domain.ChatMessage;
 import iuh.fit.se.modules.ai.domain.ChatRole;
 import iuh.fit.se.modules.ai.domain.ChatSession;
-import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
-import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,7 @@ public class AiChatService implements AiChatUseCase {
     private final LlmPort llmPort;
     private final ChatHistoryPersistencePort historyPort;
     private final VectorStorePort vectorStorePort;
-    private final BookUseCase bookUseCase;
+    private final CatalogBookPort catalogBookPort;
 
     @Override
     public String chat(String sessionId, Long customerId, String message) {
@@ -55,7 +55,7 @@ public class AiChatService implements AiChatUseCase {
         historyPort.saveMessage(userMsg);
 
         // 2. Retrieve relevant catalog data and call LLM with previous history.
-        List<BookDTO> relevantBooks = findRelevantBooks(message);
+        List<BookContext> relevantBooks = findRelevantBooks(message);
         int requestedBookCount = resolveRequestedBookCount(message);
         String prompt = buildPromptWithCatalogContext(message, relevantBooks, requestedBookCount);
         String response;
@@ -75,7 +75,7 @@ public class AiChatService implements AiChatUseCase {
         return response;
     }
 
-    private String buildPromptWithCatalogContext(String userMessage, List<BookDTO> books, int requestedBookCount) {
+    private String buildPromptWithCatalogContext(String userMessage, List<BookContext> books, int requestedBookCount) {
         if (books.isEmpty()) {
             return userMessage;
         }
@@ -87,7 +87,7 @@ public class AiChatService implements AiChatUseCase {
         prompt.append("[KHO SÁCH SEBook]\n");
 
         for (int index = 0; index < books.size(); index++) {
-            BookDTO book = books.get(index);
+            BookContext book = books.get(index);
             prompt.append(index + 1).append(". ");
             prompt.append(nullToFallback(book.title(), "Không rõ tên sách"));
             prompt.append(" - Tác giả: ").append(nullToFallback(book.author(), "Không rõ"));
@@ -118,19 +118,19 @@ public class AiChatService implements AiChatUseCase {
         return prompt.toString();
     }
 
-    private String buildCatalogFallbackResponse(List<BookDTO> books, int requestedBookCount) {
+    private String buildCatalogFallbackResponse(List<BookContext> books, int requestedBookCount) {
         if (books.isEmpty()) {
             return FALLBACK_RESPONSE;
         }
 
-        List<BookDTO> limitedBooks = books.stream()
+        List<BookContext> limitedBooks = books.stream()
                 .limit(requestedBookCount)
                 .toList();
 
         StringBuilder response = new StringBuilder();
         response.append("Mình tìm được một số sách phù hợp trong kho SEBook cho bạn:\n");
         for (int index = 0; index < limitedBooks.size(); index++) {
-            BookDTO book = limitedBooks.get(index);
+            BookContext book = limitedBooks.get(index);
             response.append(index + 1).append(". ");
             response.append(nullToFallback(book.title(), "Không rõ tên sách"));
             response.append(" - ").append(nullToFallback(book.author(), "Không rõ tác giả"));
@@ -181,7 +181,7 @@ public class AiChatService implements AiChatUseCase {
         return Math.min(count, RAG_TOP_K);
     }
 
-    private List<BookDTO> findRelevantBooks(String userMessage) {
+    private List<BookContext> findRelevantBooks(String userMessage) {
         try {
             List<Long> bookIds = vectorStorePort.findSimilarBooks(userMessage, RAG_TOP_K);
             if (bookIds == null || bookIds.isEmpty()) {
@@ -190,7 +190,7 @@ public class AiChatService implements AiChatUseCase {
             return bookIds.stream()
                     .map(this::findBookSafely)
                     .filter(Objects::nonNull)
-                    .filter(BookDTO::isActive)
+                    .filter(BookContext::isActive)
                     .toList();
         } catch (Exception e) {
             log.warn("Unable to retrieve AI catalog context for prompt: {}", userMessage, e);
@@ -198,9 +198,9 @@ public class AiChatService implements AiChatUseCase {
         }
     }
 
-    private BookDTO findBookSafely(Long bookId) {
+    private BookContext findBookSafely(Long bookId) {
         try {
-            return bookUseCase.getBook(bookId);
+            return catalogBookPort.getBook(bookId);
         } catch (Exception e) {
             log.warn("Unable to load book {} for AI chat context", bookId, e);
             return null;

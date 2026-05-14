@@ -1,6 +1,6 @@
 package iuh.fit.se.modules.ai.application.service;
 
-import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
+import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort.BookDocument;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +16,7 @@ public class SemanticDocumentFactory {
 
     private static final String VERSION = "2";
 
-    public String createWeightedText(BookDTO book) {
+    public String createWeightedText(BookDocument book) {
         StringBuilder sb = new StringBuilder();
 
         sb.append("[MAIN TOPIC / TITLE]\n");
