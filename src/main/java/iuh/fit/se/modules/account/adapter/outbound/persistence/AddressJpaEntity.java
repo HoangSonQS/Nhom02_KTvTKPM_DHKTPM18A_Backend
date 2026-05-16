@@ -29,14 +29,17 @@ public class AddressJpaEntity extends BaseEntity {
     @JoinColumn(name = "account_id", nullable = false)
     private AccountJpaEntity account;
 
+    @Column(name = "recipient_name", length = 120)
+    private String recipientName;
+
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
     @Column(length = 200)
     private String street;
 
     @Column(length = 100)
     private String ward;
-
-    @Column(length = 100)
-    private String district;
 
     @Column(length = 100)
     private String city;

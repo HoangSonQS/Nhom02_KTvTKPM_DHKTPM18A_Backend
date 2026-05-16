@@ -48,9 +48,10 @@ public class AccountPersistenceAdapter implements AccountPersistencePort {
     private Address mapToDomainAddress(AddressJpaEntity entity) {
         return Address.builder()
                 .id(entity.getId())
+                .recipientName(entity.getRecipientName())
+                .phoneNumber(entity.getPhoneNumber())
                 .street(entity.getStreet())
                 .ward(entity.getWard())
-                .district(entity.getDistrict())
                 .city(entity.getCity())
                 .isDefault(entity.isDefault())
                 .build();
@@ -79,9 +80,10 @@ public class AccountPersistenceAdapter implements AccountPersistencePort {
     private AddressJpaEntity mapToJpaAddress(Address domainAddress, AccountJpaEntity accountEntity) {
         AddressJpaEntity entity = AddressJpaEntity.builder()
                 .account(accountEntity)
+                .recipientName(domainAddress.getRecipientName())
+                .phoneNumber(domainAddress.getPhoneNumber())
                 .street(domainAddress.getStreet())
                 .ward(domainAddress.getWard())
-                .district(domainAddress.getDistrict())
                 .city(domainAddress.getCity())
                 .isDefault(domainAddress.isDefault())
                 .build();

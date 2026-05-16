@@ -3,8 +3,10 @@ package iuh.fit.se.modules.account.application.service;
 import iuh.fit.se.modules.account.application.port.in.AccountInternalUseCase;
 import iuh.fit.se.modules.account.application.port.in.AccountUseCase;
 import iuh.fit.se.modules.account.application.port.out.AccountPersistencePort;
+import iuh.fit.se.modules.account.application.port.out.AdministrativeUnitLookupPort;
 import iuh.fit.se.modules.account.application.port.out.ProfileImagePort;
 import iuh.fit.se.modules.account.domain.Account;
+import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.modules.account.domain.Address;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -12,6 +14,8 @@ import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * AccountService — Implementation của các UseCase liên quan đến Account.
@@ -21,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountService implements AccountUseCase, AccountInternalUseCase {
 
     private final AccountPersistencePort accountPersistencePort;
+    private final AdministrativeUnitLookupPort administrativeUnitLookupPort;
     private final ProfileImagePort profileImagePort;
 
     @Override
@@ -60,9 +65,10 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
         Account account = getProfile(userId);
 
         Address address = Address.builder()
+                .recipientName(command.recipientName())
+                .phoneNumber(command.phoneNumber())
                 .street(command.street())
                 .ward(command.ward())
-                .district(command.district())
                 .city(command.city())
                 .isDefault(command.isDefault())
                 .build();
@@ -77,9 +83,10 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
         Account account = getProfile(userId);
 
         Address updatedData = Address.builder()
+                .recipientName(command.recipientName())
+                .phoneNumber(command.phoneNumber())
                 .street(command.street())
                 .ward(command.ward())
-                .district(command.district())
                 .city(command.city())
                 .isDefault(command.isDefault())
                 .build();
@@ -94,6 +101,12 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
         Account account = getProfile(userId);
         account.removeAddress(addressId);
         return accountPersistencePort.save(account);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdministrativeProvince> getAddressUnits() {
+        return administrativeUnitLookupPort.findAllProvincesWithWards();
     }
 
     @Override

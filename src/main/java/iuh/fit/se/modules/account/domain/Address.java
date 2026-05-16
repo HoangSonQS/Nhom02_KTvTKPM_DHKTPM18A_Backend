@@ -19,9 +19,10 @@ import lombok.Setter;
 public class Address {
     @Setter
     private Long id;
+    private String recipientName;
+    private String phoneNumber;
     private String street;
     private String ward;
-    private String district;
     private String city;
     
     @Setter(AccessLevel.PROTECTED)

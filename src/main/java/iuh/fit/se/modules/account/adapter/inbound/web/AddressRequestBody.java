@@ -6,17 +6,18 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * JSON body cho thêm/sửa địa chỉ — Jackson chỉ tồn tại ở inbound adapter.
+ * JSON body for adding/updating an address.
  */
 public record AddressRequestBody(
-        @NotBlank(message = "Địa chỉ không được để trống") String street,
-        @NotBlank(message = "Phường/Xã không được để trống") String ward,
-        @NotBlank(message = "Quận/Huyện không được để trống") String district,
-        @NotBlank(message = "Tỉnh/Thành phố không được để trống") String city,
-        @JsonProperty("isDefault") @NotNull(message = "Trạng thái mặc định không được để trống") Boolean isDefault) {
+        @NotBlank(message = "Ten nguoi nhan khong duoc de trong") String recipientName,
+        @NotBlank(message = "So dien thoai khong duoc de trong") String phoneNumber,
+        @NotBlank(message = "Dia chi khong duoc de trong") String street,
+        @NotBlank(message = "Phuong/Xa khong duoc de trong") String ward,
+        @NotBlank(message = "Tinh/Thanh pho khong duoc de trong") String city,
+        @JsonProperty("isDefault") @NotNull(message = "Trang thai mac dinh khong duoc de trong") Boolean isDefault) {
 
     public AccountUseCase.AddressCommand toCommand() {
         return new AccountUseCase.AddressCommand(
-                street, ward, district, city, Boolean.TRUE.equals(isDefault));
+                recipientName, phoneNumber, street, ward, city, Boolean.TRUE.equals(isDefault));
     }
 }
