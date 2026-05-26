@@ -177,11 +177,37 @@ public class OrderService implements OrderInternalUseCase {
                 }
             }
 
-            // 7. Complete Phase
+            // 7. Flash Sale Phase - only decrement sale quantity when customer places the order
+            try {
+                promotionPort.reserveFlashSaleItems(cart.getItems().stream()
+                        .map(item -> PromotionPort.FlashSaleItem.builder()
+                                .bookId(item.getBookId())
+                                .quantity(item.getQuantity())
+                                .build())
+                        .collect(Collectors.toList()));
+            } catch (AppException e) {
+                log.error("Flash Sale reservation failed: {}. Compensating stock...", e.getMessage());
+                inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
+                if (resolvedCommand.getCouponCode() != null && !resolvedCommand.getCouponCode().isBlank()) {
+                    promotionPort.releaseCoupon(resolvedCommand.getRequestId());
+                }
+                updateSagaStatus(sagaOrder, SagaStatus.FAILED);
+                throw e;
+            } catch (Exception e) {
+                log.error("Flash Sale reservation system error. Compensating stock...", e);
+                inventoryPort.increaseStockBulk(stockItems, resolvedCommand.getRequestId());
+                if (resolvedCommand.getCouponCode() != null && !resolvedCommand.getCouponCode().isBlank()) {
+                    promotionPort.releaseCoupon(resolvedCommand.getRequestId());
+                }
+                updateSagaStatus(sagaOrder, SagaStatus.FAILED);
+                throw new AppException(ErrorCode.INTERNAL_ERROR, "Loi he thong khi xu ly Flash Sale.");
+            }
+
+            // 8. Complete Phase
             completeSaga(sagaOrder);
             removeCheckedOutItems(userId, cart, resolvedCommand.getSelectedBookIds());
 
-            // 8. Re-fetch order to get updated discount and saga status from DB
+            // 9. Re-fetch order to get updated discount and saga status from DB
             Order finalOrder = orderPersistencePort.findById(sagaOrder.getId())
                     .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
             if (isCashOnDelivery(resolvedCommand)) {
@@ -192,7 +218,7 @@ public class OrderService implements OrderInternalUseCase {
                 finalOrder = orderPersistencePort.save(finalOrder);
             }
 
-            // 9. Publish Domain Event (Internal)
+            // 10. Publish Domain Event (Internal)
             eventPublisher.publishEvent(OrderCreatedDomainEvent.of(finalOrder, userProfile.getFullName(), userProfile.getEmail()));
 
             return mapToResponse(finalOrder);
@@ -427,13 +453,7 @@ public class OrderService implements OrderInternalUseCase {
     @Transactional(readOnly = true)
     public List<TopSellingBookResponse> getTopSellingBooks(int limit) {
         int effectiveLimit = limit > 0 ? limit : 5;
-        List<FulfillmentStatus> paidStatuses = List.of(
-                FulfillmentStatus.CONFIRMED,
-                FulfillmentStatus.PROCESSING,
-                FulfillmentStatus.DELIVERING,
-                FulfillmentStatus.DELIVERED
-        );
-        return orderPersistencePort.findTopSellingBooks(paidStatuses, effectiveLimit).stream()
+        return orderPersistencePort.findTopSellingBooks(paidFulfillmentStatuses(), effectiveLimit).stream()
                 .map(book -> new TopSellingBookResponse(
                         book.bookId(),
                         book.title(),
@@ -441,6 +461,28 @@ public class OrderService implements OrderInternalUseCase {
                         book.revenue() != null ? book.revenue() : BigDecimal.ZERO
                 ))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookSalesResponse> getBookSales(java.time.LocalDate fromDate, java.time.LocalDate toDate) {
+        java.time.LocalDateTime from = fromDate != null ? fromDate.atStartOfDay() : null;
+        java.time.LocalDateTime toExclusive = toDate != null ? toDate.plusDays(1).atStartOfDay() : null;
+
+        return orderPersistencePort.findBookSales(paidFulfillmentStatuses(), from, toExclusive).stream()
+                .map(book -> new BookSalesResponse(
+                        book.bookId(),
+                        book.title(),
+                        book.quantitySold(),
+                        book.revenue() != null ? book.revenue() : BigDecimal.ZERO
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private List<FulfillmentStatus> paidFulfillmentStatuses() {
+        return List.of(
+                FulfillmentStatus.DELIVERED
+        );
     }
 
     private AdminOrderResponse mapToAdminResponse(Order order, Map<Long, OrderUserPort.UserDto> userCache) {
@@ -517,11 +559,14 @@ public class OrderService implements OrderInternalUseCase {
         }
 
         Order saved = orderPersistencePort.save(order);
+        OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
         eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
                 saved,
                 fromStatus,
                 toStatus,
-                command.getReason()
+                command.getReason(),
+                customer.getFullName(),
+                customer.getEmail()
         ));
         log.info("Order {} fulfillmentStatus: {} → {} by Admin/Staff. Reason: {}",
             orderId, fromStatus, toStatus, command.getReason());
@@ -549,11 +594,14 @@ public class OrderService implements OrderInternalUseCase {
         promotionPort.releaseCoupon(order.getRequestId());
 
         Order saved = orderPersistencePort.save(order);
+        OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
         eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
                 saved,
                 currentStatus,
                 FulfillmentStatus.CANCELLED,
-                reason
+                reason,
+                customer.getFullName(),
+                customer.getEmail()
         ));
         log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
             orderId, currentStatus, reason);

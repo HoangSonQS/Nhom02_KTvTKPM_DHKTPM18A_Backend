@@ -1,7 +1,9 @@
 package iuh.fit.se.modules.notification.application.service;
 
 import iuh.fit.se.modules.notification.application.port.in.NotificationAdminPort;
+import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationResponse;
 import iuh.fit.se.modules.notification.application.port.in.NotificationLogResponse;
+import iuh.fit.se.modules.notification.application.port.in.NotificationCustomerUseCase;
 import iuh.fit.se.modules.notification.application.port.out.NotificationLogPersistencePort;
 import iuh.fit.se.modules.notification.domain.NotificationLog;
 import iuh.fit.se.modules.notification.domain.NotificationStatus;
@@ -23,11 +25,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class NotificationService implements NotificationAdminPort {
+public class NotificationService implements NotificationAdminPort, NotificationCustomerUseCase {
 
     private final NotificationLogPersistencePort persistencePort;
     private final RedisRateLimiter rateLimiter;
     private final NotificationSender notificationSender;
+    private final NotificationRealtimeService realtimeService;
 
     // --- Admin Operations (NotificationAdminPort) ---
 
@@ -51,6 +54,41 @@ public class NotificationService implements NotificationAdminPort {
         // Fix (Audit Design): Reset trạng thái INIT thay vì xóa log để giữ audit history
         nLog.resetToInit();
         persistencePort.save(nLog);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CustomerNotificationResponse> getMyNotifications(Long userId) {
+        return persistencePort.findByRecipientUserId(userId).stream()
+                .map(this::mapToCustomerResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUnread(Long userId) {
+        return persistencePort.countUnreadByRecipientUserId(userId);
+    }
+
+    @Override
+    @Transactional
+    public void markAsRead(Long userId, Long notificationId) {
+        NotificationLog notification = persistencePort.findById(notificationId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "KhÃ´ng tÃ¬m tháº¥y thÃ´ng bÃ¡o"));
+        if (!userId.equals(notification.getRecipientUserId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "KhÃ´ng cÃ³ quyá»n Ä‘á»c thÃ´ng bÃ¡o nÃ y");
+        }
+        notification.markRead();
+        persistencePort.save(notification);
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        persistencePort.findByRecipientUserId(userId).forEach(notification -> {
+            notification.markRead();
+            persistencePort.save(notification);
+        });
     }
 
     // --- Internal Business Logic ---
@@ -87,6 +125,48 @@ public class NotificationService implements NotificationAdminPort {
         }
     }
 
+    @Transactional
+    public void processCustomerNotification(
+            String eventId,
+            Long orderId,
+            Long recipientUserId,
+            String title,
+            String message,
+            String type,
+            NotificationTask task
+    ) {
+        NotificationLog notificationLog;
+        try {
+            notificationLog = persistencePort.save(NotificationLog.builder()
+                    .eventId(eventId)
+                    .orderId(orderId)
+                    .recipientUserId(recipientUserId)
+                    .title(title)
+                    .message(message)
+                    .status(NotificationStatus.INIT)
+                    .channel("EMAIL_WEB")
+                    .attemptCount(0)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            log.info("Event {} already processed or being processed. Skipping.", eventId);
+            return;
+        }
+
+        realtimeService.publish(recipientUserId, mapToCustomerResponse(notificationLog));
+
+        if (!rateLimiter.allowRequest(orderId, type)) {
+            notificationLog.markPermanentFailure("Rate limit triggered (Principal Standard)");
+            persistencePort.save(notificationLog);
+            return;
+        }
+
+        try {
+            notificationSender.sendWithResilience(notificationLog, task);
+        } catch (Exception e) {
+            log.error("Customer notification process failed for event {}: {}", eventId, e.getMessage());
+        }
+    }
+
     private NotificationLogResponse mapToResponse(NotificationLog log) {
         return NotificationLogResponse.builder()
                 .id(log.getId())
@@ -98,6 +178,18 @@ public class NotificationService implements NotificationAdminPort {
                 .lastError(log.getLastError())
                 .createdAt(log.getCreatedAt())
                 .processedAt(log.getProcessedAt())
+                .build();
+    }
+
+    private CustomerNotificationResponse mapToCustomerResponse(NotificationLog log) {
+        return CustomerNotificationResponse.builder()
+                .id(log.getId())
+                .orderId(log.getOrderId())
+                .title(log.getTitle())
+                .message(log.getMessage())
+                .channel(log.getChannel())
+                .createdAt(log.getCreatedAt())
+                .readAt(log.getReadAt())
                 .build();
     }
 

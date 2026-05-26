@@ -33,6 +33,12 @@ class NotificationServiceTest {
     @Mock
     private RedisRateLimiter rateLimiter;
 
+    @Mock
+    private NotificationSender notificationSender;
+
+    @Mock
+    private NotificationRealtimeService realtimeService;
+
     @InjectMocks
     private NotificationService notificationService;
 
@@ -75,5 +81,26 @@ class NotificationServiceTest {
         when(persistencePort.findById(anyLong())).thenReturn(Optional.empty());
 
         assertThrows(AppException.class, () -> notificationService.retryNotification(99L));
+    }
+
+    @Test
+    void processCustomerNotification_WhenRateLimited_ShouldStillPublishRealtimeAndSkipSender() throws Exception {
+        when(persistencePort.save(any(NotificationLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(rateLimiter.allowRequest(123L, "ORDER_STATUS_CHANGED_DELIVERED")).thenReturn(false);
+
+        notificationService.processCustomerNotification(
+                "event-delivered",
+                123L,
+                10L,
+                "Don hang #123 da giao",
+                "Don hang cua ban da duoc giao.",
+                "ORDER_STATUS_CHANGED_DELIVERED",
+                () -> {
+                }
+        );
+
+        verify(realtimeService).publish(eq(10L), any());
+        verify(notificationSender, never()).sendWithResilience(any(), any());
+        verify(persistencePort, times(2)).save(any(NotificationLog.class));
     }
 }

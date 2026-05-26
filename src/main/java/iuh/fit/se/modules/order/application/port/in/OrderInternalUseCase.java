@@ -27,6 +27,8 @@ public interface OrderInternalUseCase {
 
     java.util.List<TopSellingBookResponse> getTopSellingBooks(int limit);
 
+    java.util.List<BookSalesResponse> getBookSales(java.time.LocalDate fromDate, java.time.LocalDate toDate);
+
     /**
      * Cập nhật FulfillmentStatus đơn hàng theo luồng admin operational transition.
      */
@@ -96,6 +98,13 @@ public interface OrderInternalUseCase {
     }
 
     record TopSellingBookResponse(
+            Long bookId,
+            String title,
+            long quantitySold,
+            java.math.BigDecimal revenue
+    ) {}
+
+    record BookSalesResponse(
             Long bookId,
             String title,
             long quantitySold,

@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -24,6 +25,8 @@ import java.util.Set;
 public class Book {
     @Setter
     private Long id;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private String title;
     private String author;
     private String description;
@@ -143,5 +146,10 @@ public class Book {
      */
     public void syncQuantity(int quantity) {
         this.deprecatedQuantity = quantity;
+    }
+
+    public void updateRating(BigDecimal averageRating, int ratingCount) {
+        this.averageRating = averageRating != null ? averageRating : BigDecimal.ZERO;
+        this.ratingCount = Math.max(0, ratingCount);
     }
 }

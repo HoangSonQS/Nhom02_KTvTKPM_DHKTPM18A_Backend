@@ -29,6 +29,8 @@ public class BookMapper {
 
         return BookDTO.builder()
                 .id(domain.getId())
+                .createdAt(domain.getCreatedAt())
+                .updatedAt(domain.getUpdatedAt())
                 .title(domain.getTitle())
                 .author(domain.getAuthor())
                 .description(domain.getDescription())
@@ -62,6 +64,8 @@ public class BookMapper {
 
         Book.BookBuilder builder = Book.builder()
                 .id(entity.getId())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .title(entity.getTitle())
                 .author(entity.getAuthor())
                 .description(entity.getDescription())

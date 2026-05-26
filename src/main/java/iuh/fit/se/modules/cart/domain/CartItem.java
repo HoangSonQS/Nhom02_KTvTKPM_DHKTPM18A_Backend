@@ -68,6 +68,11 @@ public class CartItem {
         this.quantity += amount;
     }
 
+    public void replacePrice(BigDecimal price, String title) {
+        this.priceAtAddTime = price;
+        this.titleSnapshot = title;
+    }
+
     public BigDecimal getSubTotal() {
         return priceAtAddTime.multiply(BigDecimal.valueOf(quantity));
     }

@@ -5,6 +5,7 @@ import iuh.fit.se.modules.order.adapter.outbound.persistence.JpaOrderOutboxRepos
 import iuh.fit.se.modules.order.domain.OrderOutboxEvent;
 import iuh.fit.se.modules.order.domain.OrderOutboxStatus;
 import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
+import iuh.fit.se.shared.event.order.OrderStatusChangedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,6 +40,8 @@ public class OrderOutboxPublisherJob {
 
                 if ("OrderCreatedIntegrationEvent".equals(type)) {
                     integrationEvent = objectMapper.readValue(event.getPayload(), OrderCreatedIntegrationEvent.class);
+                } else if ("OrderStatusChangedIntegrationEvent".equals(type)) {
+                    integrationEvent = objectMapper.readValue(event.getPayload(), OrderStatusChangedIntegrationEvent.class);
                 }
 
                 if (integrationEvent != null) {

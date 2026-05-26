@@ -19,6 +19,11 @@ public interface OrderPersistencePort {
     java.util.List<Order> searchAdminOrders(FulfillmentStatus status);
 
     java.util.List<TopSellingBookProjection> findTopSellingBooks(java.util.List<FulfillmentStatus> statuses, int limit);
+
+    java.util.List<TopSellingBookProjection> findBookSales(
+            java.util.List<FulfillmentStatus> statuses,
+            java.time.LocalDateTime from,
+            java.time.LocalDateTime to);
     
     boolean updateSagaStatusAtomic(Long orderId, iuh.fit.se.modules.order.domain.SagaStatus currentStatus, iuh.fit.se.modules.order.domain.SagaStatus nextStatus);
 

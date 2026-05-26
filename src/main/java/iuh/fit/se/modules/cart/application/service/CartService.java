@@ -7,12 +7,15 @@ import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
 import iuh.fit.se.modules.inventory.application.port.in.StockResult;
+import iuh.fit.se.modules.promotion.application.port.in.FlashSaleUseCase;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +25,7 @@ public class CartService implements CartInternalUseCase {
     private final CartPersistencePort cartPersistencePort;
     private final BookUseCase bookUseCase; // Catalog Integration
     private final InventoryInternalUseCase inventoryInternalUseCase; // Inventory Integration
+    private final FlashSaleUseCase flashSaleUseCase; // Promotion Integration
 
     @Override
     @Transactional
@@ -38,17 +42,27 @@ public class CartService implements CartInternalUseCase {
     }
 
     private CartResponse mapToResponse(Cart cart) {
+        java.util.List<CartItemResponse> items = cart.getItems().stream()
+                .map(item -> {
+                    BookDTO book = bookUseCase.getBook(item.getBookId());
+                    BigDecimal currentPrice = book != null
+                            ? flashSaleUseCase.resolveActiveSalePrice(item.getBookId(), book.price())
+                            : item.getPriceAtAddTime();
+                    return CartItemResponse.builder()
+                            .bookId(item.getBookId())
+                            .title(item.getTitleSnapshot())
+                            .price(currentPrice)
+                            .quantity(item.getQuantity())
+                            .build();
+                })
+                .collect(java.util.stream.Collectors.toList());
+
         return CartResponse.builder()
                 .userId(cart.getUserId())
-                .totalAmount(cart.calculateTotal())
-                .items(cart.getItems().stream()
-                        .map(item -> CartItemResponse.builder()
-                                .bookId(item.getBookId())
-                                .title(item.getTitleSnapshot())
-                                .price(item.getPriceAtAddTime())
-                                .quantity(item.getQuantity())
-                                .build())
-                        .collect(java.util.stream.Collectors.toList()))
+                .totalAmount(items.stream()
+                        .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add))
+                .items(items)
                 .build();
     }
 
@@ -79,11 +93,57 @@ public class CartService implements CartInternalUseCase {
             throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
         }
 
+        validateCartQuantityLimit(cart, book, command.getQuantity());
+
         // 4. Áp dụng Domain Logic - dùng tồn kho sách thực tế làm giới hạn
-        cart.addItem(book.id(), command.getQuantity(), book.price(), book.title(), book.quantity());
+        BigDecimal effectivePrice = flashSaleUseCase.resolveActiveSalePrice(
+                book.id(),
+                book.price()
+        );
+        addItemToCart(cart, book, command.getQuantity(), effectivePrice);
         
         // 5. Save
         cartPersistencePort.save(cart);
+    }
+
+    private void validateCartQuantityLimit(Cart cart, BookDTO book, int addingQuantity) {
+        int currentQuantity = cart.getItems().stream()
+                .filter(item -> item.getBookId().equals(book.id()))
+                .mapToInt(item -> item.getQuantity())
+                .findFirst()
+                .orElse(0);
+        if (currentQuantity + addingQuantity > book.quantity()) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "So luong sach vuot qua gioi han toi da");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void addFlashSaleItem(Long userId, AddItemCommand command) {
+        Cart cart = getCartEntity(userId);
+
+        BookDTO book = bookUseCase.getBook(command.getBookId());
+        if (book == null) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        StockResult stock = inventoryInternalUseCase.getAvailableStock(command.getBookId());
+        if (stock.getStatus() != StockResult.Status.SUCCESS || stock.getRemainingQuantity() < command.getQuantity()) {
+            throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
+        }
+
+        BigDecimal salePrice = flashSaleUseCase.reserveActiveSalePrice(book.id(), command.getQuantity(), book.price());
+        cart.removeItem(book.id());
+        addItemToCart(cart, book, command.getQuantity(), salePrice);
+        cartPersistencePort.save(cart);
+    }
+
+    private void addItemToCart(Cart cart, BookDTO book, int quantity, BigDecimal price) {
+        try {
+            cart.addItem(book.id(), quantity, price, book.title(), book.quantity());
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw new AppException(ErrorCode.INVALID_INPUT, e.getMessage());
+        }
     }
 
     @Override

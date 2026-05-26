@@ -207,7 +207,7 @@ public class Order {
      */
     public static boolean isValidAdminTransition(FulfillmentStatus from, FulfillmentStatus to) {
         return switch (from) {
-            case PENDING    -> to == FulfillmentStatus.CONFIRMED;
+            case PENDING    -> false;
             case CONFIRMED  -> to == FulfillmentStatus.PROCESSING || to == FulfillmentStatus.CANCELLED;
             case PROCESSING -> to == FulfillmentStatus.DELIVERING || to == FulfillmentStatus.CANCELLED;
             case DELIVERING -> to == FulfillmentStatus.DELIVERED

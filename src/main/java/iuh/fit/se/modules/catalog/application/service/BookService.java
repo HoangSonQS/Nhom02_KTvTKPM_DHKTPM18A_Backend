@@ -79,6 +79,9 @@ public class BookService implements BookUseCase {
         // Publish event for AI module and Inventory module
         eventPublisher.publishEvent(BookCreatedEvent.builder()
                 .bookId(savedBook.getId())
+                .title(savedBook.getTitle())
+                .author(savedBook.getAuthor())
+                .price(savedBook.getPrice())
                 .initialQuantity(command.quantity())
                 .build());
 

@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -43,5 +44,27 @@ class OrderAdminControllerTest {
     void orderAdminControllerUsesV2Mapping() {
         RequestMapping mapping = OrderAdminController.class.getAnnotation(RequestMapping.class);
         assertThat(mapping.value()).containsExactly("/api/v2/admin/orders");
+    }
+
+    @Test
+    void givenDateRange_whenGetBookSales_thenDelegatesToUseCase() {
+        OrderInternalUseCase useCase = mock(OrderInternalUseCase.class);
+        OrderInternalUseCase.BookSalesResponse stat = new OrderInternalUseCase.BookSalesResponse(
+                10L,
+                "Book",
+                3L,
+                java.math.BigDecimal.valueOf(300000));
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = LocalDate.of(2026, 5, 31);
+        when(useCase.getBookSales(from, to)).thenReturn(List.of(stat));
+
+        OrderAdminController controller = new OrderAdminController(useCase);
+
+        ResponseEntity<ApiResponse<List<OrderInternalUseCase.BookSalesResponse>>> response =
+                controller.getBookSales(from, to);
+
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData()).containsExactly(stat);
+        verify(useCase).getBookSales(from, to);
     }
 }

@@ -3,6 +3,7 @@ package iuh.fit.se.modules.notification.adapter.inbound.event;
 import io.micrometer.core.instrument.MeterRegistry;
 import iuh.fit.se.modules.notification.application.service.NotificationService;
 import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
+import iuh.fit.se.shared.event.order.OrderStatusChangedIntegrationEvent;
 import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.shared.application.port.out.EmailPort;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +63,65 @@ public class NotificationEventListener {
         }
     }
 
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleOrderStatusChanged(OrderStatusChangedIntegrationEvent event) {
+        setupMdc(event.correlationId());
+        try {
+            String statusLabel = toStatusLabel(event.toStatus());
+            String title = "Đơn hàng #" + event.orderId() + " đã chuyển sang " + statusLabel;
+            String message = buildStatusMessage(event, statusLabel);
+
+            notificationService.processCustomerNotification(
+                    event.id(),
+                    event.orderId(),
+                    event.userId(),
+                    title,
+                    message,
+                    "ORDER_STATUS_CHANGED_" + event.toStatus(),
+                    () -> {
+                        if (!"DELIVERED".equals(event.toStatus())) {
+                            log.info("Skip order status email for order {} because status is {}", event.orderId(), event.toStatus());
+                            return;
+                        }
+                        if (event.customerEmail() == null || event.customerEmail().isBlank()) {
+                            log.warn("Skip order status email for order {} because customer email is blank", event.orderId());
+                            return;
+                        }
+                        emailPort.sendSimpleEmail(event.customerEmail(), title, message);
+                    }
+            );
+        } finally {
+            MDC.clear();
+        }
+    }
+
     private void setupMdc(String correlationId) {
         MDC.put("requestId", correlationId);
+    }
+
+    private String buildStatusMessage(OrderStatusChangedIntegrationEvent event, String statusLabel) {
+        String greeting = event.customerName() == null || event.customerName().isBlank()
+                ? "SEBook xin thông báo"
+                : "Xin chào " + event.customerName();
+        String message = greeting + ", đơn hàng #" + event.orderId() + " của bạn đã được cập nhật sang trạng thái "
+                + statusLabel + ".";
+        if (event.reason() != null && !event.reason().isBlank()) {
+            message += " Lý do: " + event.reason() + ".";
+        }
+        return message;
+    }
+
+    private String toStatusLabel(String status) {
+        if (status == null) return "đang cập nhật";
+        return switch (status) {
+            case "PENDING" -> "chờ xác nhận";
+            case "CONFIRMED" -> "đã xác nhận";
+            case "PROCESSING" -> "đang xử lý";
+            case "DELIVERING" -> "đang giao hàng";
+            case "DELIVERED" -> "đã giao hàng";
+            case "CANCELLED" -> "đã hủy";
+            default -> status;
+        };
     }
 }
