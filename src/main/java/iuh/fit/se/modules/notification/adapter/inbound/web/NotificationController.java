@@ -2,7 +2,6 @@ package iuh.fit.se.modules.notification.adapter.inbound.web;
 
 import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationResponse;
 import iuh.fit.se.modules.notification.application.port.in.NotificationCustomerUseCase;
-import iuh.fit.se.modules.notification.application.service.NotificationRealtimeService;
 import iuh.fit.se.shared.api.ApiResponse;
 import iuh.fit.se.shared.config.JwtTokenProvider;
 import iuh.fit.se.shared.security.SecurityUtils;
@@ -21,7 +20,7 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationCustomerUseCase notificationCustomerUseCase;
-    private final NotificationRealtimeService notificationRealtimeService;
+    private final NotificationSseAdapter notificationSseAdapter;
     private final JwtTokenProvider jwtTokenProvider;
 
     @GetMapping
@@ -49,7 +48,7 @@ public class NotificationController {
         if (!(userId instanceof Number number)) {
             throw new IllegalArgumentException("Token khong hop le");
         }
-        return notificationRealtimeService.subscribe(number.longValue());
+        return notificationSseAdapter.subscribe(number.longValue());
     }
 
     @PutMapping("/{id}/read")

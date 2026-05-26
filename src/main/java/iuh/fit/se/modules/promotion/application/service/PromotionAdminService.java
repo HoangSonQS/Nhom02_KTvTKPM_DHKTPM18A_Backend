@@ -61,7 +61,7 @@ public class PromotionAdminService implements PromotionAdminUseCase {
                 coupon.getId(),
                 coupon.getCode(),
                 coupon.getDescription(),
-                coupon.getDiscountType(),
+                coupon.getDiscountType().name(),
                 coupon.getDiscountValue()
         ));
         log.info("[ADMIN] Created coupon: {}", coupon.getCode());

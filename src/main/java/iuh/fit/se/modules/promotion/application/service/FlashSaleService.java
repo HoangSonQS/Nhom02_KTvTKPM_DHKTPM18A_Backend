@@ -2,8 +2,8 @@ package iuh.fit.se.modules.promotion.application.service;
 
 import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
-import iuh.fit.se.modules.promotion.adapter.outbound.persistence.FlashSaleJpaRepository;
 import iuh.fit.se.modules.promotion.application.port.in.FlashSaleUseCase;
+import iuh.fit.se.modules.promotion.application.port.out.FlashSalePersistencePort;
 import iuh.fit.se.modules.promotion.domain.FlashSale;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -21,13 +21,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FlashSaleService implements FlashSaleUseCase {
 
-    private final FlashSaleJpaRepository repository;
+    private final FlashSalePersistencePort persistencePort;
     private final BookUseCase bookUseCase;
 
     @Override
     @Transactional(readOnly = true)
     public List<FlashSaleResponse> getAll() {
-        return repository.findAllByOrderByCreatedAtDesc().stream()
+        return persistencePort.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -38,7 +38,7 @@ public class FlashSaleService implements FlashSaleUseCase {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dayStart = now.toLocalDate().atStartOfDay();
         LocalDateTime nextDayStart = dayStart.plusDays(1);
-        List<FlashSaleResponse> items = repository
+        List<FlashSaleResponse> items = persistencePort
                 .findVisibleToday(0, dayStart, nextDayStart, now)
                 .stream()
                 .map(this::toResponse)
@@ -57,13 +57,8 @@ public class FlashSaleService implements FlashSaleUseCase {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        return repository
-                .findFirstByBookIdAndActiveTrueAndSaleQuantityGreaterThanAndStartAtLessThanEqualAndEndAtGreaterThanOrderByDiscountPercentDesc(
-                        bookId,
-                        0,
-                        now,
-                        now
-                )
+        return persistencePort
+                .findActiveSale(bookId, 0, now)
                 .map(sale -> calculateSalePrice(basePrice, sale.getDiscountPercent()))
                 .orElse(basePrice);
     }
@@ -77,13 +72,8 @@ public class FlashSaleService implements FlashSaleUseCase {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        FlashSale sale = repository
-                .findFirstByBookIdAndActiveTrueAndSaleQuantityGreaterThanAndStartAtLessThanEqualAndEndAtGreaterThanOrderByDiscountPercentDesc(
-                        bookId,
-                        0,
-                        now,
-                        now
-                )
+        FlashSale sale = persistencePort
+                .findActiveSale(bookId, 0, now)
                 .orElseThrow(() -> new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale da het han hoac het so luong"));
 
         return calculateSalePrice(basePrice, sale.getDiscountPercent());
@@ -98,13 +88,8 @@ public class FlashSaleService implements FlashSaleUseCase {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        return repository
-                .findFirstByBookIdAndActiveTrueAndSaleQuantityGreaterThanAndStartAtLessThanEqualAndEndAtGreaterThanOrderByDiscountPercentDesc(
-                        bookId,
-                        0,
-                        now,
-                        now
-                )
+        return persistencePort
+                .findActiveSale(bookId, 0, now)
                 .map(sale -> {
                     return calculateSalePrice(basePrice, sale.getDiscountPercent());
                 })
@@ -119,16 +104,11 @@ public class FlashSaleService implements FlashSaleUseCase {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        repository
-                .findFirstByBookIdAndActiveTrueAndSaleQuantityGreaterThanAndStartAtLessThanEqualAndEndAtGreaterThanOrderByDiscountPercentDesc(
-                        bookId,
-                        0,
-                        now,
-                        now
-                )
+        persistencePort
+                .findActiveSale(bookId, 0, now)
                 .ifPresent(sale -> {
                     reserveQuantity(sale, quantity);
-                    repository.save(sale);
+                    persistencePort.save(sale);
                 });
     }
 
@@ -144,23 +124,23 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .endAt(command.endAt())
                 .active(command.active())
                 .build();
-        return toResponse(repository.save(sale));
+        return toResponse(persistencePort.save(sale));
     }
 
     @Override
     @Transactional
     public FlashSaleResponse update(Long id, FlashSaleCommand command) {
         validate(command);
-        FlashSale sale = repository.findById(id)
+        FlashSale sale = persistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay flash sale"));
         sale.update(command.bookId(), command.saleQuantity(), command.discountPercent(), command.startAt(), command.endAt(), command.active());
-        return toResponse(repository.save(sale));
+        return toResponse(persistencePort.save(sale));
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        repository.deleteById(id);
+        persistencePort.deleteById(id);
     }
 
     private void validate(FlashSaleCommand command) {

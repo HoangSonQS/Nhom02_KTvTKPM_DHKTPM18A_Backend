@@ -2,7 +2,6 @@ package iuh.fit.se.modules.notification.adapter.inbound.event;
 
 import iuh.fit.se.modules.notification.application.port.out.NewsletterSubscriberPersistencePort;
 import iuh.fit.se.modules.notification.domain.NewsletterSubscriber;
-import iuh.fit.se.modules.promotion.domain.DiscountType;
 import iuh.fit.se.shared.application.port.out.EmailPort;
 import iuh.fit.se.shared.event.catalog.BookCreatedEvent;
 import iuh.fit.se.shared.event.promotion.CouponCreatedEvent;
@@ -57,8 +56,8 @@ public class NewsletterEventListener {
         }
     }
 
-    private String discountLabel(DiscountType discountType, java.math.BigDecimal discountValue) {
-        if (discountType == DiscountType.PERCENTAGE) {
+    private String discountLabel(String discountType, java.math.BigDecimal discountValue) {
+        if ("PERCENTAGE".equals(discountType)) {
             return discountValue.stripTrailingZeros().toPlainString() + "%";
         }
         return formatCurrency(discountValue);

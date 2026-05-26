@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.notification.application.service;
 
 import iuh.fit.se.modules.notification.application.port.out.NotificationLogPersistencePort;
+import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimePort;
 import iuh.fit.se.modules.notification.domain.NotificationLog;
 import iuh.fit.se.modules.notification.domain.NotificationStatus;
 import iuh.fit.se.modules.notification.application.port.in.NotificationLogResponse;
@@ -37,7 +38,7 @@ class NotificationServiceTest {
     private NotificationSender notificationSender;
 
     @Mock
-    private NotificationRealtimeService realtimeService;
+    private NotificationRealtimePort realtimePort;
 
     @InjectMocks
     private NotificationService notificationService;
@@ -99,7 +100,7 @@ class NotificationServiceTest {
                 }
         );
 
-        verify(realtimeService).publish(eq(10L), any());
+        verify(realtimePort).publish(eq(10L), any());
         verify(notificationSender, never()).sendWithResilience(any(), any());
         verify(persistencePort, times(2)).save(any(NotificationLog.class));
     }

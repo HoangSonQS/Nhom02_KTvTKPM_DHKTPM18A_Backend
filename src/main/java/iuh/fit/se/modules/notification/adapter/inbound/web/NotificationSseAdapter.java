@@ -1,8 +1,9 @@
-package iuh.fit.se.modules.notification.application.service;
+package iuh.fit.se.modules.notification.adapter.inbound.web;
 
 import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationResponse;
+import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimePort;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -11,9 +12,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@Service
+@Component
 @Slf4j
-public class NotificationRealtimeService {
+public class NotificationSseAdapter implements NotificationRealtimePort {
 
     private static final long TIMEOUT_MILLIS = 30 * 60 * 1000L;
 
@@ -36,6 +37,7 @@ public class NotificationRealtimeService {
         return emitter;
     }
 
+    @Override
     public void publish(Long userId, CustomerNotificationResponse notification) {
         List<SseEmitter> emitters = emittersByUser.get(userId);
         if (emitters == null || emitters.isEmpty()) {

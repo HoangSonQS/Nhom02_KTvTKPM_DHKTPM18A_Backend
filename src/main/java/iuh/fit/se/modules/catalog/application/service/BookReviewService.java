@@ -1,8 +1,8 @@
 package iuh.fit.se.modules.catalog.application.service;
 
-import iuh.fit.se.modules.catalog.adapter.outbound.persistence.BookReviewJpaRepository;
 import iuh.fit.se.modules.catalog.application.port.in.BookReviewUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
+import iuh.fit.se.modules.catalog.application.port.out.BookReviewPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.modules.catalog.domain.BookReview;
 import iuh.fit.se.shared.exception.AppException;
@@ -21,14 +21,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookReviewService implements BookReviewUseCase {
 
-    private final BookReviewJpaRepository reviewRepository;
+    private final BookReviewPersistencePort reviewPersistencePort;
     private final BookPersistencePort bookPersistencePort;
 
     @Override
     @Transactional(readOnly = true)
     public List<BookReviewResponse> getBookReviews(Long bookId) {
         ensureBookExists(bookId);
-        return reviewRepository.findByBookIdOrderByUpdatedAtDesc(bookId).stream()
+        return reviewPersistencePort.findByBookIdOrderByUpdatedAtDesc(bookId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -36,7 +36,7 @@ public class BookReviewService implements BookReviewUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<BookReviewResponse> getAllReviews() {
-        return reviewRepository.findAllByOrderByUpdatedAtDesc().stream()
+        return reviewPersistencePort.findAllByOrderByUpdatedAtDesc().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -47,7 +47,7 @@ public class BookReviewService implements BookReviewUseCase {
         if (userId == null) {
             return null;
         }
-        return reviewRepository.findByBookIdAndUserId(bookId, userId)
+        return reviewPersistencePort.findByBookIdAndUserId(bookId, userId)
                 .map(this::toResponse)
                 .orElse(null);
     }
@@ -62,7 +62,7 @@ public class BookReviewService implements BookReviewUseCase {
         validate(bookId, command);
         ensureBookExists(bookId);
 
-        BookReview review = reviewRepository.findByBookIdAndUserId(bookId, command.userId())
+        BookReview review = reviewPersistencePort.findByBookIdAndUserId(bookId, command.userId())
                 .map(existing -> {
                     try {
                         existing.edit(command.rating(), normalizeContent(command.content()), command.reviewerName(), command.reviewerEmail());
@@ -81,7 +81,7 @@ public class BookReviewService implements BookReviewUseCase {
                         .editCount(0)
                         .build());
 
-        BookReview saved = reviewRepository.save(review);
+        BookReview saved = reviewPersistencePort.save(review);
         refreshBookRating(bookId);
         return toResponse(saved);
     }
@@ -90,10 +90,10 @@ public class BookReviewService implements BookReviewUseCase {
     @Transactional
     @CacheEvict(value = {"bookDetails", "books"}, allEntries = true)
     public void deleteReview(Long reviewId) {
-        BookReview review = reviewRepository.findById(reviewId)
+        BookReview review = reviewPersistencePort.findById(reviewId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay danh gia"));
         Long bookId = review.getBookId();
-        reviewRepository.delete(review);
+        reviewPersistencePort.delete(review);
         refreshBookRating(bookId);
     }
 
@@ -115,9 +115,9 @@ public class BookReviewService implements BookReviewUseCase {
     private void refreshBookRating(Long bookId) {
         Book book = bookPersistencePort.findById(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay sach"));
-        BigDecimal average = BigDecimal.valueOf(reviewRepository.averageRatingByBookId(bookId))
+        BigDecimal average = BigDecimal.valueOf(reviewPersistencePort.averageRatingByBookId(bookId))
                 .setScale(2, RoundingMode.HALF_UP);
-        int count = Math.toIntExact(reviewRepository.countByBookId(bookId));
+        int count = Math.toIntExact(reviewPersistencePort.countByBookId(bookId));
         book.updateRating(average, count);
         bookPersistencePort.save(book);
     }

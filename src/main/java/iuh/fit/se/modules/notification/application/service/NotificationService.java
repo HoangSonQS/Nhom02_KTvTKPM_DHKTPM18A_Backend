@@ -5,6 +5,7 @@ import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationR
 import iuh.fit.se.modules.notification.application.port.in.NotificationLogResponse;
 import iuh.fit.se.modules.notification.application.port.in.NotificationCustomerUseCase;
 import iuh.fit.se.modules.notification.application.port.out.NotificationLogPersistencePort;
+import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimePort;
 import iuh.fit.se.modules.notification.domain.NotificationLog;
 import iuh.fit.se.modules.notification.domain.NotificationStatus;
 import iuh.fit.se.shared.exception.AppException;
@@ -30,7 +31,7 @@ public class NotificationService implements NotificationAdminPort, NotificationC
     private final NotificationLogPersistencePort persistencePort;
     private final RedisRateLimiter rateLimiter;
     private final NotificationSender notificationSender;
-    private final NotificationRealtimeService realtimeService;
+    private final NotificationRealtimePort realtimePort;
 
     // --- Admin Operations (NotificationAdminPort) ---
 
@@ -152,7 +153,7 @@ public class NotificationService implements NotificationAdminPort, NotificationC
             return;
         }
 
-        realtimeService.publish(recipientUserId, mapToCustomerResponse(notificationLog));
+        realtimePort.publish(recipientUserId, mapToCustomerResponse(notificationLog));
 
         if (!rateLimiter.allowRequest(orderId, type)) {
             notificationLog.markPermanentFailure("Rate limit triggered (Principal Standard)");
