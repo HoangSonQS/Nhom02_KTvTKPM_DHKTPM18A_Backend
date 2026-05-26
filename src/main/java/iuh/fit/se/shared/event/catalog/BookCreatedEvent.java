@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Getter
@@ -19,5 +20,8 @@ public class BookCreatedEvent implements Serializable {
     private final int eventVersion = 1;
 
     private Long bookId;
+    private String title;
+    private String author;
+    private BigDecimal price;
     private int initialQuantity;
 }

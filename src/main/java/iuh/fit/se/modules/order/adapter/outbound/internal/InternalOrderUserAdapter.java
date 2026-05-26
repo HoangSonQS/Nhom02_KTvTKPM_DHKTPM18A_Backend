@@ -26,14 +26,20 @@ public class InternalOrderUserAdapter implements OrderUserPort {
 
         String defaultAddress = account.getAddresses().stream()
                 .filter(Address::isDefault)
-                .map(a -> a.getStreet() + ", " + a.getWard() + ", " + a.getDistrict() + ", " + a.getCity())
+                .map(a -> a.getStreet() + ", " + a.getWard() + ", " + a.getCity())
+                .findFirst()
+                .orElse(null);
+        String defaultAddressPhone = account.getAddresses().stream()
+                .filter(Address::isDefault)
+                .map(Address::getPhoneNumber)
+                .filter(phone -> phone != null && !phone.isBlank())
                 .findFirst()
                 .orElse(null);
 
         return OrderUserPort.UserDto.builder()
                 .fullName(user.getFullName())
                 .email(user.getEmail())
-                .phoneNumber(account.getPhoneNumber())
+                .phoneNumber(defaultAddressPhone != null ? defaultAddressPhone : account.getPhoneNumber())
                 .defaultAddress(defaultAddress)
                 .build();
     }

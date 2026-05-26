@@ -33,4 +33,14 @@ public class NotificationPersistenceAdapter implements NotificationLogPersistenc
     public List<NotificationLog> findAll() {
         return notificationLogRepository.findAll();
     }
+
+    @Override
+    public List<NotificationLog> findByRecipientUserId(Long recipientUserId) {
+        return notificationLogRepository.findByRecipientUserIdOrderByCreatedAtDesc(recipientUserId);
+    }
+
+    @Override
+    public long countUnreadByRecipientUserId(Long recipientUserId) {
+        return notificationLogRepository.countByRecipientUserIdAndReadAtIsNull(recipientUserId);
+    }
 }

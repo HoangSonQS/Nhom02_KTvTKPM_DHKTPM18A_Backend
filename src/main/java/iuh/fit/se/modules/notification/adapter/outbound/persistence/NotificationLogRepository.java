@@ -4,9 +4,12 @@ import iuh.fit.se.modules.notification.domain.NotificationLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface NotificationLogRepository extends JpaRepository<NotificationLog, Long> {
     Optional<NotificationLog> findByEventId(String eventId);
+    List<NotificationLog> findByRecipientUserIdOrderByCreatedAtDesc(Long recipientUserId);
+    long countByRecipientUserIdAndReadAtIsNull(Long recipientUserId);
 }

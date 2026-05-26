@@ -5,8 +5,10 @@ import iuh.fit.se.modules.promotion.application.port.out.PromotionPersistencePor
 import iuh.fit.se.modules.promotion.domain.Coupon;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.event.promotion.CouponCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import java.util.List;
 public class PromotionAdminService implements PromotionAdminUseCase {
 
     private final PromotionPersistencePort persistencePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,6 +57,13 @@ public class PromotionAdminService implements PromotionAdminUseCase {
                 .build();
 
         persistencePort.save(coupon);
+        eventPublisher.publishEvent(new CouponCreatedEvent(
+                coupon.getId(),
+                coupon.getCode(),
+                coupon.getDescription(),
+                coupon.getDiscountType().name(),
+                coupon.getDiscountValue()
+        ));
         log.info("[ADMIN] Created coupon: {}", coupon.getCode());
         return coupon;
     }

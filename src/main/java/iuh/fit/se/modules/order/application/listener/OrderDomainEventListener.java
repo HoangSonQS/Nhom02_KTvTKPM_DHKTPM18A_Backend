@@ -1,8 +1,10 @@
 package iuh.fit.se.modules.order.application.listener;
 
 import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
+import iuh.fit.se.shared.event.order.OrderStatusChangedIntegrationEvent;
 import iuh.fit.se.modules.order.application.port.out.OrderEventPort;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
+import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,5 +33,22 @@ public class OrderDomainEventListener {
 
         // Publish to Outbox via Port
         orderEventPort.publishOrderCreated(integrationEvent);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void handleOrderFulfillmentStatusChanged(OrderFulfillmentStatusChangedEvent domainEvent) {
+        log.info("Handling OrderFulfillmentStatusChangedEvent for order: {}", domainEvent.getOrderId());
+
+        OrderStatusChangedIntegrationEvent integrationEvent = OrderStatusChangedIntegrationEvent.of(
+                domainEvent.getOrderId(),
+                domainEvent.getUserId(),
+                domainEvent.getCustomerName(),
+                domainEvent.getCustomerEmail(),
+                domainEvent.getFromStatus().name(),
+                domainEvent.getToStatus().name(),
+                domainEvent.getReason(),
+                domainEvent.getCorrelationId());
+
+        orderEventPort.publishOrderStatusChanged(integrationEvent);
     }
 }

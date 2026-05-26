@@ -10,6 +10,9 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class OrderFulfillmentStatusChangedEvent extends BaseEvent {
     private final Long orderId;
+    private final Long userId;
+    private final String customerName;
+    private final String customerEmail;
     private final FulfillmentStatus fromStatus;
     private final FulfillmentStatus toStatus;
     private final String reason;
@@ -18,12 +21,17 @@ public class OrderFulfillmentStatusChangedEvent extends BaseEvent {
             Order order,
             FulfillmentStatus fromStatus,
             FulfillmentStatus toStatus,
-            String reason
+            String reason,
+            String customerName,
+            String customerEmail
     ) {
         return OrderFulfillmentStatusChangedEvent.builder()
                 .correlationId(order.getRequestId())
                 .eventType("ORDER_FULFILLMENT_STATUS_CHANGED")
                 .orderId(order.getId())
+                .userId(order.getUserId())
+                .customerName(customerName)
+                .customerEmail(customerEmail)
                 .fromStatus(fromStatus)
                 .toStatus(toStatus)
                 .reason(reason)

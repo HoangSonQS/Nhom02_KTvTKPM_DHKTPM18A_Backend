@@ -23,6 +23,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -192,5 +194,37 @@ class OrderServiceTest {
         assertEquals(
                 "Trạng thái đơn hàng: CONFIRMED -> PROCESSING. Lý do: Đơn hàng đã được xác nhận và đang xử lý",
                 event.newValue());
+    }
+
+    @Test
+    void givenDateRange_whenGetBookSales_thenQueriesPaidStatusesAndInclusiveDates() {
+        when(orderPersistencePort.findBookSales(
+                anyList(),
+                eq(LocalDateTime.of(2026, 5, 1, 0, 0)),
+                eq(LocalDateTime.of(2026, 6, 1, 0, 0))))
+                .thenReturn(List.of(new OrderPersistencePort.TopSellingBookProjection(
+                        101L,
+                        "Clean Code",
+                        7L,
+                        new BigDecimal("700000"))));
+
+        List<OrderInternalUseCase.BookSalesResponse> result = orderService.getBookSales(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 31));
+
+        assertEquals(1, result.size());
+        assertEquals(101L, result.get(0).bookId());
+        assertEquals(7L, result.get(0).quantitySold());
+        assertEquals(0, new BigDecimal("700000").compareTo(result.get(0).revenue()));
+        verify(orderPersistencePort).findBookSales(
+                argThat(statuses -> statuses.size() == 1
+                        && statuses.contains(FulfillmentStatus.DELIVERED)
+                        && !statuses.contains(FulfillmentStatus.CONFIRMED)
+                        && !statuses.contains(FulfillmentStatus.PROCESSING)
+                        && !statuses.contains(FulfillmentStatus.DELIVERING)
+                        && !statuses.contains(FulfillmentStatus.PENDING)
+                        && !statuses.contains(FulfillmentStatus.CANCELLED)),
+                eq(LocalDateTime.of(2026, 5, 1, 0, 0)),
+                eq(LocalDateTime.of(2026, 6, 1, 0, 0)));
     }
 }

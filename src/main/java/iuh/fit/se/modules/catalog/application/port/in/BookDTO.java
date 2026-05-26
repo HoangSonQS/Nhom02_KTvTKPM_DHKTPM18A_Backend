@@ -2,6 +2,7 @@ package iuh.fit.se.modules.catalog.application.port.in;
 
 import lombok.Builder;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -11,6 +12,8 @@ import java.util.Set;
 @Builder
 public record BookDTO(
     Long id,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt,
     String title,
     String author,
     String description,

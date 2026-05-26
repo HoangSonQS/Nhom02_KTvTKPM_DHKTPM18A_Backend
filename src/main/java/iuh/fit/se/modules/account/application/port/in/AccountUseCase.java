@@ -1,10 +1,13 @@
 package iuh.fit.se.modules.account.application.port.in;
 
 import iuh.fit.se.modules.account.domain.Account;
+import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 /**
- * AccountUseCase — Inbound Port (Public API).
+ * AccountUseCase - Inbound Port (Public API).
  */
 public interface AccountUseCase {
 
@@ -18,22 +21,26 @@ public interface AccountUseCase {
 
     Account deleteAddress(Long userId, Long addressId);
 
+    List<AdministrativeProvince> getAddressUnits();
+
     void createDefaultProfile(Long userId);
 
     record UpdateProfileCommand(
-            @NotBlank(message = "Số điện thoại không được để trống")
+            @NotBlank(message = "So dien thoai khong duoc de trong")
             String phoneNumber,
             byte[] avatarFile) {
     }
 
     record AddressCommand(
-            @NotBlank(message = "Địa chỉ không được để trống")
+            @NotBlank(message = "Ten nguoi nhan khong duoc de trong")
+            String recipientName,
+            @NotBlank(message = "So dien thoai khong duoc de trong")
+            String phoneNumber,
+            @NotBlank(message = "Dia chi khong duoc de trong")
             String street,
-            @NotBlank(message = "Phường/Xã không được để trống")
+            @NotBlank(message = "Phuong/Xa khong duoc de trong")
             String ward,
-            @NotBlank(message = "Quận/Huyện không được để trống")
-            String district,
-            @NotBlank(message = "Tỉnh/Thành phố không được để trống")
+            @NotBlank(message = "Tinh/Thanh pho khong duoc de trong")
             String city,
             boolean isDefault) {
     }

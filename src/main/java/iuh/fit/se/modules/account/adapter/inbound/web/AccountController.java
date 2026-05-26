@@ -2,6 +2,7 @@ package iuh.fit.se.modules.account.adapter.inbound.web;
 
 import iuh.fit.se.modules.account.application.port.in.AccountUseCase;
 import iuh.fit.se.modules.account.domain.Account;
+import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.shared.api.ApiResponse;
 import iuh.fit.se.shared.security.SecurityUtils;
 import jakarta.validation.Valid;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * AccountController — Inbound Adapter cho Account.
@@ -35,6 +37,11 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Account>> getProfile() {
         Long userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.success(accountUseCase.getProfile(userId)));
+    }
+
+    @GetMapping("/address-units")
+    public ResponseEntity<ApiResponse<List<AdministrativeProvince>>> getAddressUnits() {
+        return ResponseEntity.ok(ApiResponse.success(accountUseCase.getAddressUnits()));
     }
 
     @PreAuthorize("hasAuthority('ACCOUNT_UPDATE_SELF')")

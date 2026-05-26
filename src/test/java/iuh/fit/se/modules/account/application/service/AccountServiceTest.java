@@ -2,8 +2,10 @@ package iuh.fit.se.modules.account.application.service;
 
 import iuh.fit.se.modules.account.application.port.in.AccountUseCase;
 import iuh.fit.se.modules.account.application.port.out.AccountPersistencePort;
+import iuh.fit.se.modules.account.application.port.out.AdministrativeUnitLookupPort;
 import iuh.fit.se.modules.account.application.port.out.ProfileImagePort;
 import iuh.fit.se.modules.account.domain.Account;
+import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,11 +30,13 @@ class AccountServiceTest {
     @Mock
     private AccountPersistencePort accountPersistencePort;
     @Mock
+    private AdministrativeUnitLookupPort administrativeUnitLookupPort;
+    @Mock
     private ProfileImagePort profileImagePort;
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountService(accountPersistencePort, profileImagePort);
+        accountService = new AccountService(accountPersistencePort, administrativeUnitLookupPort, profileImagePort);
     }
 
     @Test
@@ -44,7 +49,7 @@ class AccountServiceTest {
         when(accountPersistencePort.findByUserId(userId)).thenReturn(Optional.of(account));
         when(accountPersistencePort.save(any(Account.class))).thenAnswer(i -> i.getArgument(0));
 
-        var command = new AccountUseCase.AddressCommand("123 Street", "Ward 1", "Dist 1", "City", false);
+        var command = new AccountUseCase.AddressCommand("Test User", "0901234567", "123 Street", "Ward 1", "City", false);
 
         // Act
         Account result = accountService.addAddress(userId, command);
@@ -90,5 +95,15 @@ class AccountServiceTest {
         assertThatThrownBy(() -> accountService.getProfile(999L))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESOURCE_NOT_FOUND);
+    }
+
+    @Test
+    void whenGetAddressUnits_thenDelegatesToLookupPort() {
+        List<AdministrativeProvince> provinces = List.of(new AdministrativeProvince(
+                "79", "Ho Chi Minh", null, "Thanh pho Ho Chi Minh", null, "ho_chi_minh", 1, List.of()));
+        when(administrativeUnitLookupPort.findAllProvincesWithWards()).thenReturn(provinces);
+
+        assertThat(accountService.getAddressUnits()).isEqualTo(provinces);
+        verify(administrativeUnitLookupPort).findAllProvincesWithWards();
     }
 }

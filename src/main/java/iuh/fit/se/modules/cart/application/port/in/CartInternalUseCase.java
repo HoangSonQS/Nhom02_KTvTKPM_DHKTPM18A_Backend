@@ -27,6 +27,8 @@ public interface CartInternalUseCase {
 
     void addItem(Long userId, AddItemCommand command);
 
+    void addFlashSaleItem(Long userId, AddItemCommand command);
+
     void updateItemQuantity(Long userId, UpdateQuantityCommand command);
 
     void removeItem(Long userId, Long bookId);

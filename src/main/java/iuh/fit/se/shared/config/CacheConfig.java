@@ -36,13 +36,16 @@ public class CacheConfig {
 
     @Bean
     @Primary
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+    public CacheManager cacheManager(
+            RedisConnectionFactory connectionFactory,
+            GenericJackson2JsonRedisSerializer redisJsonSerializer
+    ) {
         // Cấu hình mặc định: dùng String cho Key (dễ đọc trong Redis), JSON cho Value
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .disableCachingNullValues()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(redisJsonSerializer));
 
         // Cấu hình TTL riêng cho từng vùng cache (SLA-based)
         Map<String, RedisCacheConfiguration> cacheNamesConfiguration = new HashMap<>();

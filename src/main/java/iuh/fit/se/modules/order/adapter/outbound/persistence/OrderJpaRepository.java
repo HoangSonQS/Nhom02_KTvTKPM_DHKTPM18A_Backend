@@ -51,6 +51,69 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             """)
     List<TopSellingBookRow> findTopSellingBooks(@Param("statuses") List<FulfillmentStatus> statuses, Pageable pageable);
 
+    @Query("""
+            SELECT item.bookId AS bookId,
+                   MAX(item.bookTitle) AS title,
+                   SUM(item.quantity) AS quantitySold,
+                   SUM(item.priceAtPurchase * item.quantity) AS revenue
+            FROM Order o
+            JOIN o.items item
+            WHERE o.fulfillmentStatus IN :statuses
+            GROUP BY item.bookId
+            ORDER BY SUM(item.quantity) DESC
+            """)
+    List<TopSellingBookRow> findBookSales(@Param("statuses") List<FulfillmentStatus> statuses);
+
+    @Query("""
+            SELECT item.bookId AS bookId,
+                   MAX(item.bookTitle) AS title,
+                   SUM(item.quantity) AS quantitySold,
+                   SUM(item.priceAtPurchase * item.quantity) AS revenue
+            FROM Order o
+            JOIN o.items item
+            WHERE o.fulfillmentStatus IN :statuses
+              AND o.updatedAt >= :fromDate
+            GROUP BY item.bookId
+            ORDER BY SUM(item.quantity) DESC
+            """)
+    List<TopSellingBookRow> findBookSalesFrom(
+            @Param("statuses") List<FulfillmentStatus> statuses,
+            @Param("fromDate") LocalDateTime fromDate);
+
+    @Query("""
+            SELECT item.bookId AS bookId,
+                   MAX(item.bookTitle) AS title,
+                   SUM(item.quantity) AS quantitySold,
+                   SUM(item.priceAtPurchase * item.quantity) AS revenue
+            FROM Order o
+            JOIN o.items item
+            WHERE o.fulfillmentStatus IN :statuses
+              AND o.updatedAt < :toDate
+            GROUP BY item.bookId
+            ORDER BY SUM(item.quantity) DESC
+            """)
+    List<TopSellingBookRow> findBookSalesTo(
+            @Param("statuses") List<FulfillmentStatus> statuses,
+            @Param("toDate") LocalDateTime toDate);
+
+    @Query("""
+            SELECT item.bookId AS bookId,
+                   MAX(item.bookTitle) AS title,
+                   SUM(item.quantity) AS quantitySold,
+                   SUM(item.priceAtPurchase * item.quantity) AS revenue
+            FROM Order o
+            JOIN o.items item
+            WHERE o.fulfillmentStatus IN :statuses
+              AND o.updatedAt >= :fromDate
+              AND o.updatedAt < :toDate
+            GROUP BY item.bookId
+            ORDER BY SUM(item.quantity) DESC
+            """)
+    List<TopSellingBookRow> findBookSalesBetween(
+            @Param("statuses") List<FulfillmentStatus> statuses,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate);
+
     interface TopSellingBookRow {
         Long getBookId();
         String getTitle();

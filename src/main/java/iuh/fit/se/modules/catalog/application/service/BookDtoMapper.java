@@ -21,6 +21,8 @@ final class BookDtoMapper {
 
         return BookDTO.builder()
                 .id(domain.getId())
+                .createdAt(domain.getCreatedAt())
+                .updatedAt(domain.getUpdatedAt())
                 .title(domain.getTitle())
                 .author(domain.getAuthor())
                 .description(domain.getDescription())

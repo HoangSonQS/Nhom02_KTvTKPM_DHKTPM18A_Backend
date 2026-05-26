@@ -33,6 +33,14 @@ public class CartController {
     }
 
     @PreAuthorize("hasAuthority('CART_WRITE_SELF')")
+    @PostMapping("/flash-sale/items")
+    public ResponseEntity<ApiResponse<String>> addFlashSaleItem(@RequestBody CartInternalUseCase.AddItemCommand command) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        cartUseCase.addFlashSaleItem(userId, command);
+        return ResponseEntity.ok(ApiResponse.success("Them sach Flash Sale vao gio hang thanh cong"));
+    }
+
+    @PreAuthorize("hasAuthority('CART_WRITE_SELF')")
     @PutMapping("/items")
     public ResponseEntity<ApiResponse<String>> updateQuantity(
             @RequestBody CartInternalUseCase.UpdateQuantityCommand command) {

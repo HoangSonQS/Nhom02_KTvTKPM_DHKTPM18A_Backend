@@ -76,6 +76,32 @@ public class OrderPersistenceAdapter implements OrderPersistencePort {
     }
 
     @Override
+    public List<TopSellingBookProjection> findBookSales(
+            List<FulfillmentStatus> statuses,
+            LocalDateTime from,
+            LocalDateTime to) {
+        List<OrderJpaRepository.TopSellingBookRow> rows;
+        if (from != null && to != null) {
+            rows = jpaRepository.findBookSalesBetween(statuses, from, to);
+        } else if (from != null) {
+            rows = jpaRepository.findBookSalesFrom(statuses, from);
+        } else if (to != null) {
+            rows = jpaRepository.findBookSalesTo(statuses, to);
+        } else {
+            rows = jpaRepository.findBookSales(statuses);
+        }
+
+        return rows.stream()
+                .map(row -> new TopSellingBookProjection(
+                        row.getBookId(),
+                        row.getTitle(),
+                        row.getQuantitySold() != null ? row.getQuantitySold() : 0L,
+                        row.getRevenue()
+                ))
+                .toList();
+    }
+
+    @Override
     public boolean updateSagaStatusAtomic(Long orderId, SagaStatus currentStatus, SagaStatus nextStatus) {
         return jpaRepository.updateSagaStatusAtomic(orderId, currentStatus, nextStatus) > 0;
     }

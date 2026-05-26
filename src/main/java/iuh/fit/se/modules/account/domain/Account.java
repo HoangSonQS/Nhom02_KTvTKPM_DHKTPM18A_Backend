@@ -72,9 +72,10 @@ public class Account {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ với ID: " + addressId));
 
+        existing.setRecipientName(updatedData.getRecipientName());
+        existing.setPhoneNumber(updatedData.getPhoneNumber());
         existing.setStreet(updatedData.getStreet());
         existing.setWard(updatedData.getWard());
-        existing.setDistrict(updatedData.getDistrict());
         existing.setCity(updatedData.getCity());
         
         if (updatedData.isDefault()) {

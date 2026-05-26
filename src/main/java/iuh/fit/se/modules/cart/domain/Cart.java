@@ -54,6 +54,7 @@ public class Cart {
             if (newQuantity > maxPerItem) {
                 throw new IllegalStateException("Số lượng sách vượt quá giới hạn tối đa cho phép (" + maxPerItem + ")");
             }
+            existingItem.get().replacePrice(price, title);
             existingItem.get().addQuantity(quantity);
         } else {
             if (quantity > maxPerItem) {

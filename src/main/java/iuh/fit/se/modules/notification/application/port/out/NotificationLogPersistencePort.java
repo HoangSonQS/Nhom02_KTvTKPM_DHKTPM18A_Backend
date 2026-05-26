@@ -9,4 +9,6 @@ public interface NotificationLogPersistencePort {
     Optional<NotificationLog> findByEventId(String eventId);
     Optional<NotificationLog> findById(Long id);
     List<NotificationLog> findAll();
+    List<NotificationLog> findByRecipientUserId(Long recipientUserId);
+    long countUnreadByRecipientUserId(Long recipientUserId);
 }

@@ -7,10 +7,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * NotificationLog — Lưu vết việc xử lý các sự kiện thông báo (Staff+ Standard).
- * Chống xử lý trùng lặp (Idempotency) và quản lý Retry/Dead-letter.
- */
 @Entity
 @Table(name = "ntf_notification_log", indexes = {
         @Index(name = "idx_ntf_event_id", columnList = "event_id", unique = true)
@@ -26,17 +22,26 @@ public class NotificationLog {
     private Long id;
 
     @Column(name = "event_id", nullable = false, length = 50)
-    private String eventId; // Unique event ID từ metadata
+    private String eventId;
 
     @Column(name = "order_id")
-    private Long orderId;   // ID đơn hàng liên quan
+    private Long orderId;
+
+    @Column(name = "recipient_user_id")
+    private Long recipientUserId;
+
+    @Column(name = "title", length = 255)
+    private String title;
+
+    @Column(name = "message", columnDefinition = "TEXT")
+    private String message;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private NotificationStatus status;
 
     @Column(name = "channel", length = 10)
-    private String channel; // EMAIL, SMS, PUSH
+    private String channel;
 
     @Column(name = "attempt_count")
     private int attemptCount;
@@ -52,6 +57,9 @@ public class NotificationLog {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
     public void markSuccess() {
         this.status = NotificationStatus.SUCCESS;
         this.processedAt = LocalDateTime.now();
@@ -60,7 +68,6 @@ public class NotificationLog {
     public void incrementAttempt(String error) {
         this.attemptCount++;
         this.lastError = error;
-        // Trạng thái này chỉ biểu thị thất bại tạm thời (đang retry)
         this.status = NotificationStatus.FAILED;
     }
 
@@ -73,7 +80,11 @@ public class NotificationLog {
     public void resetToInit() {
         this.status = NotificationStatus.INIT;
         this.processedAt = null;
-        // Giữ lại lastError cũ và attemptCount cũ để audit. 
-        // Khi NotificationSender chạy lại, nó sẽ tự increment tiếp.
+    }
+
+    public void markRead() {
+        if (this.readAt == null) {
+            this.readAt = LocalDateTime.now();
+        }
     }
 }
