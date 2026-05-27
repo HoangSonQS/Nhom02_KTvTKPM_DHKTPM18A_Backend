@@ -2,12 +2,15 @@ package iuh.fit.se.modules.returns.application.service;
 
 import iuh.fit.se.modules.returns.application.port.in.ReturnRequestUseCase;
 import iuh.fit.se.modules.returns.application.port.out.OrderQueryPort;
+import iuh.fit.se.modules.returns.application.port.out.ReturnEvidenceImagePort;
 import iuh.fit.se.modules.returns.application.port.out.ReturnRequestRepository;
 import iuh.fit.se.modules.returns.domain.*;
 import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.*;
+import iuh.fit.se.shared.event.realtime.ReturnRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,6 +29,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
     private final ReturnRequestRepository returnRequestRepository;
     private final OrderQueryPort orderQueryPort;
+    private final ReturnEvidenceImagePort returnEvidenceImagePort;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -86,6 +90,11 @@ public class ReturnRequestService implements ReturnRequestUseCase {
                 items
         );
 
+        if (command.getEvidenceImageFile() != null && command.getEvidenceImageFile().length > 0) {
+            CloudinaryUploadResult uploadResult = returnEvidenceImagePort.uploadEvidenceImage(command.getEvidenceImageFile());
+            returnRequest.attachEvidenceImage(uploadResult.url(), uploadResult.publicId());
+        }
+
         ReturnRequest saved = returnRequestRepository.save(returnRequest);
 
         // 4. Publish Domain Event (Internal)
@@ -105,6 +114,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         returnRequestRepository.save(request);
 
         eventPublisher.publishEvent(ReturnRequestApprovedDomainEvent.of(request));
+        publishReturnStatusChanged(request);
     }
 
     @Override
@@ -133,6 +143,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         
         returnRequestRepository.save(request);
         eventPublisher.publishEvent(ReturnRequestReceivedDomainEvent.of(request));
+        publishReturnStatusChanged(request);
     }
 
     @Override
@@ -150,6 +161,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         returnRequestRepository.save(request);
 
         eventPublisher.publishEvent(ReturnRequestRefundedDomainEvent.of(request));
+        publishReturnStatusChanged(request);
     }
 
     @Override
@@ -163,6 +175,7 @@ public class ReturnRequestService implements ReturnRequestUseCase {
         returnRequestRepository.save(request);
 
         eventPublisher.publishEvent(ReturnRequestRejectedDomainEvent.of(request, reason));
+        publishReturnStatusChanged(request);
     }
 
     @Override
@@ -175,12 +188,21 @@ public class ReturnRequestService implements ReturnRequestUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<ReturnRequest> getAll() {
-        return returnRequestRepository.findAll();
+        return returnRequestRepository.findAllNewestFirst();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ReturnRequest> getByCustomer(Long customerId) {
-        return returnRequestRepository.findByCustomerId(customerId);
+        return returnRequestRepository.findByCustomerIdNewestFirst(customerId);
+    }
+
+    private void publishReturnStatusChanged(ReturnRequest request) {
+        eventPublisher.publishEvent(ReturnRealtimeEvent.statusChanged(
+                request.getId(),
+                request.getOrderId(),
+                request.getCustomerId(),
+                request.getStatus().name()
+        ));
     }
 }

@@ -12,7 +12,6 @@ import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeTypeUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -29,9 +28,9 @@ public class GeminiVisionAdapter implements VisionModelPort {
 
     @Override
     @SuppressWarnings("deprecation")
-    public OcrResult extractBookData(MultipartFile file) {
+    public OcrResult extractBookData(byte[] file) {
         try {
-            byte[] compressedImage = compressImage(file.getBytes());
+            byte[] compressedImage = compressImage(file);
 
             String systemPrompt = "Bạn là thủ thư chuyên nghiệp. Hãy trích xuất tên sách và tác giả từ ảnh này. "
                     + "Chỉ trả về JSON theo dạng: {\"title\": \"...\", \"author\": \"...\"}";

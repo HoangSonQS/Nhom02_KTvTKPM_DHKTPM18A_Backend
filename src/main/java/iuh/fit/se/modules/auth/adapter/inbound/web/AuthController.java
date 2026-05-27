@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+
 /**
  * REST Controller cho module auth — Phase 5.5.
  * Quản lý xác thực với HttpOnly Cookie, CSRF Token và Device ID.
@@ -46,6 +48,9 @@ public class AuthController {
          */
         @Value("${app.auth.cookie.same-site:Lax}")
         private String cookieSameSite;
+
+        @Value("${jwt.refresh-token-expiration:604800000}")
+        private long refreshTokenExpirationMs;
 
         @PostMapping("/login")
         public ResponseEntity<ApiResponse<AuthUseCase.TokenPair>> login(
@@ -125,7 +130,7 @@ public class AuthController {
                                 .httpOnly(true)
                                 .secure(cookieSecure)
                                 .path("/")
-                                .maxAge(7 * 24 * 3600)
+                                .maxAge(Duration.ofMillis(refreshTokenExpirationMs))
                                 .sameSite(cookieSameSite)
                                 .build();
                 response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());

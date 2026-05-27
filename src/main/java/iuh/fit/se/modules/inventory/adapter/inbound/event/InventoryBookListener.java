@@ -5,9 +5,11 @@ import iuh.fit.se.modules.inventory.domain.InventoryStock;
 import iuh.fit.se.shared.event.catalog.BookCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @Slf4j
@@ -16,8 +18,8 @@ public class InventoryBookListener {
 
     private final InventoryPersistencePort persistencePort;
 
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onBookCreated(BookCreatedEvent event) {
         log.info("Initializing inventory for new book: {}. Initial Quantity: {}", 
                 event.getBookId(), event.getInitialQuantity());

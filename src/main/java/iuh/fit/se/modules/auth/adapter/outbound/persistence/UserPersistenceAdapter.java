@@ -58,6 +58,8 @@ public class UserPersistenceAdapter implements UserPersistencePort {
                 .fullName(entity.getFullName())
                 .role(entity.getRole())
                 .enabled(entity.isEnabled())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 
@@ -71,6 +73,8 @@ public class UserPersistenceAdapter implements UserPersistencePort {
                 .build();
 
         entity.setId(user.getId());
+        entity.setCreatedAt(user.getCreatedAt());
+        entity.setUpdatedAt(user.getUpdatedAt());
         return entity;
     }
 }

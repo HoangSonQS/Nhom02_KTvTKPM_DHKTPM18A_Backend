@@ -6,7 +6,6 @@ import iuh.fit.se.modules.ai.domain.OcrResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -16,7 +15,7 @@ public class AiVisionService implements AiVisionUseCase {
     private final VisionModelPort visionPort;
 
     @Override
-    public OcrResult recognizeBook(MultipartFile file) {
+    public OcrResult recognizeBook(byte[] file) {
         // 1. OCR Extract data
         OcrResult result = visionPort.extractBookData(file);
 

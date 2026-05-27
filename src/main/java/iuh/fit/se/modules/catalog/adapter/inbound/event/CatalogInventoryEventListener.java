@@ -5,8 +5,9 @@ import iuh.fit.se.modules.inventory.domain.InventoryStockDecreasedEvent;
 import iuh.fit.se.modules.inventory.domain.InventoryStockIncreasedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
@@ -17,15 +18,15 @@ public class CatalogInventoryEventListener {
 
     /**
      * Đồng bộ dữ liệu Catalog sau khi Inventory thay đổi thành công.
-     * Sử dụng @EventListener để đảm bảo sync ngay lập tức trong transaction của Inventory.
+     * Sync after the inventory transaction commits.
      */
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleStockDecreased(InventoryStockDecreasedEvent event) {
         log.info("📢 Catalog Sync: Trừ kho cho sách {} -> Còn lại: {}", event.getBookId(), event.getRemainingQuantity());
         bookUseCase.syncStock(event.getBookId(), event.getRemainingQuantity());
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleStockIncreased(InventoryStockIncreasedEvent event) {
         log.info("📢 Catalog Sync: Cộng kho cho sách {} -> Còn lại: {}", event.getBookId(), event.getRemainingQuantity());
         bookUseCase.syncStock(event.getBookId(), event.getRemainingQuantity());

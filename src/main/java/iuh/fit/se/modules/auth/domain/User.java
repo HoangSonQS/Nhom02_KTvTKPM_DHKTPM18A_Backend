@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 /**
  * User Aggregate Root — domain thuần túy, không có Spring hay JPA annotation.
  * Được map sang UserJpaEntity ở tầng persistence adapter.
@@ -25,6 +27,8 @@ public class User {
     private String fullName;
     private Role role;
     private boolean enabled;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     /**
      * Factory method để tạo user mới trong quá trình đăng ký.

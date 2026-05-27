@@ -19,6 +19,7 @@ public class ReturnRequestResponseDTO {
     private BigDecimal refundAmount;
     private String reason;
     private String notes;
+    private String evidenceImageUrl;
     private LocalDateTime createdAt;
     private List<ReturnItemResponseDTO> items;
     private List<ReturnHistoryResponseDTO> histories;

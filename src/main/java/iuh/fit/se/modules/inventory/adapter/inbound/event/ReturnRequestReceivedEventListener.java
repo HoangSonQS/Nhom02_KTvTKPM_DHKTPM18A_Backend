@@ -4,12 +4,13 @@ import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
 import iuh.fit.se.shared.event.returns.ItemCondition;
 import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnRequestReceivedIntegrationEvent;
-import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnedItemCondition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component("inventoryReturnRequestReceivedEventListener")
 @RequiredArgsConstructor
@@ -19,8 +20,8 @@ public class ReturnRequestReceivedEventListener {
     private final InventoryPersistencePort inventoryPort;
     private final InventoryInternalUseCase inventoryUseCase;
 
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onReturnRequestReceived(ReturnRequestReceivedIntegrationEvent event) {
         log.info("Received ReturnRequestReceivedEvent for returnId: {}", event.returnRequestId());
 

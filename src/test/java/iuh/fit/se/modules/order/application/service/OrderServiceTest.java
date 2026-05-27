@@ -7,8 +7,10 @@ import iuh.fit.se.modules.order.domain.FulfillmentStatus;
 import iuh.fit.se.modules.order.domain.SagaStatus;
 import iuh.fit.se.shared.audit.application.port.out.AuditEventPublisherPort;
 import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
+import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.event.realtime.OrderRealtimeEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -118,7 +120,8 @@ class OrderServiceTest {
         assertNotNull(response.getOrderId());
         assertEquals(SagaStatus.COMPLETED, sharedOrder.getSagaStatus());
         assertEquals(FulfillmentStatus.PENDING, sharedOrder.getFulfillmentStatus());
-        verify(eventPublisher, times(1)).publishEvent(any(Object.class));
+        verify(eventPublisher).publishEvent(any(OrderCreatedDomainEvent.class));
+        verify(eventPublisher).publishEvent(any(OrderRealtimeEvent.class));
     }
 
     @Test

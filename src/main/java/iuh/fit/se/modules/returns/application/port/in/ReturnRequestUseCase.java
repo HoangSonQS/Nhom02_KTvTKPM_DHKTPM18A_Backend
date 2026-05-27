@@ -38,6 +38,7 @@ public interface ReturnRequestUseCase {
         private Long customerId;
         private ReturnReason reason;
         private String notes;
+        private byte[] evidenceImageFile;
         private List<ReturnItemCommand> items;
     }
 

@@ -3,8 +3,10 @@ package iuh.fit.se.modules.inventory.application.service;
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
 import iuh.fit.se.modules.inventory.application.port.in.StockResult;
 import iuh.fit.se.modules.inventory.domain.InventoryStock;
+import iuh.fit.se.modules.inventory.domain.InventoryStockIncreasedEvent;
 import iuh.fit.se.modules.inventory.domain.StockHistory;
 import iuh.fit.se.modules.inventory.domain.StockHistoryStatus;
+import iuh.fit.se.shared.event.inventory.InventoryStockChangedIntegrationEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.exception.PendingIdempotencyException;
@@ -81,7 +83,8 @@ class InventoryServiceTest {
         assertThat(result.getRemainingQuantity()).isEqualTo(60);
         // 1 for PENDING, 1 for SUCCESS
         verify(persistencePort, times(2)).saveHistory(any(StockHistory.class));
-        verify(eventPublisher).publishEvent(any(Object.class));
+        verify(eventPublisher).publishEvent(any(InventoryStockIncreasedEvent.class));
+        verify(eventPublisher).publishEvent(any(InventoryStockChangedIntegrationEvent.class));
     }
 
     @Test

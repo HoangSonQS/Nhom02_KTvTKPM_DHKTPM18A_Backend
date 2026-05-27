@@ -28,6 +28,7 @@ class OrderPaymentEventListenerTest {
         String requestId = "req-123";
         PaymentSuccessIntegrationEvent event = PaymentSuccessIntegrationEvent.of(
                 orderId,
+                10L,
                 "vnpay-tx-123",
                 new BigDecimal("200000"),
                 "VNPAY",

@@ -1,12 +1,14 @@
 package iuh.fit.se.modules.payment.adapter.inbound.event;
 
 import iuh.fit.se.modules.payment.application.port.in.PaymentUseCase;
-import iuh.fit.se.modules.returns.domain.ReturnRequestReceivedEvent;
+import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnRequestReceivedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 
@@ -17,10 +19,10 @@ public class ReturnRequestReceivedEventListener {
 
     private final PaymentUseCase paymentUseCase;
 
-    @EventListener
-    @Transactional
-    public void onReturnRequestReceived(ReturnRequestReceivedEvent event) {
-        log.info("Received ReturnRequestReceivedEvent for returnId: {}. Triggering refund simulation.", event.getReturnRequestId());
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onReturnRequestReceived(ReturnRequestReceivedIntegrationEvent event) {
+        log.info("Received ReturnRequestReceivedEvent for returnId: {}. Triggering refund simulation.", event.returnRequestId());
 
         // For simplicity, we assume we trigger refund based on the event.
         // In a more complex flow, the refund amount might be different from the total returned items price.
@@ -39,16 +41,16 @@ public class ReturnRequestReceivedEventListener {
         // In a modular monolith, I'll assume a fixed amount or simulation for now.
         // Actually, the plan says: "Trigger refund tại bước RECEIVED".
         
-        log.info("Refunding for order {} based on return {}", event.getOrderId(), event.getReturnRequestId());
+        log.info("Refunding for order {} based on return {}", event.orderId(), event.returnRequestId());
         
         // Simulation amount
         BigDecimal simulatedAmount = BigDecimal.valueOf(100000); 
 
         try {
-            paymentUseCase.processRefund(event.getOrderId(), simulatedAmount, event.getReturnRequestId());
-            log.info("Successfully triggered refund for returnId: {}", event.getReturnRequestId());
+            paymentUseCase.processRefund(event.orderId(), simulatedAmount, event.returnRequestId());
+            log.info("Successfully triggered refund for returnId: {}", event.returnRequestId());
         } catch (Exception e) {
-            log.error("Failed to trigger refund for returnId: {}", event.getReturnRequestId(), e);
+            log.error("Failed to trigger refund for returnId: {}", event.returnRequestId(), e);
         }
     }
 }

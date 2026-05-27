@@ -17,7 +17,7 @@ public class PaymentDomainEventListener {
 
     private final PaymentEventPort paymentEventPort;
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePaymentSuccess(PaymentSuccessDomainEvent domainEvent) {
         log.info("Handling PaymentSuccessDomainEvent for order: {}", domainEvent.getPayment().getOrderId());
         
@@ -25,6 +25,7 @@ public class PaymentDomainEventListener {
         
         PaymentSuccessIntegrationEvent integrationEvent = PaymentSuccessIntegrationEvent.of(
                 payment.getOrderId(),
+                domainEvent.getUserId(),
                 payment.getTransactionId(),
                 payment.getAmount(),
                 payment.getPaymentMethod(),

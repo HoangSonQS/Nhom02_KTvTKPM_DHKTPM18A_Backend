@@ -3,6 +3,7 @@ package iuh.fit.se.modules.catalog.adapter.inbound.web;
 import iuh.fit.se.modules.catalog.application.port.in.BookReviewUseCase;
 import iuh.fit.se.shared.api.ApiResponse;
 import iuh.fit.se.shared.config.UserPrincipal;
+import iuh.fit.se.shared.security.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -48,7 +49,8 @@ public class BookReviewController {
                         currentFullName(authentication),
                         currentEmail(authentication),
                         request.rating(),
-                        request.content()
+                        request.content(),
+                        request.orderId()
                 )
         );
         return ResponseEntity.ok(ApiResponse.success("Luu danh gia thanh cong", response));
@@ -58,6 +60,32 @@ public class BookReviewController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<BookReviewUseCase.BookReviewResponse>>> getAllReviews() {
         return ResponseEntity.ok(ApiResponse.success(bookReviewUseCase.getAllReviews()));
+    }
+
+    @PutMapping("/api/v1/admin/reviews/{id}/handling")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<BookReviewUseCase.BookReviewResponse>> updateReviewHandling(
+            @PathVariable Long id,
+            @RequestBody ReviewHandlingRequest request
+    ) {
+        BookReviewUseCase.BookReviewResponse response = bookReviewUseCase.updateReviewHandling(
+                id,
+                new BookReviewUseCase.ReviewHandlingCommand(
+                        SecurityUtils.getCurrentUserId(),
+                        request.issueType(),
+                        request.publicReply(),
+                        request.supportAction(),
+                        request.status(),
+                        request.note()
+                )
+        );
+        return ResponseEntity.ok(ApiResponse.success("Cap nhat xu ly danh gia thanh cong", response));
+    }
+
+    @GetMapping("/api/v1/admin/reviews/{id}/history")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<BookReviewUseCase.ReviewHandlingHistoryResponse>>> getReviewHandlingHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(bookReviewUseCase.getReviewHandlingHistory(id)));
     }
 
     @DeleteMapping("/api/v1/admin/reviews/{id}")
@@ -97,6 +125,15 @@ public class BookReviewController {
 
     public record ReviewRequest(
             @Min(1) @Max(5) int rating,
-            String content
+            String content,
+            Long orderId
+    ) {}
+
+    public record ReviewHandlingRequest(
+            String issueType,
+            String publicReply,
+            String supportAction,
+            String status,
+            String note
     ) {}
 }

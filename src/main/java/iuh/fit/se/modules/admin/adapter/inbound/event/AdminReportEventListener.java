@@ -7,6 +7,7 @@ import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import iuh.fit.se.modules.returns.domain.ReturnRequest;
 import iuh.fit.se.modules.returns.domain.event.ReturnDomainEvents.ReturnRequestRefundedDomainEvent;
+import iuh.fit.se.shared.event.payment.PaymentFailedIntegrationEvent;
 import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +74,12 @@ public class AdminReportEventListener {
         } else {
             log.info("OrderReport for {} marked as CONFIRMED via atomic update.", event.orderId());
         }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    @Caching(evict = @CacheEvict(value = "dashboardStats", allEntries = true))
+    public void onPaymentFailed(PaymentFailedIntegrationEvent event) {
+        log.info("CQRS: PaymentFailed received for order {}, evicting dashboard cache.", event.orderId());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)

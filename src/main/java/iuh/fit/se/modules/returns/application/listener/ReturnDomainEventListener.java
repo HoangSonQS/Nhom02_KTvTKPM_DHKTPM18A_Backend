@@ -22,7 +22,7 @@ public class ReturnDomainEventListener {
 
     private final ReturnEventPort returnEventPort;
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnCreated(ReturnRequestCreatedDomainEvent event) {
         ReturnRequest request = event.getReturnRequest();
         ReturnRequestCreatedIntegrationEvent integrationEvent = new ReturnRequestCreatedIntegrationEvent(
@@ -35,7 +35,7 @@ public class ReturnDomainEventListener {
         returnEventPort.publishReturnCreated(integrationEvent);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnApproved(ReturnRequestApprovedDomainEvent event) {
         ReturnRequest request = event.getReturnRequest();
         ReturnRequestApprovedIntegrationEvent integrationEvent = new ReturnRequestApprovedIntegrationEvent(
@@ -47,7 +47,7 @@ public class ReturnDomainEventListener {
         returnEventPort.publishReturnApproved(integrationEvent);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnReceived(ReturnRequestReceivedDomainEvent event) {
         ReturnRequest request = event.getReturnRequest();
         ReturnRequestReceivedIntegrationEvent integrationEvent = new ReturnRequestReceivedIntegrationEvent(
@@ -66,7 +66,7 @@ public class ReturnDomainEventListener {
         returnEventPort.publishReturnReceived(integrationEvent);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnRefunded(ReturnRequestRefundedDomainEvent event) {
         ReturnRequest request = event.getReturnRequest();
         ReturnRequestRefundedIntegrationEvent integrationEvent = new ReturnRequestRefundedIntegrationEvent(
@@ -79,7 +79,7 @@ public class ReturnDomainEventListener {
         returnEventPort.publishReturnRefunded(integrationEvent);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnRejected(ReturnRequestRejectedDomainEvent event) {
         ReturnRequest request = event.getReturnRequest();
         ReturnRequestRejectedIntegrationEvent integrationEvent = new ReturnRequestRejectedIntegrationEvent(

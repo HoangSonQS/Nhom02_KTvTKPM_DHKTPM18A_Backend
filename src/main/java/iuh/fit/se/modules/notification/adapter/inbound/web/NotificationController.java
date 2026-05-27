@@ -48,7 +48,8 @@ public class NotificationController {
         if (!(userId instanceof Number number)) {
             throw new IllegalArgumentException("Token khong hop le");
         }
-        return notificationSseAdapter.subscribe(number.longValue());
+        String role = claims.get("role", String.class);
+        return notificationSseAdapter.subscribe(number.longValue(), role);
     }
 
     @PutMapping("/{id}/read")

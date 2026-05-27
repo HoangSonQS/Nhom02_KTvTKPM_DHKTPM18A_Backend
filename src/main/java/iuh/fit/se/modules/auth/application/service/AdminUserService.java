@@ -78,7 +78,8 @@ public class AdminUserService implements AdminUserUseCase {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                user.isEnabled()
+                user.isEnabled(),
+                user.getCreatedAt()
         );
     }
 }

@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.auth.application.port.in;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AdminUserUseCase {
@@ -22,6 +23,7 @@ public interface AdminUserUseCase {
             String email,
             String fullName,
             String role,
-            boolean enabled
+            boolean enabled,
+            LocalDateTime createdAt
     ) {}
 }

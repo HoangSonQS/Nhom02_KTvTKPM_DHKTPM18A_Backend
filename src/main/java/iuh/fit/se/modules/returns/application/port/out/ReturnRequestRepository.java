@@ -10,7 +10,9 @@ public interface ReturnRequestRepository {
     ReturnRequest save(ReturnRequest returnRequest);
     Optional<ReturnRequest> findById(String id);
     List<ReturnRequest> findAll();
+    List<ReturnRequest> findAllNewestFirst();
     List<ReturnRequest> findByStatus(ReturnStatus status);
     List<ReturnRequest> findByCustomerId(Long customerId);
+    List<ReturnRequest> findByCustomerIdNewestFirst(Long customerId);
     List<ReturnRequest> findByOrderId(Long orderId);
 }
