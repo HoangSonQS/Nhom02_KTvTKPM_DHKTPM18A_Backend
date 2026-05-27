@@ -2,6 +2,7 @@ package iuh.fit.se.modules.home.application.service;
 
 import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
+import iuh.fit.se.modules.cart.application.port.in.CartInternalUseCase;
 import iuh.fit.se.modules.home.application.port.in.HomeDiscoveryUseCase;
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import lombok.RequiredArgsConstructor;
@@ -11,12 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,6 +34,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
 
     private final BookUseCase bookUseCase;
     private final OrderInternalUseCase orderUseCase;
+    private final CartInternalUseCase cartUseCase;
 
     @Override
     @Transactional(readOnly = true)
@@ -104,6 +110,52 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
         };
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<HomeBookResponse> getRecommendations(Long userId, int limit) {
+        int effectiveLimit = normalizeLimit(limit);
+        List<BookDTO> activeBooks = allActiveBooks();
+        Map<Long, BookDTO> booksById = activeBooks.stream()
+                .collect(Collectors.toMap(BookDTO::id, Function.identity(), (left, right) -> left));
+        Map<Long, OrderInternalUseCase.TopSellingBookResponse> sales = getSalesMap(effectiveLimit * 4);
+
+        Set<Long> seedBookIds = getSeedBookIds(userId);
+        Set<Long> purchasedBookIds = getPurchasedBookIds(userId);
+        Set<Long> seedCategoryIds = seedBookIds.stream()
+                .map(booksById::get)
+                .filter(Objects::nonNull)
+                .map(BookDTO::categoryIds)
+                .filter(Objects::nonNull)
+                .flatMap(Set::stream)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (!seedCategoryIds.isEmpty()) {
+            List<HomeBookResponse> personalized = activeBooks.stream()
+                    .filter(book -> !seedBookIds.contains(book.id()))
+                    .filter(book -> !purchasedBookIds.contains(book.id()))
+                    .filter(book -> hasAnyCategory(book, seedCategoryIds))
+                    .sorted(Comparator.comparing(
+                            (BookDTO book) -> recommendationScore(book, sales.get(book.id()), seedCategoryIds)
+                    ).reversed())
+                    .limit(effectiveLimit)
+                    .map(book -> toResponse(
+                            book,
+                            sales.get(book.id()),
+                            "FOR_YOU",
+                            "Gợi ý theo danh mục bạn quan tâm"
+                    ))
+                    .toList();
+
+            if (personalized.size() >= effectiveLimit) {
+                return personalized;
+            }
+
+            return appendFallbackRecommendations(personalized, activeBooks, sales, seedBookIds, purchasedBookIds, effectiveLimit);
+        }
+
+        return appendFallbackRecommendations(List.of(), activeBooks, sales, Set.of(), purchasedBookIds, effectiveLimit);
+    }
+
     private List<HomeBookResponse> getBestSellerBooks(int limit) {
         int effectiveLimit = normalizeLimit(limit);
         return salesRowsToBooks(
@@ -124,6 +176,122 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
                 "SOLD",
                 sale -> "Da ban " + sale.quantitySold() + " cuon"
         );
+    }
+
+    private Set<Long> getSeedBookIds(Long userId) {
+        Set<Long> seedBookIds = new LinkedHashSet<>();
+        if (userId == null) {
+            return seedBookIds;
+        }
+
+        try {
+            cartUseCase.getCartByUserId(userId).getItems().forEach(item -> seedBookIds.add(item.getBookId()));
+        } catch (RuntimeException ignored) {
+            // Recommendations should never break the homepage.
+        }
+
+        try {
+            orderUseCase.getMyOrders(userId).stream()
+                    .filter(order -> order.getItems() != null)
+                    .filter(order -> !"CANCELLED".equalsIgnoreCase(order.getFulfillmentStatus()))
+                    .flatMap(order -> order.getItems().stream())
+                    .forEach(item -> seedBookIds.add(item.getBookId()));
+        } catch (RuntimeException ignored) {
+            // Fallback recommendations are enough if order history is unavailable.
+        }
+
+        return seedBookIds;
+    }
+
+    private Set<Long> getPurchasedBookIds(Long userId) {
+        Set<Long> purchasedBookIds = new HashSet<>();
+        if (userId == null) {
+            return purchasedBookIds;
+        }
+
+        try {
+            orderUseCase.getMyOrders(userId).stream()
+                    .filter(order -> "DELIVERED".equalsIgnoreCase(order.getFulfillmentStatus()))
+                    .filter(order -> order.getItems() != null)
+                    .flatMap(order -> order.getItems().stream())
+                    .forEach(item -> purchasedBookIds.add(item.getBookId()));
+        } catch (RuntimeException ignored) {
+            // Keep homepage resilient.
+        }
+
+        return purchasedBookIds;
+    }
+
+    private List<HomeBookResponse> appendFallbackRecommendations(
+            List<HomeBookResponse> priority,
+            List<BookDTO> activeBooks,
+            Map<Long, OrderInternalUseCase.TopSellingBookResponse> sales,
+            Set<Long> seedBookIds,
+            Set<Long> purchasedBookIds,
+            int limit
+    ) {
+        Set<Long> selectedIds = priority.stream()
+                .map(HomeBookResponse::id)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<HomeBookResponse> fallback = activeBooks.stream()
+                .filter(book -> !selectedIds.contains(book.id()))
+                .filter(book -> !seedBookIds.contains(book.id()))
+                .filter(book -> !purchasedBookIds.contains(book.id()))
+                .sorted(Comparator.comparing((BookDTO book) -> fallbackRecommendationScore(book, sales.get(book.id()))).reversed())
+                .limit(Math.max(0, limit - priority.size()))
+                .map(book -> toResponse(
+                        book,
+                        sales.get(book.id()),
+                        "RECOMMENDED",
+                        recommendationReason(book, sales.get(book.id()))
+                ))
+                .toList();
+
+        return java.util.stream.Stream.concat(priority.stream(), fallback.stream())
+                .limit(limit)
+                .toList();
+    }
+
+    private boolean hasAnyCategory(BookDTO book, Set<Long> categoryIds) {
+        if (book.categoryIds() == null || book.categoryIds().isEmpty()) {
+            return false;
+        }
+        return book.categoryIds().stream().anyMatch(categoryIds::contains);
+    }
+
+    private BigDecimal recommendationScore(
+            BookDTO book,
+            OrderInternalUseCase.TopSellingBookResponse sale,
+            Set<Long> seedCategoryIds
+    ) {
+        long categoryMatches = book.categoryIds() == null
+                ? 0
+                : book.categoryIds().stream().filter(seedCategoryIds::contains).count();
+        return fallbackRecommendationScore(book, sale)
+                .add(BigDecimal.valueOf(categoryMatches).multiply(BigDecimal.valueOf(60)));
+    }
+
+    private BigDecimal fallbackRecommendationScore(BookDTO book, OrderInternalUseCase.TopSellingBookResponse sale) {
+        BigDecimal score = fallbackPopularityScore(book);
+        score = score.add(BigDecimal.valueOf(quantitySold(sale)).multiply(BigDecimal.valueOf(10)));
+        if (book.createdAt() != null && book.createdAt().isAfter(LocalDateTime.now().minusDays(14))) {
+            score = score.add(BigDecimal.valueOf(35));
+        }
+        return score;
+    }
+
+    private String recommendationReason(BookDTO book, OrderInternalUseCase.TopSellingBookResponse sale) {
+        if (quantitySold(sale) > 0) {
+            return "Đang được nhiều độc giả chọn mua";
+        }
+        if (book.createdAt() != null && book.createdAt().isAfter(LocalDateTime.now().minusDays(14))) {
+            return "Sách mới đáng chú ý";
+        }
+        if (discountPercent(book) != null) {
+            return "Giá tốt hôm nay";
+        }
+        return "Phù hợp để khám phá thêm";
     }
 
     private List<BookDTO> allActiveBooks() {

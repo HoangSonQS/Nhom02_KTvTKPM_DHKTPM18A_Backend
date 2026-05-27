@@ -23,6 +23,7 @@ public interface PromotionAdminUseCase {
 
     record CreateCouponCommand(
             String code,
+            String name,
             String description,
             DiscountType discountType,
             BigDecimal discountValue,
@@ -35,6 +36,7 @@ public interface PromotionAdminUseCase {
     ) {}
 
     record UpdateCouponCommand(
+            String name,
             String description,
             BigDecimal discountValue,
             BigDecimal minOrderValue,

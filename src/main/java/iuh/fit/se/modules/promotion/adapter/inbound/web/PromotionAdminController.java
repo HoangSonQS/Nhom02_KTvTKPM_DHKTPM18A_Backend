@@ -50,7 +50,7 @@ public class PromotionAdminController {
     @Operation(summary = "Tạo mới một coupon")
     public ResponseEntity<ApiResponse<CouponResponse>> createCoupon(@Valid @RequestBody CreateCouponRequest req) {
         PromotionAdminUseCase.CreateCouponCommand cmd = new PromotionAdminUseCase.CreateCouponCommand(
-                req.code(), req.description(), req.discountType(), req.discountValue(),
+                req.code(), req.name(), req.description(), req.discountType(), req.discountValue(),
                 req.minOrderValue(), req.maxDiscountValue(), req.usageLimit(),
                 req.startDate(), req.endDate(), req.isActive()
         );
@@ -65,7 +65,7 @@ public class PromotionAdminController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateCouponRequest req) {
         PromotionAdminUseCase.UpdateCouponCommand cmd = new PromotionAdminUseCase.UpdateCouponCommand(
-                req.description(), req.discountValue(), req.minOrderValue(),
+                req.name(), req.description(), req.discountValue(), req.minOrderValue(),
                 req.maxDiscountValue(), req.usageLimit(), req.startDate(), req.endDate(), req.isActive()
         );
         Coupon updated = adminUseCase.updateCoupon(id, cmd);
@@ -84,6 +84,7 @@ public class PromotionAdminController {
     public record CouponResponse(
             Long id,
             String code,
+            String name,
             String description,
             DiscountType discountType,
             BigDecimal discountValue,
@@ -99,7 +100,7 @@ public class PromotionAdminController {
     ) {
         public static CouponResponse from(Coupon c) {
             return new CouponResponse(
-                    c.getId(), c.getCode(), c.getDescription(), c.getDiscountType(),
+                    c.getId(), c.getCode(), c.getName(), c.getDescription(), c.getDiscountType(),
                     c.getDiscountValue(), c.getMinOrderValue(), c.getMaxDiscountValue(),
                     c.getUsageLimit(), c.getUsedCount(), c.getStartDate(), c.getEndDate(),
                     c.isActive(), c.getCreatedAt(), c.getUpdatedAt()
@@ -109,6 +110,7 @@ public class PromotionAdminController {
 
     public record CreateCouponRequest(
             @NotBlank(message = "Mã coupon không được để trống") String code,
+            @NotBlank(message = "Tên khuyến mãi không được để trống") String name,
             String description,
             @NotNull(message = "Loại giảm giá không được để trống") DiscountType discountType,
             @NotNull(message = "Giá trị giảm không được để trống") @Positive BigDecimal discountValue,
@@ -121,6 +123,7 @@ public class PromotionAdminController {
     ) {}
 
     public record UpdateCouponRequest(
+            @NotBlank(message = "Tên khuyến mãi không được để trống") String name,
             String description,
             @NotNull(message = "Giá trị giảm không được để trống") @Positive BigDecimal discountValue,
             BigDecimal minOrderValue,

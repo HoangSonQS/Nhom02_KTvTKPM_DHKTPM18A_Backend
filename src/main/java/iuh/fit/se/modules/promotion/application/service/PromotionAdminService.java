@@ -44,6 +44,7 @@ public class PromotionAdminService implements PromotionAdminUseCase {
 
         Coupon coupon = Coupon.builder()
                 .code(cmd.code().toUpperCase().trim())
+                .name(cmd.name().trim())
                 .description(cmd.description())
                 .discountType(cmd.discountType())
                 .discountValue(cmd.discountValue())
@@ -60,7 +61,7 @@ public class PromotionAdminService implements PromotionAdminUseCase {
         eventPublisher.publishEvent(new CouponCreatedEvent(
                 coupon.getId(),
                 coupon.getCode(),
-                coupon.getDescription(),
+                coupon.getName(),
                 coupon.getDiscountType().name(),
                 coupon.getDiscountValue()
         ));
@@ -75,6 +76,7 @@ public class PromotionAdminService implements PromotionAdminUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.PRM_COUPON_NOT_FOUND));
 
         coupon.update(
+                cmd.name(),
                 cmd.description(),
                 cmd.discountValue(),
                 cmd.minOrderValue(),

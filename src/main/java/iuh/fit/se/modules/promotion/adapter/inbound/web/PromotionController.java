@@ -2,6 +2,8 @@ package iuh.fit.se.modules.promotion.adapter.inbound.web;
 
 import iuh.fit.se.modules.promotion.application.port.in.PromotionApplicationResult;
 import iuh.fit.se.modules.promotion.application.port.in.PromotionInternalUseCase;
+import iuh.fit.se.modules.promotion.domain.Coupon;
+import iuh.fit.se.modules.promotion.domain.DiscountType;
 import iuh.fit.se.shared.api.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -13,6 +15,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -43,6 +47,15 @@ public class PromotionController {
         ));
     }
 
+    @GetMapping("/api/v1/promotions/active")
+    public ResponseEntity<ApiResponse<List<ActiveCouponResponse>>> getActiveCoupons() {
+        List<ActiveCouponResponse> coupons = internalUseCase.getActiveCoupons()
+                .stream()
+                .map(ActiveCouponResponse::from)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success("Danh sách mã khuyến mãi còn hiệu lực", coupons));
+    }
+
     // ─── DTOs ─────────────────────────────────────────────────────────────────
 
 
@@ -57,4 +70,36 @@ public class PromotionController {
             BigDecimal finalAmount,
             String message
     ) {}
+
+    record ActiveCouponResponse(
+            Long id,
+            String code,
+            String name,
+            String description,
+            DiscountType discountType,
+            BigDecimal discountValue,
+            BigDecimal minOrderValue,
+            BigDecimal maxDiscountValue,
+            Integer usageLimit,
+            int usedCount,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    ) {
+        static ActiveCouponResponse from(Coupon coupon) {
+            return new ActiveCouponResponse(
+                    coupon.getId(),
+                    coupon.getCode(),
+                    coupon.getName(),
+                    coupon.getDescription(),
+                    coupon.getDiscountType(),
+                    coupon.getDiscountValue(),
+                    coupon.getMinOrderValue(),
+                    coupon.getMaxDiscountValue(),
+                    coupon.getUsageLimit(),
+                    coupon.getUsedCount(),
+                    coupon.getStartDate(),
+                    coupon.getEndDate()
+            );
+        }
+    }
 }

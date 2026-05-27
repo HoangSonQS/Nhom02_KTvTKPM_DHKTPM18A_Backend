@@ -14,6 +14,7 @@ public interface PromotionPersistencePort {
 
     // Admin CRUD
     List<Coupon> findAll();
+    List<Coupon> findActiveCoupons();
     Optional<Coupon> findById(Long id);
     boolean existsByCode(String code);
     void delete(Coupon coupon);

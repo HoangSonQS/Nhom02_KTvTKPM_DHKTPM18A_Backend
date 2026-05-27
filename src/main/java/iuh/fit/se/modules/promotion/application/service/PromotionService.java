@@ -27,6 +27,12 @@ public class PromotionService implements PromotionInternalUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Coupon> getActiveCoupons() {
+        return persistencePort.findActiveCoupons();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PromotionApplicationResult validateCoupon(String code, BigDecimal orderTotal) {
         String traceId = UUID.randomUUID().toString();
         log.info("[{}] Validating coupon {} for amount {}", traceId, code, orderTotal);
