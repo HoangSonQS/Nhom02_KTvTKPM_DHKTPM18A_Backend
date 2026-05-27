@@ -16,6 +16,7 @@ import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
 import iuh.fit.se.shared.config.UserPrincipal;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.event.realtime.OrderRealtimeEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -220,6 +221,12 @@ public class OrderService implements OrderInternalUseCase {
 
             // 10. Publish Domain Event (Internal)
             eventPublisher.publishEvent(OrderCreatedDomainEvent.of(finalOrder, userProfile.getFullName(), userProfile.getEmail()));
+            eventPublisher.publishEvent(OrderRealtimeEvent.orderCreated(
+                    finalOrder.getId(),
+                    finalOrder.getUserId(),
+                    finalOrder.getTotalAmount(),
+                    finalOrder.getFulfillmentStatus().name()
+            ));
 
             return mapToResponse(finalOrder);
 
@@ -404,6 +411,15 @@ public class OrderService implements OrderInternalUseCase {
         promotionPort.releaseCoupon(order.getRequestId());
 
         Order saved = orderPersistencePort.save(order);
+        OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                FulfillmentStatus.PENDING,
+                FulfillmentStatus.CANCELLED,
+                reason,
+                customer.getFullName(),
+                customer.getEmail()
+        ));
         log.info("Order {} cancelled by customer {} before confirmation. Reason: {}", orderId, userId, reason);
         return mapToResponse(saved);
     }
@@ -570,6 +586,12 @@ public class OrderService implements OrderInternalUseCase {
         ));
         log.info("Order {} fulfillmentStatus: {} → {} by Admin/Staff. Reason: {}",
             orderId, fromStatus, toStatus, command.getReason());
+        eventPublisher.publishEvent(OrderRealtimeEvent.statusChanged(
+                saved.getId(),
+                saved.getUserId(),
+                saved.getTotalAmount(),
+                saved.getFulfillmentStatus().name()
+        ));
         publishAudit("STAFF_UPDATE_ORDER_STATUS", orderId, fromStatus, toStatus, command.getReason());
         
         return mapToResponse(saved);
@@ -605,6 +627,12 @@ public class OrderService implements OrderInternalUseCase {
         ));
         log.info("Order {} force-cancelled from {} by Admin/Staff. Reason: {}",
             orderId, currentStatus, reason);
+        eventPublisher.publishEvent(OrderRealtimeEvent.statusChanged(
+                saved.getId(),
+                saved.getUserId(),
+                saved.getTotalAmount(),
+                saved.getFulfillmentStatus().name()
+        ));
         publishAudit("STAFF_CANCEL_ORDER", orderId, currentStatus, FulfillmentStatus.CANCELLED, reason);
 
         return mapToResponse(saved);

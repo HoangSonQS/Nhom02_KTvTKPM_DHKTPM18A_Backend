@@ -12,17 +12,19 @@ public record PaymentSuccessIntegrationEvent(
     String id,
     String correlationId,
     Long orderId,
+    Long userId,
     String transactionId,
     BigDecimal amount,
     String paymentMethod,
     String orderRequestId,  // Order's requestId = CouponReservation.referenceId
     LocalDateTime occurredAt
 ) implements Serializable {
-    public static PaymentSuccessIntegrationEvent of(Long orderId, String transactionId, BigDecimal amount, String paymentMethod, String correlationId, String orderRequestId) {
+    public static PaymentSuccessIntegrationEvent of(Long orderId, Long userId, String transactionId, BigDecimal amount, String paymentMethod, String correlationId, String orderRequestId) {
         return new PaymentSuccessIntegrationEvent(
             java.util.UUID.randomUUID().toString(),
             correlationId,
             orderId,
+            userId,
             transactionId,
             amount,
             paymentMethod,

@@ -13,6 +13,7 @@ import iuh.fit.se.modules.inventory.domain.StockHistoryStatus;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.exception.PendingIdempotencyException;
+import iuh.fit.se.shared.event.inventory.InventoryStockChangedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -228,8 +229,10 @@ public class InventoryService implements InventoryInternalUseCase {
             // 6. EVENT PUBLISHING
             if (isIncrease) {
                 eventPublisher.publishEvent(InventoryStockIncreasedEvent.create(bookId, amount, newQuantity));
+                eventPublisher.publishEvent(InventoryStockChangedIntegrationEvent.of(bookId, amount, newQuantity, "INCREASE"));
             } else {
                 eventPublisher.publishEvent(InventoryStockDecreasedEvent.create(bookId, amount, newQuantity));
+                eventPublisher.publishEvent(InventoryStockChangedIntegrationEvent.of(bookId, amount, newQuantity, "DECREASE"));
             }
 
             return StockResult.builder()

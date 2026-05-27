@@ -42,7 +42,8 @@ class AdminUserServiceTest {
                 "admin@sebook.local",
                 "Admin SEBook",
                 "ADMIN",
-                true
+                true,
+                null
         ));
     }
 

@@ -25,6 +25,7 @@ public class PaymentDomainEventListener {
         
         PaymentSuccessIntegrationEvent integrationEvent = PaymentSuccessIntegrationEvent.of(
                 payment.getOrderId(),
+                domainEvent.getUserId(),
                 payment.getTransactionId(),
                 payment.getAmount(),
                 payment.getPaymentMethod(),

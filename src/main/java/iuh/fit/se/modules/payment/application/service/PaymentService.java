@@ -6,6 +6,7 @@ import iuh.fit.se.modules.payment.application.port.out.PaymentPersistencePort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.PaymentStatus;
 import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;
+import iuh.fit.se.shared.event.payment.PaymentFailedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -114,6 +115,14 @@ public class PaymentService implements PaymentUseCase {
                     .resultData(params.toString())
                     .build();
             paymentPersistencePort.save(payment);
+            eventPublisher.publishEvent(PaymentFailedIntegrationEvent.of(
+                    orderId,
+                    order.getCustomerId(),
+                    amount,
+                    "VNPAY",
+                    vnp_ResponseCode,
+                    "PAY-" + orderId
+            ));
             return "{\"RspCode\":\"00\",\"Message\":\"Confirm success\"}";
         }
 
@@ -137,7 +146,7 @@ public class PaymentService implements PaymentUseCase {
                 .build();
         
         paymentPersistencePort.save(payment);
-        eventPublisher.publishEvent(PaymentSuccessDomainEvent.of(payment, order.getRequestId()));
+        eventPublisher.publishEvent(PaymentSuccessDomainEvent.of(payment, order.getCustomerId(), order.getRequestId()));
 
         log.info("Payment Callback: Successfully updated status for Order {}.", orderId);
         return "{\"RspCode\":\"00\",\"Message\":\"Confirm success\"}";

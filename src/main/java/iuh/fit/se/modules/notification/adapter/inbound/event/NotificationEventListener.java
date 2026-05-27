@@ -1,9 +1,11 @@
 package iuh.fit.se.modules.notification.adapter.inbound.event;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import iuh.fit.se.modules.notification.application.port.in.RealtimeEventResponse;
 import iuh.fit.se.modules.notification.application.service.NotificationService;
 import iuh.fit.se.shared.event.order.OrderCreatedIntegrationEvent;
 import iuh.fit.se.shared.event.order.OrderStatusChangedIntegrationEvent;
+import iuh.fit.se.shared.event.payment.PaymentFailedIntegrationEvent;
 import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import iuh.fit.se.shared.application.port.out.EmailPort;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * NotificationEventListener — Lắng nghe các sự kiện nghiệp vụ để gửi thông báo (Staff+ Standard).
@@ -25,6 +28,7 @@ import java.util.Map;
 @Slf4j
 public class NotificationEventListener {
 
+    private static final Set<String> ORDER_MANAGEMENT_ROLES = Set.of("ADMIN", "STAFF_SELLER");
     private final NotificationService notificationService;
     private final EmailPort emailPort;
     private final MeterRegistry meterRegistry;
@@ -53,11 +57,56 @@ public class NotificationEventListener {
     public void handlePaymentSuccess(PaymentSuccessIntegrationEvent event) {
         setupMdc(event.correlationId());
         try {
+            notificationService.publishRealtimeToRoles(ORDER_MANAGEMENT_ROLES, new RealtimeEventResponse(
+                    "PAYMENT_SUCCESS",
+                    event.orderId(),
+                    event.userId(),
+                    null,
+                    null,
+                    event.amount(),
+                    "SUCCESS",
+                    "Đơn hàng #" + event.orderId() + " đã thanh toán thành công",
+                    event.occurredAt()
+            ));
+            notificationService.publishRealtimeToUser(event.userId(), new RealtimeEventResponse(
+                    "PAYMENT_SUCCESS",
+                    event.orderId(),
+                    event.userId(),
+                    null,
+                    null,
+                    event.amount(),
+                    "SUCCESS",
+                    "Thanh toán đơn hàng #" + event.orderId() + " thành công",
+                    event.occurredAt()
+            ));
             notificationService.processNotification(event.id(), event.orderId(), "PAYMENT_SUCCESS", () -> {
                 log.info("Processing payment success notification for order {}", event.orderId());
                 // (Trong thực tế sẽ gọi emailPort tương tự handleOrderCreated)
                 meterRegistry.counter("notification.payment.success", "order", event.orderId().toString()).increment();
             });
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handlePaymentFailed(PaymentFailedIntegrationEvent event) {
+        setupMdc(event.correlationId());
+        try {
+            RealtimeEventResponse payload = new RealtimeEventResponse(
+                    "PAYMENT_FAILED",
+                    event.orderId(),
+                    event.userId(),
+                    null,
+                    null,
+                    event.amount(),
+                    "FAILED",
+                    "Thanh toán đơn hàng #" + event.orderId() + " chưa hoàn tất",
+                    event.occurredAt()
+            );
+            notificationService.publishRealtimeToUser(event.userId(), payload);
+            notificationService.publishRealtimeToRoles(ORDER_MANAGEMENT_ROLES, payload);
         } finally {
             MDC.clear();
         }
@@ -91,6 +140,19 @@ public class NotificationEventListener {
                         emailPort.sendSimpleEmail(event.customerEmail(), title, message);
                     }
             );
+            RealtimeEventResponse payload = new RealtimeEventResponse(
+                    "ORDER_STATUS_CHANGED",
+                    event.orderId(),
+                    event.userId(),
+                    null,
+                    null,
+                    null,
+                    event.toStatus(),
+                    title,
+                    event.occurredAt()
+            );
+            notificationService.publishRealtimeToUser(event.userId(), payload);
+            notificationService.publishRealtimeToRoles(ORDER_MANAGEMENT_ROLES, payload);
         } finally {
             MDC.clear();
         }

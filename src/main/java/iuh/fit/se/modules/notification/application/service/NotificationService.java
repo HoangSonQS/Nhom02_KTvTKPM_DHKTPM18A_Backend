@@ -4,6 +4,7 @@ import iuh.fit.se.modules.notification.application.port.in.NotificationAdminPort
 import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationResponse;
 import iuh.fit.se.modules.notification.application.port.in.NotificationLogResponse;
 import iuh.fit.se.modules.notification.application.port.in.NotificationCustomerUseCase;
+import iuh.fit.se.modules.notification.application.port.in.RealtimeEventResponse;
 import iuh.fit.se.modules.notification.application.port.out.NotificationLogPersistencePort;
 import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimePort;
 import iuh.fit.se.modules.notification.domain.NotificationLog;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -166,6 +168,17 @@ public class NotificationService implements NotificationAdminPort, NotificationC
         } catch (Exception e) {
             log.error("Customer notification process failed for event {}: {}", eventId, e.getMessage());
         }
+    }
+
+    public void publishRealtimeToUser(Long userId, RealtimeEventResponse event) {
+        if (userId == null) {
+            return;
+        }
+        realtimePort.publishEventToUser(userId, event);
+    }
+
+    public void publishRealtimeToRoles(Set<String> roles, RealtimeEventResponse event) {
+        realtimePort.publishEventToRoles(roles, event);
     }
 
     private NotificationLogResponse mapToResponse(NotificationLog log) {
