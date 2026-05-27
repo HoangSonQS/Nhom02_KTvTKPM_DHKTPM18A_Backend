@@ -17,6 +17,8 @@ public interface HomeDiscoveryUseCase {
 
     List<HomeBookResponse> getRankingBooks(String type, int limit);
 
+    List<HomeBookResponse> getRecommendations(Long userId, int limit);
+
     record HomeDiscoveryResponse(
             LocalDate snapshotDate,
             List<HomeSectionResponse> sections

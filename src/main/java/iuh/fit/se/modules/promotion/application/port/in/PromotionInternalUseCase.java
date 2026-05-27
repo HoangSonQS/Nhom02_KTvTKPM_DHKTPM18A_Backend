@@ -1,7 +1,12 @@
 package iuh.fit.se.modules.promotion.application.port.in;
 
+import iuh.fit.se.modules.promotion.domain.Coupon;
+
+import java.util.List;
 
 public interface PromotionInternalUseCase {
+
+    List<Coupon> getActiveCoupons();
     
     /**
      * Dùng cho Cart để kiểm tra mã (soft check), không trừ lượt dùng.

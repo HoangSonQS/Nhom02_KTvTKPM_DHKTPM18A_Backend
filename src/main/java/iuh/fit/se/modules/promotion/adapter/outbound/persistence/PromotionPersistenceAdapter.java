@@ -6,6 +6,7 @@ import iuh.fit.se.modules.promotion.domain.CouponReservation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,11 @@ public class PromotionPersistenceAdapter implements PromotionPersistencePort {
     @Override
     public List<Coupon> findAll() {
         return couponJpaRepository.findAll();
+    }
+
+    @Override
+    public List<Coupon> findActiveCoupons() {
+        return couponJpaRepository.findActiveCoupons(LocalDateTime.now());
     }
 
     @Override

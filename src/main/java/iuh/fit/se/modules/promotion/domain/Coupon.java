@@ -23,6 +23,9 @@ public class Coupon {
     @Column(nullable = false, unique = true, length = 50)
     private String code;
 
+    @Column(nullable = false, length = 150)
+    private String name;
+
     private String description;
 
     @Enumerated(EnumType.STRING)
@@ -113,9 +116,10 @@ public class Coupon {
     }
 
     /** Admin update — chỉ cho phép sửa các trường mutable, không đổi được code hay discountType. */
-    public void update(String description, java.math.BigDecimal discountValue,
+    public void update(String name, String description, java.math.BigDecimal discountValue,
                        java.math.BigDecimal minOrderValue, java.math.BigDecimal maxDiscountValue,
                        Integer usageLimit, LocalDateTime startDate, LocalDateTime endDate, boolean isActive) {
+        this.name = name;
         this.description = description;
         this.discountValue = discountValue;
         this.minOrderValue = minOrderValue;

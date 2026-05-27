@@ -2,8 +2,10 @@ package iuh.fit.se.modules.home.adapter.inbound.web;
 
 import iuh.fit.se.modules.home.application.port.in.HomeDiscoveryUseCase;
 import iuh.fit.se.shared.api.ApiResponse;
+import iuh.fit.se.shared.config.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -52,5 +54,17 @@ public class HomeDiscoveryController {
             @RequestParam(defaultValue = "8") int limit
     ) {
         return ResponseEntity.ok(ApiResponse.success(homeDiscoveryUseCase.getRankingBooks(type, limit)));
+    }
+
+    @GetMapping("/recommendations")
+    public ResponseEntity<ApiResponse<List<HomeDiscoveryUseCase.HomeBookResponse>>> getRecommendations(
+            @RequestParam(defaultValue = "8") int limit,
+            Authentication authentication
+    ) {
+        Long userId = null;
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            userId = principal.userId();
+        }
+        return ResponseEntity.ok(ApiResponse.success(homeDiscoveryUseCase.getRecommendations(userId, limit)));
     }
 }
