@@ -6,8 +6,8 @@ import iuh.fit.se.modules.account.application.port.out.AccountPersistencePort;
 import iuh.fit.se.modules.account.application.port.out.AdministrativeUnitLookupPort;
 import iuh.fit.se.modules.account.application.port.out.ProfileImagePort;
 import iuh.fit.se.modules.account.domain.Account;
-import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.modules.account.domain.Address;
+import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
@@ -17,9 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * AccountService — Implementation của các UseCase liên quan đến Account.
- */
 @Service
 @RequiredArgsConstructor
 public class AccountService implements AccountUseCase, AccountInternalUseCase {
@@ -30,39 +27,35 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Account getProfile(Long userId) {
-        return accountPersistencePort.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy profile"));
+    public AccountProfileResponse getProfile(Long userId) {
+        return mapToProfileResponse(findAccountByUserId(userId));
     }
 
     @Override
     @Transactional
-    public Account updateProfile(Long userId, UpdateProfileCommand command) {
-        Account account = getProfile(userId);
+    public AccountProfileResponse updateProfile(Long userId, UpdateProfileCommand command) {
+        Account account = findAccountByUserId(userId);
 
         String avatarUrl = account.getAvatarUrl();
         String avatarPublicId = account.getAvatarPublicId();
 
-        // Xử lý upload ảnh nếu có
         if (command.avatarFile() != null && command.avatarFile().length > 0) {
-            // Xóa ảnh cũ
             if (avatarPublicId != null) {
                 profileImagePort.deleteOldAvatar(avatarPublicId);
             }
-            // Upload mới
             CloudinaryUploadResult result = profileImagePort.uploadAvatar(command.avatarFile());
             avatarUrl = result.url();
             avatarPublicId = result.publicId();
         }
 
         account.updateProfile(command.phoneNumber(), avatarUrl, avatarPublicId);
-        return accountPersistencePort.save(account);
+        return mapToProfileResponse(accountPersistencePort.save(account));
     }
 
     @Override
     @Transactional
-    public Account addAddress(Long userId, AddressCommand command) {
-        Account account = getProfile(userId);
+    public AccountProfileResponse addAddress(Long userId, AddressCommand command) {
+        Account account = findAccountByUserId(userId);
 
         Address address = Address.builder()
                 .recipientName(command.recipientName())
@@ -74,13 +67,13 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
                 .build();
 
         account.addAddress(address);
-        return accountPersistencePort.save(account);
+        return mapToProfileResponse(accountPersistencePort.save(account));
     }
 
     @Override
     @Transactional
-    public Account updateAddress(Long userId, Long addressId, AddressCommand command) {
-        Account account = getProfile(userId);
+    public AccountProfileResponse updateAddress(Long userId, Long addressId, AddressCommand command) {
+        Account account = findAccountByUserId(userId);
 
         Address updatedData = Address.builder()
                 .recipientName(command.recipientName())
@@ -92,32 +85,79 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
                 .build();
 
         account.updateAddress(addressId, updatedData);
-        return accountPersistencePort.save(account);
+        return mapToProfileResponse(accountPersistencePort.save(account));
     }
 
     @Override
     @Transactional
-    public Account deleteAddress(Long userId, Long addressId) {
-        Account account = getProfile(userId);
+    public AccountProfileResponse deleteAddress(Long userId, Long addressId) {
+        Account account = findAccountByUserId(userId);
         account.removeAddress(addressId);
-        return accountPersistencePort.save(account);
+        return mapToProfileResponse(accountPersistencePort.save(account));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<AdministrativeProvince> getAddressUnits() {
-        return administrativeUnitLookupPort.findAllProvincesWithWards();
+    public List<ProvinceResponse> getAddressUnits() {
+        return administrativeUnitLookupPort.findAllProvincesWithWards().stream()
+                .map(this::mapToProvinceResponse)
+                .toList();
     }
 
     @Override
     @Transactional
     public void createDefaultProfile(Long userId) {
-        // Tránh tạo trùng lặp
         if (accountPersistencePort.findByUserId(userId).isPresent()) {
             return;
         }
 
         Account account = Account.createDefault(userId);
         accountPersistencePort.save(account);
+    }
+
+    private Account findAccountByUserId(Long userId) {
+        return accountPersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay profile"));
+    }
+
+    private AccountProfileResponse mapToProfileResponse(Account account) {
+        return new AccountProfileResponse(
+                account.getId(),
+                account.getUserId(),
+                account.getPhoneNumber(),
+                account.getAvatarUrl(),
+                account.isDeleted(),
+                account.getAddresses().stream()
+                        .map(address -> new AddressResponse(
+                                address.getId(),
+                                address.getRecipientName(),
+                                address.getPhoneNumber(),
+                                address.getStreet(),
+                                address.getWard(),
+                                address.getCity(),
+                                address.isDefault()))
+                        .toList());
+    }
+
+    private ProvinceResponse mapToProvinceResponse(AdministrativeProvince province) {
+        return new ProvinceResponse(
+                province.code(),
+                province.name(),
+                province.nameEn(),
+                province.fullName(),
+                province.fullNameEn(),
+                province.codeName(),
+                province.administrativeUnitId(),
+                province.wards().stream()
+                        .map(ward -> new WardResponse(
+                                ward.code(),
+                                ward.name(),
+                                ward.nameEn(),
+                                ward.fullName(),
+                                ward.fullNameEn(),
+                                ward.codeName(),
+                                ward.provinceCode(),
+                                ward.administrativeUnitId()))
+                        .toList());
     }
 }

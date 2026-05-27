@@ -3,8 +3,9 @@ package iuh.fit.se.modules.order.application.listener;
 import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnRequestApprovedIntegrationEvent;
 import iuh.fit.se.shared.event.returns.ReturnIntegrationEvents.ReturnRequestRefundedIntegrationEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Listener nhận return events từ module Returns.
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ReturnIntegrationEventListener {
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnApproved(ReturnRequestApprovedIntegrationEvent event) {
         // V27 migration: Order.fulfillmentStatus giữ nguyên DELIVERED.
         // Return state được track bởi ReturnRequest.returnStatus.
@@ -29,7 +30,7 @@ public class ReturnIntegrationEventListener {
                 "Order fulfillmentStatus remains DELIVERED. Return tracked via ReturnRequest.", event.orderId());
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleReturnRefunded(ReturnRequestRefundedIntegrationEvent event) {
         // V27 migration: No-op — chỉ log để audit trail.
         log.info("[V27] ReturnRequestRefundedIntegrationEvent received for Order {}. " +

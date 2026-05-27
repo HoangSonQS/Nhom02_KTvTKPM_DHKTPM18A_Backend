@@ -41,7 +41,6 @@ class AccountServiceTest {
 
     @Test
     void givenAccountExists_whenAddAddress_thenSuccessAndDefaultSet() {
-        // Arrange
         Long userId = 1L;
         Account account = Account.createDefault(userId);
         account.setId(10L);
@@ -49,20 +48,18 @@ class AccountServiceTest {
         when(accountPersistencePort.findByUserId(userId)).thenReturn(Optional.of(account));
         when(accountPersistencePort.save(any(Account.class))).thenAnswer(i -> i.getArgument(0));
 
-        var command = new AccountUseCase.AddressCommand("Test User", "0901234567", "123 Street", "Ward 1", "City", false);
+        var command = new AccountUseCase.AddressCommand(
+                "Test User", "0901234567", "123 Street", "Ward 1", "City", false);
 
-        // Act
-        Account result = accountService.addAddress(userId, command);
+        AccountUseCase.AccountProfileResponse result = accountService.addAddress(userId, command);
 
-        // Assert
-        assertThat(result.getAddresses()).hasSize(1);
-        assertThat(result.getAddresses().get(0).isDefault()).isTrue(); // Tự động set default cho cái đầu tiên
+        assertThat(result.addresses()).hasSize(1);
+        assertThat(result.addresses().get(0).isDefault()).isTrue();
         verify(accountPersistencePort).save(account);
     }
 
     @Test
     void givenExistingProfile_whenUpdateProfileWithImage_thenOldImageDeletedAndNewUploaded() {
-        // Arrange
         Long userId = 1L;
         Account account = Account.builder()
                 .userId(userId)
@@ -75,15 +72,11 @@ class AccountServiceTest {
         when(accountPersistencePort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         byte[] newImage = "new image content".getBytes();
-        var command = new AccountService.UpdateProfileCommand("0987654321", newImage);
+        var command = new AccountUseCase.UpdateProfileCommand("0987654321", newImage);
 
-        // Act
-        Account result = accountService.updateProfile(userId, command);
+        AccountUseCase.AccountProfileResponse result = accountService.updateProfile(userId, command);
 
-        // Assert
-        assertThat(result.getAvatarUrl()).isEqualTo("new-url");
-        assertThat(result.getAvatarPublicId()).isEqualTo("new-id");
-        
+        assertThat(result.avatarUrl()).isEqualTo("new-url");
         verify(profileImagePort).deleteOldAvatar("old-id");
         verify(profileImagePort).uploadAvatar(newImage);
     }
@@ -103,7 +96,9 @@ class AccountServiceTest {
                 "79", "Ho Chi Minh", null, "Thanh pho Ho Chi Minh", null, "ho_chi_minh", 1, List.of()));
         when(administrativeUnitLookupPort.findAllProvincesWithWards()).thenReturn(provinces);
 
-        assertThat(accountService.getAddressUnits()).isEqualTo(provinces);
+        assertThat(accountService.getAddressUnits())
+                .extracting(AccountUseCase.ProvinceResponse::code)
+                .containsExactly("79");
         verify(administrativeUnitLookupPort).findAllProvincesWithWards();
     }
 }

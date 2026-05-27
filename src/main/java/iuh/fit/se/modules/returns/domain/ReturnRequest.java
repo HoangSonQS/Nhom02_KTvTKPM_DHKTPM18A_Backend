@@ -43,6 +43,12 @@ public class ReturnRequest {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "evidence_image_url")
+    private String evidenceImageUrl;
+
+    @Column(name = "evidence_image_public_id")
+    private String evidenceImagePublicId;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "return_request_id")
     @Builder.Default
@@ -92,6 +98,11 @@ public class ReturnRequest {
         ReturnStatus oldStatus = this.status;
         this.status = ReturnStatus.APPROVED;
         addHistory(oldStatus, ReturnStatus.APPROVED, approvedBy, "Yêu cầu đã được duyệt");
+    }
+
+    public void attachEvidenceImage(String imageUrl, String imagePublicId) {
+        this.evidenceImageUrl = imageUrl;
+        this.evidenceImagePublicId = imagePublicId;
     }
 
     public void markAsReceived(String receivedBy, List<ItemCondition> conditions) {

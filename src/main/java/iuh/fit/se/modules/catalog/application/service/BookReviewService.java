@@ -5,9 +5,13 @@ import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
 import iuh.fit.se.modules.catalog.application.port.out.BookReviewPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.modules.catalog.domain.BookReview;
+import iuh.fit.se.modules.catalog.domain.BookReviewHandlingHistory;
+import iuh.fit.se.modules.catalog.domain.ReviewHandlingStatus;
+import iuh.fit.se.shared.event.realtime.ReviewRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -23,6 +27,7 @@ public class BookReviewService implements BookReviewUseCase {
 
     private final BookReviewPersistencePort reviewPersistencePort;
     private final BookPersistencePort bookPersistencePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -74,6 +79,7 @@ public class BookReviewService implements BookReviewUseCase {
                 .orElseGet(() -> BookReview.builder()
                         .bookId(bookId)
                         .userId(command.userId())
+                        .orderId(command.orderId())
                         .reviewerName(command.reviewerName())
                         .reviewerEmail(command.reviewerEmail())
                         .rating(command.rating())
@@ -81,8 +87,25 @@ public class BookReviewService implements BookReviewUseCase {
                         .editCount(0)
                         .build());
 
+        review.flagIfCritical();
         BookReview saved = reviewPersistencePort.save(review);
         refreshBookRating(bookId);
+        if (saved.getRating() <= 2) {
+            reviewPersistencePort.saveHistory(BookReviewHandlingHistory.builder()
+                    .reviewId(saved.getId())
+                    .action("AUTO_FLAGGED")
+                    .fromStatus("NORMAL")
+                    .toStatus(saved.getHandlingStatus().name())
+                    .note("Hệ thống tự động gắn cờ vì đánh giá 1-2 sao")
+                    .build());
+        }
+        eventPublisher.publishEvent(ReviewRealtimeEvent.changed(
+                saved.getId(),
+                saved.getBookId(),
+                saved.getUserId(),
+                saved.getRating(),
+                saved.getHandlingStatus().name()
+        ));
         return toResponse(saved);
     }
 
@@ -95,6 +118,68 @@ public class BookReviewService implements BookReviewUseCase {
         Long bookId = review.getBookId();
         reviewPersistencePort.delete(review);
         refreshBookRating(bookId);
+    }
+
+    @Override
+    @Transactional
+    public BookReviewResponse updateReviewHandling(Long reviewId, ReviewHandlingCommand command) {
+        BookReview review = reviewPersistencePort.findById(reviewId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay danh gia"));
+        if (normalizeContent(command.publicReply()) == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Noi dung phan hoi khong duoc de trong");
+        }
+
+        ReviewHandlingStatus nextStatus = parseStatus(command.status());
+        ReviewHandlingStatus previous = review.updateHandling(
+                command.issueType(),
+                command.publicReply(),
+                command.supportAction(),
+                nextStatus,
+                command.adminUserId()
+        );
+        BookReview saved = reviewPersistencePort.save(review);
+        reviewPersistencePort.saveHistory(BookReviewHandlingHistory.builder()
+                .reviewId(saved.getId())
+                .action("ADMIN_HANDLED")
+                .fromStatus(previous.name())
+                .toStatus(saved.getHandlingStatus().name())
+                .issueType(saved.getIssueType())
+                .publicReply(saved.getAdminPublicReply())
+                .supportAction(saved.getSupportAction())
+                .note(normalizeContent(command.note()))
+                .handledByUserId(command.adminUserId())
+                .build());
+        eventPublisher.publishEvent(ReviewRealtimeEvent.changed(
+                saved.getId(),
+                saved.getBookId(),
+                saved.getUserId(),
+                saved.getRating(),
+                saved.getHandlingStatus().name()
+        ));
+        return toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReviewHandlingHistoryResponse> getReviewHandlingHistory(Long reviewId) {
+        if (reviewPersistencePort.findById(reviewId).isEmpty()) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay danh gia");
+        }
+        return reviewPersistencePort.findHistoryByReviewId(reviewId).stream()
+                .map(history -> new ReviewHandlingHistoryResponse(
+                        history.getId(),
+                        history.getReviewId(),
+                        history.getAction(),
+                        history.getFromStatus(),
+                        history.getToStatus(),
+                        history.getIssueType(),
+                        history.getPublicReply(),
+                        history.getSupportAction(),
+                        history.getNote(),
+                        history.getHandledByUserId(),
+                        history.getCreatedAt()
+                ))
+                .toList();
     }
 
     private void validate(Long bookId, ReviewCommand command) {
@@ -135,11 +220,31 @@ public class BookReviewService implements BookReviewUseCase {
                 review.getReviewerEmail(),
                 review.getRating(),
                 review.getContent(),
+                review.getOrderId(),
                 review.getEditCount(),
                 review.getEditCount() < 1,
+                review.getHandlingStatus().name(),
+                review.getIssueType(),
+                review.getAdminPublicReply(),
+                review.getAdminRepliedAt(),
+                review.getSupportAction(),
+                review.getFlaggedAt(),
+                review.getHandledByUserId(),
+                review.getHandledAt(),
                 review.getCreatedAt(),
                 review.getUpdatedAt()
         );
+    }
+
+    private ReviewHandlingStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return ReviewHandlingStatus.IN_PROGRESS;
+        }
+        try {
+            return ReviewHandlingStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Trang thai xu ly danh gia khong hop le");
+        }
     }
 
     private String normalizeContent(String content) {

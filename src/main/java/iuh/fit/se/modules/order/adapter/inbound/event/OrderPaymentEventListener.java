@@ -5,9 +5,11 @@ import iuh.fit.se.modules.order.application.port.out.PromotionPort;
 import iuh.fit.se.shared.event.payment.PaymentSuccessIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
@@ -17,8 +19,8 @@ public class OrderPaymentEventListener {
     private final OrderInternalUseCase orderUseCase;
     private final PromotionPort promotionPort;
 
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePaymentSuccess(PaymentSuccessIntegrationEvent event) {
         log.info("PaymentSuccessIntegrationEvent received for Order {}. Finalizing status and coupon...", event.orderId());
         

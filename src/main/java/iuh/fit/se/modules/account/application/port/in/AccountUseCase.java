@@ -1,7 +1,5 @@
 package iuh.fit.se.modules.account.application.port.in;
 
-import iuh.fit.se.modules.account.domain.Account;
-import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -11,17 +9,17 @@ import java.util.List;
  */
 public interface AccountUseCase {
 
-    Account getProfile(Long userId);
+    AccountProfileResponse getProfile(Long userId);
 
-    Account updateProfile(Long userId, UpdateProfileCommand command);
+    AccountProfileResponse updateProfile(Long userId, UpdateProfileCommand command);
 
-    Account addAddress(Long userId, AddressCommand command);
+    AccountProfileResponse addAddress(Long userId, AddressCommand command);
 
-    Account updateAddress(Long userId, Long addressId, AddressCommand command);
+    AccountProfileResponse updateAddress(Long userId, Long addressId, AddressCommand command);
 
-    Account deleteAddress(Long userId, Long addressId);
+    AccountProfileResponse deleteAddress(Long userId, Long addressId);
 
-    List<AdministrativeProvince> getAddressUnits();
+    List<ProvinceResponse> getAddressUnits();
 
     void createDefaultProfile(Long userId);
 
@@ -43,5 +41,46 @@ public interface AccountUseCase {
             @NotBlank(message = "Tinh/Thanh pho khong duoc de trong")
             String city,
             boolean isDefault) {
+    }
+
+    record AccountProfileResponse(
+            Long id,
+            Long userId,
+            String phoneNumber,
+            String avatarUrl,
+            boolean deleted,
+            List<AddressResponse> addresses) {
+    }
+
+    record AddressResponse(
+            Long id,
+            String recipientName,
+            String phoneNumber,
+            String street,
+            String ward,
+            String city,
+            boolean isDefault) {
+    }
+
+    record ProvinceResponse(
+            String code,
+            String name,
+            String nameEn,
+            String fullName,
+            String fullNameEn,
+            String codeName,
+            Integer administrativeUnitId,
+            List<WardResponse> wards) {
+    }
+
+    record WardResponse(
+            String code,
+            String name,
+            String nameEn,
+            String fullName,
+            String fullNameEn,
+            String codeName,
+            String provinceCode,
+            Integer administrativeUnitId) {
     }
 }

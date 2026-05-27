@@ -11,5 +11,7 @@ import java.util.List;
 public interface JpaReturnRequestRepository extends JpaRepository<ReturnRequest, String> {
     List<ReturnRequest> findByStatus(ReturnStatus status);
     List<ReturnRequest> findByCustomerId(Long customerId);
+    List<ReturnRequest> findByCustomerIdOrderByCreatedAtDescIdDesc(Long customerId);
+    List<ReturnRequest> findAllByOrderByCreatedAtDescIdDesc();
     List<ReturnRequest> findByOrderId(Long orderId);
 }

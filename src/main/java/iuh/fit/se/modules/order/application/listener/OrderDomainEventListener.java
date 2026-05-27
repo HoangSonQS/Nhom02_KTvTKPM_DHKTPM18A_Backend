@@ -18,7 +18,7 @@ public class OrderDomainEventListener {
 
     private final OrderEventPort orderEventPort;
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleOrderCreated(OrderCreatedDomainEvent domainEvent) {
         log.info("Handling OrderCreatedDomainEvent for order: {}", domainEvent.getOrderId());
 
@@ -35,7 +35,7 @@ public class OrderDomainEventListener {
         orderEventPort.publishOrderCreated(integrationEvent);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleOrderFulfillmentStatusChanged(OrderFulfillmentStatusChangedEvent domainEvent) {
         log.info("Handling OrderFulfillmentStatusChangedEvent for order: {}", domainEvent.getOrderId());
 

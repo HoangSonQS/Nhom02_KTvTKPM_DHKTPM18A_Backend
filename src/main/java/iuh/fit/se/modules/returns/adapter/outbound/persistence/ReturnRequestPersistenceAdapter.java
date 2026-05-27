@@ -31,6 +31,11 @@ public class ReturnRequestPersistenceAdapter implements ReturnRequestRepository 
     }
 
     @Override
+    public List<ReturnRequest> findAllNewestFirst() {
+        return jpaRepository.findAllByOrderByCreatedAtDescIdDesc();
+    }
+
+    @Override
     public List<ReturnRequest> findByStatus(ReturnStatus status) {
         return jpaRepository.findByStatus(status);
     }
@@ -38,6 +43,11 @@ public class ReturnRequestPersistenceAdapter implements ReturnRequestRepository 
     @Override
     public List<ReturnRequest> findByCustomerId(Long customerId) {
         return jpaRepository.findByCustomerId(customerId);
+    }
+
+    @Override
+    public List<ReturnRequest> findByCustomerIdNewestFirst(Long customerId) {
+        return jpaRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(customerId);
     }
 
     @Override

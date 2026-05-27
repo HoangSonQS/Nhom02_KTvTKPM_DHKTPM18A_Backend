@@ -18,8 +18,8 @@ public class AiVisionController {
     private final AiVisionUseCase visionUseCase;
 
     @PostMapping
-    public ResponseEntity<OcrResult> recognize(@RequestParam("file") MultipartFile file) {
-        OcrResult result = visionUseCase.recognizeBook(file);
+    public ResponseEntity<OcrResult> recognize(@RequestParam("file") MultipartFile file) throws java.io.IOException {
+        OcrResult result = visionUseCase.recognizeBook(file.getBytes());
         return ResponseEntity.ok(result);
     }
 }

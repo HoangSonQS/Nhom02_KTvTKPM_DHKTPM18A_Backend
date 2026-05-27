@@ -2,6 +2,7 @@ package iuh.fit.se.modules.catalog.adapter.outbound.persistence;
 
 import iuh.fit.se.modules.catalog.application.port.out.BookReviewPersistencePort;
 import iuh.fit.se.modules.catalog.domain.BookReview;
+import iuh.fit.se.modules.catalog.domain.BookReviewHandlingHistory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ import java.util.Optional;
 public class BookReviewPersistenceAdapter implements BookReviewPersistencePort {
 
     private final BookReviewJpaRepository repository;
+    private final BookReviewHandlingHistoryJpaRepository historyRepository;
 
     @Override
     public List<BookReview> findByBookIdOrderByUpdatedAtDesc(Long bookId) {
@@ -42,6 +44,16 @@ public class BookReviewPersistenceAdapter implements BookReviewPersistencePort {
     @Override
     public void delete(BookReview review) {
         repository.delete(review);
+    }
+
+    @Override
+    public BookReviewHandlingHistory saveHistory(BookReviewHandlingHistory history) {
+        return historyRepository.save(history);
+    }
+
+    @Override
+    public List<BookReviewHandlingHistory> findHistoryByReviewId(Long reviewId) {
+        return historyRepository.findByReviewIdOrderByCreatedAtDesc(reviewId);
     }
 
     @Override

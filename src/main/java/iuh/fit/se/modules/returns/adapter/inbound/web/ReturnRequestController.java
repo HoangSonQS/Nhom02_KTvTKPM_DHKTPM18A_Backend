@@ -9,7 +9,9 @@ import iuh.fit.se.shared.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,9 +22,24 @@ public class ReturnRequestController {
 
     private final ReturnRequestUseCase returnRequestUseCase;
 
-    @PostMapping("/returns")
+    @PostMapping(value = "/returns", consumes = "application/json")
     @PreAuthorize("hasAuthority('RETURN_CREATE')")
     public ApiResponse<ReturnRequestResponseDTO> createReturn(@RequestBody CreateReturnRequestDTO dto) {
+        return ApiResponse.success(mapToDTO(createReturnRequest(dto, null)));
+    }
+
+    @PostMapping(value = "/returns", consumes = "multipart/form-data")
+    @PreAuthorize("hasAuthority('RETURN_CREATE')")
+    public ApiResponse<ReturnRequestResponseDTO> createReturnWithEvidence(
+            @RequestPart("payload") CreateReturnRequestDTO dto,
+            @RequestPart(value = "evidenceImage", required = false) MultipartFile evidenceImage) throws IOException {
+        byte[] evidenceImageBytes = evidenceImage != null && !evidenceImage.isEmpty()
+                ? evidenceImage.getBytes()
+                : null;
+        return ApiResponse.success(mapToDTO(createReturnRequest(dto, evidenceImageBytes)));
+    }
+
+    private ReturnRequest createReturnRequest(CreateReturnRequestDTO dto, byte[] evidenceImageBytes) {
         // In real app, get customerId from SecurityContext
         Long customerId = 1L; 
 
@@ -31,6 +48,7 @@ public class ReturnRequestController {
                 .customerId(customerId)
                 .reason(dto.getReason())
                 .notes(dto.getNotes())
+                .evidenceImageFile(evidenceImageBytes)
                 .items(dto.getItems().stream()
                         .map(item -> ReturnRequestUseCase.ReturnItemCommand.builder()
                                 .bookId(item.getBookId())
@@ -39,7 +57,7 @@ public class ReturnRequestController {
                         .collect(Collectors.toList()))
                 .build();
 
-        return ApiResponse.success(mapToDTO(returnRequestUseCase.createReturn(command)));
+        return returnRequestUseCase.createReturn(command);
     }
 
     @GetMapping("/returns/my")
@@ -96,6 +114,7 @@ public class ReturnRequestController {
                 .refundAmount(request.getRefundAmount())
                 .reason(request.getReason().name())
                 .notes(request.getNotes())
+                .evidenceImageUrl(request.getEvidenceImageUrl())
                 .createdAt(request.getCreatedAt())
                 .items(request.getItems().stream()
                         .map((ReturnItem item) -> ReturnRequestResponseDTO.ReturnItemResponseDTO.builder()
