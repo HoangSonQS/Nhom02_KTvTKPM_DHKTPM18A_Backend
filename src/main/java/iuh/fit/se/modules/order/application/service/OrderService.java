@@ -426,6 +426,42 @@ public class OrderService implements OrderInternalUseCase {
 
     @Override
     @Transactional
+    public OrderResponse confirmMyOrderReceived(Long orderId, Long userId) {
+        Order order = orderPersistencePort.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+
+        FulfillmentStatus fromStatus = order.getFulfillmentStatus();
+        if (fromStatus != FulfillmentStatus.DELIVERING) {
+            throw new InvalidOrderTransitionException("Chỉ có thể xác nhận đã nhận hàng khi đơn đang giao");
+        }
+
+        order.markDelivered();
+        Order saved = orderPersistencePort.save(order);
+        OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
+        String reason = "Customer confirmed order received";
+
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                fromStatus,
+                FulfillmentStatus.DELIVERED,
+                reason,
+                customer.getFullName(),
+                customer.getEmail()
+        ));
+        eventPublisher.publishEvent(OrderRealtimeEvent.statusChanged(
+                saved.getId(),
+                saved.getUserId(),
+                saved.getTotalAmount(),
+                saved.getFulfillmentStatus().name()
+        ));
+        publishAudit("CUSTOMER_CONFIRM_ORDER_RECEIVED", orderId, fromStatus, FulfillmentStatus.DELIVERED, reason);
+        log.info("Order {} marked DELIVERED by customer {}", orderId, userId);
+
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public void markOrderAsPaid(Long orderId) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));

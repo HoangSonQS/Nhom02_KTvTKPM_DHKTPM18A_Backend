@@ -58,6 +58,14 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAuthority('ORDER_CONFIRM_RECEIVED')")
+    @PutMapping("/{id}/received")
+    public ResponseEntity<ApiResponse<OrderInternalUseCase.OrderResponse>> confirmMyOrderReceived(@PathVariable Long id) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        OrderInternalUseCase.OrderResponse response = orderUseCase.confirmMyOrderReceived(id, userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     record CancelOrderRequest(String reason) {
     }
 }

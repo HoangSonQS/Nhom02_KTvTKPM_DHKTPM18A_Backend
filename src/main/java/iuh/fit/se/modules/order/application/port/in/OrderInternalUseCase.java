@@ -16,6 +16,8 @@ public interface OrderInternalUseCase {
 
     OrderResponse cancelMyPendingOrder(Long orderId, Long userId, String reason);
 
+    OrderResponse confirmMyOrderReceived(Long orderId, Long userId);
+
     void markOrderAsPaid(Long orderId);
 
     // Admin/Staff methods
