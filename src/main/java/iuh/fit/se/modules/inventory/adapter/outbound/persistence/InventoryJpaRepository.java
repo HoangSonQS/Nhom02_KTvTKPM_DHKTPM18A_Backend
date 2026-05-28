@@ -34,4 +34,8 @@ public interface InventoryJpaRepository extends JpaRepository<InventoryStock, Lo
     @Modifying(clearAutomatically = true)
     @Query("UPDATE InventoryStock i SET i.quantity = i.quantity + :adjustmentQuantity WHERE i.bookId = :bookId")
     void updateStock(@Param("bookId") Long bookId, @Param("adjustmentQuantity") Integer adjustmentQuantity);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InventoryStock i SET i.quantity = :quantity, i.version = i.version + 1, i.updatedAt = CURRENT_TIMESTAMP WHERE i.bookId = :bookId")
+    int setQuantity(@Param("bookId") Long bookId, @Param("quantity") int quantity);
 }

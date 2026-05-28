@@ -19,6 +19,7 @@ public interface InventoryPersistencePort {
     List<InventoryStock> findStocksByBookIds(List<Long> bookIds);
     List<InventoryStock> findAllStocks();
     void saveStock(InventoryStock stock);
+    int setStockQuantity(Long bookId, int quantity);
     int decreaseStockAtomically(Long bookId, int amount, Long version);
     int increaseStockAtomically(Long bookId, int amount, Long version);
 
