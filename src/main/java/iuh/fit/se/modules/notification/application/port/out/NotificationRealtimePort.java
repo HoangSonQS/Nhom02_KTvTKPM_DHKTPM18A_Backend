@@ -11,5 +11,7 @@ public interface NotificationRealtimePort {
 
     void publishEventToUser(Long userId, RealtimeEventResponse event);
 
+    void publishEventToUserExceptDevice(Long userId, String excludedDeviceId, RealtimeEventResponse event);
+
     void publishEventToRoles(Set<String> roles, RealtimeEventResponse event);
 }

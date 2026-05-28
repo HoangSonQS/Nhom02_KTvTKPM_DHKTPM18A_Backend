@@ -2,34 +2,31 @@ package iuh.fit.se.modules.notification.adapter.inbound.event;
 
 import iuh.fit.se.modules.notification.application.port.in.RealtimeEventResponse;
 import iuh.fit.se.modules.notification.application.service.NotificationService;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.SessionRealtimeEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import java.util.Set;
-
 @Component
 @RequiredArgsConstructor
-public class AdminDataChangedRealtimeEventListener {
-
-    private static final Set<String> AFFECTED_ROLES = Set.of("ADMIN", "STAFF_SELLER", "STAFF_WAREHOUSE", "CUSTOMER", "PUBLIC");
+public class SessionRealtimeEventListener {
 
     private final NotificationService notificationService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void handleAdminDataChanged(AdminDataChangedRealtimeEvent event) {
-        notificationService.publishRealtimeToRoles(AFFECTED_ROLES, new RealtimeEventResponse(
-                "ADMIN_DATA_CHANGED",
+    public void handleSessionRealtime(SessionRealtimeEvent event) {
+        RealtimeEventResponse payload = new RealtimeEventResponse(
+                event.type(),
+                null,
+                event.userId(),
                 null,
                 null,
                 null,
                 null,
-                null,
-                event.source(),
                 event.message(),
                 event.occurredAt()
-        ));
+        );
+        notificationService.publishRealtimeToUserExceptDevice(event.userId(), event.activeDeviceId(), payload);
     }
 }

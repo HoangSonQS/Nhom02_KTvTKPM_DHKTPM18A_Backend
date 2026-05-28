@@ -9,10 +9,12 @@ import iuh.fit.se.modules.auth.domain.Role;
 import iuh.fit.se.modules.auth.domain.User;
 import iuh.fit.se.modules.account.application.port.in.AccountInternalUseCase;
 import iuh.fit.se.shared.config.JwtTokenProvider;
+import iuh.fit.se.shared.event.realtime.SessionRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,7 @@ public class AuthService implements AuthUseCase, AuthInternalUseCase {
     private final RefreshTokenPersistencePort refreshTokenPersistencePort;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -72,6 +75,8 @@ public class AuthService implements AuthUseCase, AuthInternalUseCase {
                 : deviceId;
 
         // Lấy và tăng rv (Refresh Version) cho thiết bị này
+        refreshTokenPersistencePort.revokeAllUserSessions(user.getId().toString());
+        eventPublisher.publishEvent(SessionRealtimeEvent.expiredByNewLogin(user.getId(), effectiveDeviceId));
         Integer rv = refreshTokenPersistencePort.incrementAndGetVersion(user.getId().toString(), effectiveDeviceId);
 
         return generateTokenPair(user, effectiveDeviceId, rv);
@@ -157,6 +162,8 @@ public class AuthService implements AuthUseCase, AuthInternalUseCase {
         accessClaims.put("userId", user.getId());
         accessClaims.put("role", user.getRole().name());
         accessClaims.put("fullName", user.getFullName());
+        accessClaims.put("deviceId", deviceId);
+        accessClaims.put("rv", rv);
         accessClaims.put("permissions", user.getRole().getPermissions().stream()
                 .map(Permission::name)
                 .collect(Collectors.toSet()));

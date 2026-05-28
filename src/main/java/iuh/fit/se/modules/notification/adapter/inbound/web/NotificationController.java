@@ -49,7 +49,13 @@ public class NotificationController {
             throw new IllegalArgumentException("Token khong hop le");
         }
         String role = claims.get("role", String.class);
-        return notificationSseAdapter.subscribe(number.longValue(), role);
+        String deviceId = claims.get("deviceId", String.class);
+        return notificationSseAdapter.subscribe(number.longValue(), role, deviceId);
+    }
+
+    @GetMapping("/public-stream")
+    public SseEmitter publicStream() {
+        return notificationSseAdapter.subscribePublic();
     }
 
     @PutMapping("/{id}/read")

@@ -1,6 +1,7 @@
 package iuh.fit.se.modules.auth.adapter.outbound.cache;
 
 import iuh.fit.se.modules.auth.application.port.out.RefreshTokenPersistencePort;
+import iuh.fit.se.shared.security.AccessTokenSessionValidator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -10,7 +11,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class RedisRefreshTokenAdapter implements RefreshTokenPersistencePort {
+public class RedisRefreshTokenAdapter implements RefreshTokenPersistencePort, AccessTokenSessionValidator {
 
     private final RedisTemplate<String, String> stringRedisTemplate;
 
@@ -64,6 +65,15 @@ public class RedisRefreshTokenAdapter implements RefreshTokenPersistencePort {
     public Integer getCurrentVersion(String userId, String deviceId) {
         String version = stringRedisTemplate.opsForValue().get(getVersionKey(userId, deviceId));
         return version != null ? Integer.parseInt(version) : 0;
+    }
+
+    @Override
+    public boolean isActive(Long userId, String deviceId, Integer refreshVersion) {
+        if (userId == null || deviceId == null || deviceId.isBlank() || refreshVersion == null) {
+            return false;
+        }
+        Integer currentVersion = getCurrentVersion(userId.toString(), deviceId);
+        return refreshVersion.equals(currentVersion);
     }
 
     @Override

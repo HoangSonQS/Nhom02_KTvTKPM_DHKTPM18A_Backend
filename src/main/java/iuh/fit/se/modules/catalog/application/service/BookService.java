@@ -4,11 +4,14 @@ import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.BookImagePort;
 import iuh.fit.se.modules.catalog.application.port.out.BookPersistencePort;
+import iuh.fit.se.modules.inventory.application.port.in.InventoryAdminUseCase;
 import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
+import iuh.fit.se.modules.inventory.application.port.in.StockResult;
 import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.shared.event.catalog.BookCreatedEvent;
 import iuh.fit.se.shared.event.catalog.BookUpdatedEvent;
 import iuh.fit.se.shared.event.catalog.BookDeletedEvent;
+import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
@@ -38,12 +41,15 @@ public class BookService implements BookUseCase {
     private final BookImagePort bookImagePort;
     private final ApplicationEventPublisher eventPublisher;
     private final InventoryInternalUseCase inventoryInternalUseCase;
+    private final InventoryAdminUseCase inventoryAdminUseCase;
 
     @Override
     @Transactional
     @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_CREATE_BOOK")
     @CacheEvict(value = "books", allEntries = true)
     public BookDTO createBook(CreateBookCommand command) {
+        validateQuantity(command.quantity());
+
         String imageUrl = null;
         String imagePublicId = null;
 
@@ -75,6 +81,7 @@ public class BookService implements BookUseCase {
                 command.originalPrice());
 
         Book savedBook = bookPersistencePort.save(book);
+        inventoryAdminUseCase.initializeStock(savedBook.getId(), command.quantity());
 
         // Publish event for AI module and Inventory module
         eventPublisher.publishEvent(BookCreatedEvent.builder()
@@ -84,8 +91,12 @@ public class BookService implements BookUseCase {
                 .price(savedBook.getPrice())
                 .initialQuantity(command.quantity())
                 .build());
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "BOOK",
+                "Da them sach " + savedBook.getTitle()
+        ));
 
-        return BookDtoMapper.toDto(savedBook);
+        return BookDtoMapper.toDto(savedBook, command.quantity());
     }
 
     @Override
@@ -98,6 +109,10 @@ public class BookService implements BookUseCase {
     public BookDTO updateBook(Long id, UpdateBookCommand command) {
         Book book = bookPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách"));
+
+        if (command.quantity() != null) {
+            validateQuantity(command.quantity());
+        }
 
         book.updateBasicInfo(
                 command.title(),
@@ -127,6 +142,10 @@ public class BookService implements BookUseCase {
         }
 
         Book updatedBook = bookPersistencePort.save(book);
+        Integer realQuantity = command.quantity();
+        if (realQuantity != null) {
+            reconcileInventoryQuantity(updatedBook.getId(), realQuantity);
+        }
 
         // Phát sự kiện cập nhật
         eventPublisher.publishEvent(BookUpdatedEvent.builder()
@@ -135,8 +154,34 @@ public class BookService implements BookUseCase {
                 .author(updatedBook.getAuthor())
                 .description(updatedBook.getDescription())
                 .build());
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "BOOK",
+                "Da cap nhat sach " + updatedBook.getTitle()
+        ));
 
-        return BookDtoMapper.toDto(updatedBook);
+        return BookDtoMapper.toDto(updatedBook, realQuantity);
+    }
+
+    private void validateQuantity(int quantity) {
+        if (quantity < 0) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "So luong sach khong duoc am");
+        }
+    }
+
+    private void reconcileInventoryQuantity(Long bookId, int targetQuantity) {
+        StockResult currentStock = inventoryInternalUseCase.getAvailableStock(bookId);
+
+        if (currentStock == null || currentStock.getStatus() != StockResult.Status.SUCCESS) {
+            inventoryAdminUseCase.initializeStock(bookId, targetQuantity);
+            return;
+        }
+
+        int delta = targetQuantity - currentStock.getRemainingQuantity();
+        if (delta > 0) {
+            inventoryAdminUseCase.increaseStock(bookId, delta);
+        } else if (delta < 0) {
+            inventoryAdminUseCase.decreaseStock(bookId, Math.abs(delta));
+        }
     }
 
     @Override
@@ -155,6 +200,10 @@ public class BookService implements BookUseCase {
         eventPublisher.publishEvent(BookDeletedEvent.builder()
                 .bookId(id)
                 .build());
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "BOOK",
+                "Da xoa sach #" + id
+        ));
 
         if (publicId != null) {
             bookImagePort.deleteBookImage(publicId);

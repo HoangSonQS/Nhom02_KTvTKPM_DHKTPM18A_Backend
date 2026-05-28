@@ -1,11 +1,13 @@
 package iuh.fit.se.shared.config;
 
+import iuh.fit.se.shared.security.AccessTokenSessionValidator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,8 +19,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Filter xác thực JWT cho mỗi request.
- * Đọc Bearer token từ Authorization header, xác thực và set SecurityContext.
+ * Reads Bearer access tokens, validates the active login session, then sets the SecurityContext.
  */
 @Slf4j
 @Component
@@ -26,6 +27,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final ObjectProvider<AccessTokenSessionValidator> accessTokenSessionValidatorProvider;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -38,10 +40,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String subject = claims.getSubject();
                 String role = claims.get("role", String.class);
                 Long userId = claims.get("userId", Long.class);
+                String deviceId = claims.get("deviceId", String.class);
+                Integer refreshVersion = claims.get("rv", Integer.class);
                 @SuppressWarnings("unchecked")
                 List<String> permissions = claims.get("permissions", List.class);
 
-                // Gộp ROLE_ và các Permissions vào Authorities
+                AccessTokenSessionValidator accessTokenSessionValidator =
+                        accessTokenSessionValidatorProvider.getIfAvailable();
+                if (accessTokenSessionValidator != null
+                        && !accessTokenSessionValidator.isActive(userId, deviceId, refreshVersion)) {
+                    log.debug("Rejected access token from inactive session. userId={}, deviceId={}", userId, deviceId);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 java.util.Set<SimpleGrantedAuthority> authorities = new java.util.HashSet<>();
                 if (role != null) {
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + role));

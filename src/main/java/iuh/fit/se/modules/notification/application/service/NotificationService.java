@@ -177,6 +177,13 @@ public class NotificationService implements NotificationAdminPort, NotificationC
         realtimePort.publishEventToUser(userId, event);
     }
 
+    public void publishRealtimeToUserExceptDevice(Long userId, String excludedDeviceId, RealtimeEventResponse event) {
+        if (userId == null) {
+            return;
+        }
+        realtimePort.publishEventToUserExceptDevice(userId, excludedDeviceId, event);
+    }
+
     public void publishRealtimeToRoles(Set<String> roles, RealtimeEventResponse event) {
         realtimePort.publishEventToRoles(roles, event);
     }
