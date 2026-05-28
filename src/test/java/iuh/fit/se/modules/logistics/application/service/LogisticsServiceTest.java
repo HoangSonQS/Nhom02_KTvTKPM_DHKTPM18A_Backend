@@ -1,5 +1,7 @@
 package iuh.fit.se.modules.logistics.application.service;
 
+import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
+import iuh.fit.se.modules.inventory.application.port.in.StockResult;
 import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -36,6 +39,10 @@ class LogisticsServiceTest {
     private LogisticsOutboxPersistencePort outboxPort;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private InventoryInternalUseCase inventoryUseCase;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private LogisticsService logisticsService;
@@ -71,6 +78,12 @@ class LogisticsServiceTest {
     void receivePOServiceTest() {
         when(poPort.findById(1L)).thenReturn(Optional.of(po));
         when(poPort.save(any())).thenReturn(po);
+        when(inventoryUseCase.increaseStock(1L, 5, "PO_RECEIVED_1_1"))
+                .thenReturn(StockResult.builder()
+                        .status(StockResult.Status.SUCCESS)
+                        .bookId(1L)
+                        .remainingQuantity(15)
+                        .build());
         // Setup PO Approved
         po.submit("ROLE_STAFF_WAREHOUSE");
         po.approve("ROLE_ADMIN", "admin1");
@@ -78,6 +91,7 @@ class LogisticsServiceTest {
         logisticsService.receivePurchaseOrder(1L, "ROLE_STAFF_WAREHOUSE", "staff1");
 
         assertEquals(PurchaseOrderStatus.RECEIVED, po.getStatus());
-        verify(outboxPort, times(1)).save(any()); // 1 item -> 1 event
+        verify(inventoryUseCase).increaseStock(1L, 5, "PO_RECEIVED_1_1");
+        verify(outboxPort, never()).save(any());
     }
 }

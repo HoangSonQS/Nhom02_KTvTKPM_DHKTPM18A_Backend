@@ -5,9 +5,11 @@ import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.promotion.application.port.in.FlashSaleUseCase;
 import iuh.fit.se.modules.promotion.application.port.out.FlashSalePersistencePort;
 import iuh.fit.se.modules.promotion.domain.FlashSale;
+import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class FlashSaleService implements FlashSaleUseCase {
 
     private final FlashSalePersistencePort persistencePort;
     private final BookUseCase bookUseCase;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -124,7 +127,12 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .endAt(command.endAt())
                 .active(command.active())
                 .build();
-        return toResponse(persistencePort.save(sale));
+        FlashSaleResponse response = toResponse(persistencePort.save(sale));
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "FLASH_SALE",
+                "Đã tạo Flash Sale cho sách #" + command.bookId()
+        ));
+        return response;
     }
 
     @Override
@@ -134,13 +142,22 @@ public class FlashSaleService implements FlashSaleUseCase {
         FlashSale sale = persistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay flash sale"));
         sale.update(command.bookId(), command.saleQuantity(), command.discountPercent(), command.startAt(), command.endAt(), command.active());
-        return toResponse(persistencePort.save(sale));
+        FlashSaleResponse response = toResponse(persistencePort.save(sale));
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "FLASH_SALE",
+                "Đã cập nhật Flash Sale #" + id
+        ));
+        return response;
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
         persistencePort.deleteById(id);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "FLASH_SALE",
+                "Đã xóa Flash Sale #" + id
+        ));
     }
 
     private void validate(FlashSaleCommand command) {

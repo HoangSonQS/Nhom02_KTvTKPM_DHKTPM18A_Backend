@@ -18,7 +18,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
@@ -38,19 +37,14 @@ class InventoryServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    @Mock
-    private ApplicationContext applicationContext;
-
     private InventoryService inventoryService;
  
     @BeforeEach
     void setUp() {
         // Manually create and spy
-        InventoryService raw = new InventoryService(persistencePort, eventPublisher, applicationContext);
+        InventoryService raw = new InventoryService(persistencePort, eventPublisher);
         inventoryService = spy(raw);
-        
-        // Mock applicationContext to return the spy itself for getSelf()
-        lenient().when(applicationContext.getBean(InventoryService.class)).thenReturn(inventoryService);
+        raw.setSelf(inventoryService);
     }
 
     @Test
