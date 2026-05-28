@@ -1,11 +1,13 @@
 package iuh.fit.se.modules.logistics.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
 import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
 import iuh.fit.se.modules.logistics.domain.Supplier;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +29,9 @@ class SupplierSoftDeleteTest {
                 supplierPort,
                 mock(PurchaseOrderPersistencePort.class),
                 mock(LogisticsOutboxPersistencePort.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(InventoryInternalUseCase.class),
+                mock(ApplicationEventPublisher.class)
         );
 
         service.deleteSupplier(1L);
@@ -46,7 +50,9 @@ class SupplierSoftDeleteTest {
                 supplierPort,
                 mock(PurchaseOrderPersistencePort.class),
                 mock(LogisticsOutboxPersistencePort.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(InventoryInternalUseCase.class),
+                mock(ApplicationEventPublisher.class)
         );
 
         assertThat(service.getAllSuppliers()).containsExactly(active);

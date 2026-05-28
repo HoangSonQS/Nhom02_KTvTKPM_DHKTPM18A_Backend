@@ -16,8 +16,9 @@ import iuh.fit.se.shared.exception.PendingIdempotencyException;
 import iuh.fit.se.shared.event.inventory.InventoryStockChangedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
@@ -39,10 +40,15 @@ public class InventoryService implements InventoryInternalUseCase {
 
     private final InventoryPersistencePort persistencePort;
     private final ApplicationEventPublisher eventPublisher;
-    private final ApplicationContext applicationContext;
+    private InventoryService self;
+
+    @Autowired
+    void setSelf(@Lazy InventoryService self) {
+        this.self = self;
+    }
 
     private InventoryService getSelf() {
-        return applicationContext.getBean(InventoryService.class);
+        return self != null ? self : this;
     }
     private final Random random = new Random();
 

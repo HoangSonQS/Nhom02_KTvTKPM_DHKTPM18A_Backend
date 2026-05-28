@@ -2,16 +2,21 @@ package iuh.fit.se.modules.logistics.application.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.modules.inventory.application.port.in.InventoryInternalUseCase;
+import iuh.fit.se.modules.inventory.application.port.in.StockResult;
 import iuh.fit.se.modules.logistics.application.port.in.LogisticsUseCase;
 import iuh.fit.se.modules.logistics.application.port.out.LogisticsOutboxPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistencePort;
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
 import iuh.fit.se.modules.logistics.domain.*;
 import iuh.fit.se.shared.event.logistics.StockAdjustmentIntegrationEvent;
+import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.PurchaseOrderRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +33,8 @@ public class LogisticsService implements LogisticsUseCase {
     private final PurchaseOrderPersistencePort poPort;
     private final LogisticsOutboxPersistencePort outboxPort;
     private final ObjectMapper objectMapper;
+    private final InventoryInternalUseCase inventoryUseCase;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -40,7 +47,12 @@ public class LogisticsService implements LogisticsUseCase {
                 command.getAddress(),
                 command.getTaxCode()
         );
-        return supplierPort.save(supplier);
+        Supplier saved = supplierPort.save(supplier);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "SUPPLIER",
+                "Đã tạo nhà cung cấp " + saved.getName()
+        ));
+        return saved;
     }
 
     @Override
@@ -56,6 +68,10 @@ public class LogisticsService implements LogisticsUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.LOG_SUPPLIER_NOT_FOUND));
         supplier.softDelete();
         supplierPort.save(supplier);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "SUPPLIER",
+                "Đã xóa nhà cung cấp " + supplier.getName()
+        ));
     }
 
     @Override
@@ -91,6 +107,7 @@ public class LogisticsService implements LogisticsUseCase {
 
         PurchaseOrder saved = poPort.save(po);
         recordHistory(saved, null, PurchaseOrderStatus.DRAFT, saved.getCreatedBy(), "Tạo mới đơn mua hàng");
+        publishPurchaseOrderRealtime(saved, "Đã tạo PO #" + saved.getId());
         return saved;
     }
 
@@ -105,6 +122,7 @@ public class LogisticsService implements LogisticsUseCase {
         
         PurchaseOrder saved = poPort.save(po);
         recordHistory(saved, oldStatus, PurchaseOrderStatus.SUBMITTED, saved.getCreatedBy(), "Gửi duyệt đơn mua hàng");
+        publishPurchaseOrderRealtime(saved, "PO #" + saved.getId() + " đã gửi duyệt");
         return saved;
     }
 
@@ -119,6 +137,7 @@ public class LogisticsService implements LogisticsUseCase {
 
         PurchaseOrder saved = poPort.save(po);
         recordHistory(saved, oldStatus, PurchaseOrderStatus.APPROVED, adminName, "Phê duyệt đơn mua hàng");
+        publishPurchaseOrderRealtime(saved, "PO #" + saved.getId() + " đã được duyệt");
         return saved;
     }
 
@@ -133,6 +152,7 @@ public class LogisticsService implements LogisticsUseCase {
 
         PurchaseOrder saved = poPort.save(po);
         recordHistory(saved, oldStatus, PurchaseOrderStatus.DRAFT, userRole, "Admin trả về để sửa: " + reason);
+        publishPurchaseOrderRealtime(saved, "PO #" + saved.getId() + " đã được trả về");
         return saved;
     }
 
@@ -145,13 +165,23 @@ public class LogisticsService implements LogisticsUseCase {
         PurchaseOrderStatus oldStatus = po.getStatus();
         po.receive(userRole, receiverName);
 
-        // Sau khi đã RECEIVED thì tự động tạo Event để cập nhật kho cho từng Item
+        // Sau khi đã RECEIVED thì cập nhật kho đồng bộ để người dùng thấy tồn tăng ngay.
         for (PurchaseOrderItem item : po.getItems()) {
-            createStockAdjustmentOutbox(item.getBookId(), item.getQuantity(), "Nhập kho từ PO #" + poId, receiverName);
+            StockResult result = inventoryUseCase.increaseStock(
+                    item.getBookId(),
+                    item.getQuantity(),
+                    "PO_RECEIVED_" + poId + "_" + item.getBookId()
+            );
+            if (result.getStatus() != StockResult.Status.SUCCESS
+                    && result.getStatus() != StockResult.Status.ALREADY_PROCESSED) {
+                throw new AppException(ErrorCode.INV_STOCK_NOT_FOUND,
+                        "Không thể cập nhật tồn kho cho sách " + item.getBookId() + ": " + result.getMessage());
+            }
         }
 
         PurchaseOrder saved = poPort.save(po);
         recordHistory(saved, oldStatus, PurchaseOrderStatus.RECEIVED, receiverName, "Xác nhận nhập kho thành công");
+        publishPurchaseOrderRealtime(saved, "PO #" + saved.getId() + " đã nhập kho");
         return saved;
     }
 
@@ -166,6 +196,7 @@ public class LogisticsService implements LogisticsUseCase {
 
         PurchaseOrder saved = poPort.save(po);
         recordHistory(saved, oldStatus, PurchaseOrderStatus.CANCELLED, userName, "Hủy đơn hàng: " + reason);
+        publishPurchaseOrderRealtime(saved, "PO #" + saved.getId() + " đã hủy");
         return saved;
     }
 
@@ -196,6 +227,14 @@ public class LogisticsService implements LogisticsUseCase {
     private void recordHistory(PurchaseOrder po, PurchaseOrderStatus from, PurchaseOrderStatus to, String by, String reason) {
         PurchaseOrderHistory history = PurchaseOrderHistory.record(po.getId(), from, to, by, reason);
         poPort.saveHistory(history);
+    }
+
+    private void publishPurchaseOrderRealtime(PurchaseOrder po, String message) {
+        eventPublisher.publishEvent(PurchaseOrderRealtimeEvent.updated(
+                po.getId(),
+                po.getStatus().name(),
+                message
+        ));
     }
 
     private void createStockAdjustmentOutbox(Long bookId, Integer qty, String reason, String fromUser) {

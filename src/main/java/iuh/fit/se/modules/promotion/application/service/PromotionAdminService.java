@@ -5,6 +5,7 @@ import iuh.fit.se.modules.promotion.application.port.out.PromotionPersistencePor
 import iuh.fit.se.modules.promotion.domain.Coupon;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
 import iuh.fit.se.shared.event.promotion.CouponCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +66,10 @@ public class PromotionAdminService implements PromotionAdminUseCase {
                 coupon.getDiscountType().name(),
                 coupon.getDiscountValue()
         ));
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "COUPON",
+                "Đã tạo mã khuyến mãi " + coupon.getCode()
+        ));
         log.info("[ADMIN] Created coupon: {}", coupon.getCode());
         return coupon;
     }
@@ -88,6 +93,10 @@ public class PromotionAdminService implements PromotionAdminUseCase {
         );
 
         persistencePort.save(coupon);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "COUPON",
+                "Đã cập nhật mã khuyến mãi " + coupon.getCode()
+        ));
         log.info("[ADMIN] Updated coupon id={}", id);
         return coupon;
     }
@@ -98,6 +107,10 @@ public class PromotionAdminService implements PromotionAdminUseCase {
         Coupon coupon = persistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PRM_COUPON_NOT_FOUND));
         persistencePort.delete(coupon);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "COUPON",
+                "Đã xóa mã khuyến mãi " + coupon.getCode()
+        ));
         log.info("[ADMIN] Deleted coupon id={}, code={}", id, coupon.getCode());
     }
 }

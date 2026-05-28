@@ -33,12 +33,8 @@ public class AuditLogAspect {
             String userId = getCurrentUserId();
             String action = auditable.action();
             
-            // Đề xuất: Lấy thông tin đối tượng mục tiêu từ tham số đầu tiên nếu có
-            String target = "";
             Object[] args = joinPoint.getArgs();
-            if (args.length > 0 && args[0] != null) {
-                target = args[0].toString();
-            }
+            String target = describeTarget(action, args, result);
 
             UserActionAuditedEvent event = new UserActionAuditedEvent(
                 userId,
@@ -95,6 +91,80 @@ public class AuditLogAspect {
             return result.toString();
         }
         return "Thao tác thành công";
+    }
+
+    private String describeTarget(String action, Object[] args, Object result) {
+        return switch (action) {
+            case "ADMIN_LOCK_USER" -> "ID tài khoản " + firstArg(args);
+            case "STAFF_INIT_STOCK", "STAFF_INCREASE_STOCK", "STAFF_DECREASE_STOCK" -> "ID sách " + firstArg(args);
+            case "STAFF_UPDATE_BOOK" -> "ID sách " + firstArg(args);
+            case "STAFF_DELETE_CATEGORY", "STAFF_UPDATE_CATEGORY" -> "ID danh mục " + firstArg(args);
+            case "STAFF_APPROVE_RETURN", "STAFF_RECEIVE_RETURN", "STAFF_REFUND_RETURN", "STAFF_REJECT_RETURN" ->
+                    "ID yêu cầu trả hàng " + firstArg(args);
+            case "ADMIN_CREATE_STAFF" -> "Tài khoản nhân viên " + safeResultIdentity(result);
+            case "STAFF_CREATE_BOOK" -> "Sách " + safeResultIdentity(result);
+            case "STAFF_CREATE_CATEGORY" -> "Danh mục " + safeResultIdentity(result);
+            default -> firstSimpleArg(args);
+        };
+    }
+
+    private String firstArg(Object[] args) {
+        return args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "-";
+    }
+
+    private String firstSimpleArg(Object[] args) {
+        if (args.length == 0 || args[0] == null) {
+            return "";
+        }
+        Object value = args[0];
+        return isSimpleValue(value) ? value.toString() : "Thao tác hệ thống";
+    }
+
+    private String safeResultIdentity(Object result) {
+        if (result == null) {
+            return "mới";
+        }
+        String id = readAccessor(result, "id");
+        String name = firstNonBlank(
+                readAccessor(result, "fullName"),
+                readAccessor(result, "name"),
+                readAccessor(result, "title"),
+                readAccessor(result, "email")
+        );
+        if (name != null && id != null) {
+            return name + " (ID " + id + ")";
+        }
+        if (name != null) {
+            return name;
+        }
+        if (id != null) {
+            return "ID " + id;
+        }
+        return "mới";
+    }
+
+    private String readAccessor(Object source, String accessorName) {
+        try {
+            Object value = source.getClass().getMethod(accessorName).invoke(source);
+            return value == null ? null : value.toString();
+        } catch (ReflectiveOperationException ignored) {
+            try {
+                String getter = "get" + Character.toUpperCase(accessorName.charAt(0)) + accessorName.substring(1);
+                Object value = source.getClass().getMethod(getter).invoke(source);
+                return value == null ? null : value.toString();
+            } catch (ReflectiveOperationException ignoredGetter) {
+                return null;
+            }
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private boolean isSimpleValue(Object value) {

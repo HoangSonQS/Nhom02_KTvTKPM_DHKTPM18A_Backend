@@ -57,6 +57,11 @@ public class InventoryPersistenceAdapter implements InventoryPersistencePort {
     }
 
     @Override
+    public int setStockQuantity(Long bookId, int quantity) {
+        return inventoryJpaRepository.setQuantity(bookId, quantity);
+    }
+
+    @Override
     public int decreaseStockAtomically(Long bookId, int amount, Long version) {
         return inventoryJpaRepository.decreaseQuantityAtomically(bookId, amount, version);
     }
