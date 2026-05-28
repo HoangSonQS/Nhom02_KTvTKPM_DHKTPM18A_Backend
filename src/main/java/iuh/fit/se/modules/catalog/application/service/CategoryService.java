@@ -3,9 +3,11 @@ package iuh.fit.se.modules.catalog.application.service;
 import iuh.fit.se.modules.catalog.application.port.in.CategoryUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.CategoryPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Category;
+import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ import java.util.List;
 public class CategoryService implements CategoryUseCase {
 
     private final CategoryPersistencePort categoryPersistencePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -31,7 +34,12 @@ public class CategoryService implements CategoryUseCase {
                 .name(name)
                 .isActive(true)
                 .build();
-        return categoryPersistencePort.save(category);
+        Category savedCategory = categoryPersistencePort.save(category);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "CATEGORY",
+                "Da them danh muc " + savedCategory.getName()
+        ));
+        return savedCategory;
     }
 
     @Override
@@ -46,7 +54,12 @@ public class CategoryService implements CategoryUseCase {
         }
 
         category.rename(newName);
-        return categoryPersistencePort.save(category);
+        Category savedCategory = categoryPersistencePort.save(category);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "CATEGORY",
+                "Da cap nhat danh muc " + savedCategory.getName()
+        ));
+        return savedCategory;
     }
 
     @Override
@@ -54,6 +67,10 @@ public class CategoryService implements CategoryUseCase {
     @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_DELETE_CATEGORY")
     public void deleteCategory(Long id) {
         categoryPersistencePort.delete(id);
+        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+                "CATEGORY",
+                "Da xoa danh muc #" + id
+        ));
     }
 
     @Override

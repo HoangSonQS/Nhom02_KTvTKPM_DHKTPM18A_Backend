@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -43,10 +44,12 @@ class AuthServiceTest {
     private JwtTokenProvider jwtTokenProvider;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userPersistencePort, accountInternalUseCase, refreshTokenPersistencePort, jwtTokenProvider, passwordEncoder);
+        authService = new AuthService(userPersistencePort, accountInternalUseCase, refreshTokenPersistencePort, jwtTokenProvider, passwordEncoder, eventPublisher);
     }
 
     @Test
@@ -96,6 +99,8 @@ class AuthServiceTest {
         // Assert
         assertThat(result.accessToken()).isEqualTo("token");
         assertThat(result.deviceId()).isEqualTo(deviceId);
+        verify(refreshTokenPersistencePort).revokeAllUserSessions("100");
+        verify(eventPublisher).publishEvent(any(Object.class));
         verify(refreshTokenPersistencePort).incrementAndGetVersion("100", deviceId);
         verify(refreshTokenPersistencePort).saveRefreshToken("100", deviceId, "refresh");
     }

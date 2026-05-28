@@ -20,24 +20,44 @@ public class NotificationSseAdapter implements NotificationRealtimePort {
 
     private static final long TIMEOUT_MILLIS = 30 * 60 * 1000L;
 
-    private final Map<Long, List<SseEmitter>> emittersByUser = new ConcurrentHashMap<>();
-    private final Map<String, List<SseEmitter>> emittersByRole = new ConcurrentHashMap<>();
+    private final Map<Long, List<EmitterRegistration>> emittersByUser = new ConcurrentHashMap<>();
+    private final Map<String, List<EmitterRegistration>> emittersByRole = new ConcurrentHashMap<>();
 
-    public SseEmitter subscribe(Long userId, String role) {
+    public SseEmitter subscribePublic() {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MILLIS);
-        emittersByUser.computeIfAbsent(userId, ignored -> new CopyOnWriteArrayList<>()).add(emitter);
-        if (role != null && !role.isBlank()) {
-            emittersByRole.computeIfAbsent(role, ignored -> new CopyOnWriteArrayList<>()).add(emitter);
-        }
+        EmitterRegistration registration = new EmitterRegistration(emitter, null);
+        String role = "PUBLIC";
+        emittersByRole.computeIfAbsent(role, ignored -> new CopyOnWriteArrayList<>()).add(registration);
 
-        emitter.onCompletion(() -> remove(userId, role, emitter));
-        emitter.onTimeout(() -> remove(userId, role, emitter));
-        emitter.onError(error -> remove(userId, role, emitter));
+        emitter.onCompletion(() -> removeRoleEmitter(role, registration));
+        emitter.onTimeout(() -> removeRoleEmitter(role, registration));
+        emitter.onError(error -> removeRoleEmitter(role, registration));
 
         try {
             emitter.send(SseEmitter.event().name("connected").data("ok"));
         } catch (IOException e) {
-            remove(userId, role, emitter);
+            removeRoleEmitter(role, registration);
+        }
+
+        return emitter;
+    }
+
+    public SseEmitter subscribe(Long userId, String role, String deviceId) {
+        SseEmitter emitter = new SseEmitter(TIMEOUT_MILLIS);
+        EmitterRegistration registration = new EmitterRegistration(emitter, deviceId);
+        emittersByUser.computeIfAbsent(userId, ignored -> new CopyOnWriteArrayList<>()).add(registration);
+        if (role != null && !role.isBlank()) {
+            emittersByRole.computeIfAbsent(role, ignored -> new CopyOnWriteArrayList<>()).add(registration);
+        }
+
+        emitter.onCompletion(() -> remove(userId, role, registration));
+        emitter.onTimeout(() -> remove(userId, role, registration));
+        emitter.onError(error -> remove(userId, role, registration));
+
+        try {
+            emitter.send(SseEmitter.event().name("connected").data("ok"));
+        } catch (IOException e) {
+            remove(userId, role, registration);
         }
 
         return emitter;
@@ -45,17 +65,17 @@ public class NotificationSseAdapter implements NotificationRealtimePort {
 
     @Override
     public void publish(Long userId, CustomerNotificationResponse notification) {
-        List<SseEmitter> emitters = emittersByUser.get(userId);
+        List<EmitterRegistration> emitters = emittersByUser.get(userId);
         if (emitters == null || emitters.isEmpty()) {
             return;
         }
 
-        for (SseEmitter emitter : emitters) {
+        for (EmitterRegistration registration : emitters) {
             try {
-                emitter.send(SseEmitter.event().name("notification").data(notification));
+                registration.emitter().send(SseEmitter.event().name("notification").data(notification));
             } catch (IOException | IllegalStateException e) {
                 log.debug("Removing stale notification SSE emitter for user {}", userId);
-                removeFromAll(emitter);
+                removeFromAll(registration);
             }
         }
     }
@@ -66,6 +86,17 @@ public class NotificationSseAdapter implements NotificationRealtimePort {
     }
 
     @Override
+    public void publishEventToUserExceptDevice(Long userId, String excludedDeviceId, RealtimeEventResponse event) {
+        List<EmitterRegistration> emitters = emittersByUser.get(userId);
+        if (emitters == null || emitters.isEmpty()) {
+            return;
+        }
+        publishRealtimeEvent(emitters.stream()
+                .filter(registration -> excludedDeviceId == null || !excludedDeviceId.equals(registration.deviceId()))
+                .toList(), event);
+    }
+
+    @Override
     public void publishEventToRoles(Set<String> roles, RealtimeEventResponse event) {
         if (roles == null || roles.isEmpty()) {
             return;
@@ -73,50 +104,53 @@ public class NotificationSseAdapter implements NotificationRealtimePort {
         roles.forEach(role -> publishRealtimeEvent(emittersByRole.get(role), event));
     }
 
-    private void publishRealtimeEvent(List<SseEmitter> emitters, RealtimeEventResponse event) {
+    private void publishRealtimeEvent(List<EmitterRegistration> emitters, RealtimeEventResponse event) {
         if (emitters == null || emitters.isEmpty()) {
             return;
         }
-        for (SseEmitter emitter : emitters) {
+        for (EmitterRegistration registration : emitters) {
             try {
-                emitter.send(SseEmitter.event().name("realtime").data(event));
+                registration.emitter().send(SseEmitter.event().name("realtime").data(event));
             } catch (IOException | IllegalStateException e) {
-                removeFromAll(emitter);
+                removeFromAll(registration);
             }
         }
     }
 
-    private void remove(Long userId, String role, SseEmitter emitter) {
-        List<SseEmitter> emitters = emittersByUser.get(userId);
+    private void remove(Long userId, String role, EmitterRegistration registration) {
+        List<EmitterRegistration> emitters = emittersByUser.get(userId);
         if (emitters != null) {
-            emitters.remove(emitter);
+            emitters.remove(registration);
             if (emitters.isEmpty()) {
                 emittersByUser.remove(userId);
             }
         }
         if (role != null) {
-            removeRoleEmitter(role, emitter);
+            removeRoleEmitter(role, registration);
         }
     }
 
-    private void removeFromAll(SseEmitter emitter) {
+    private void removeFromAll(EmitterRegistration registration) {
         emittersByUser.forEach((userId, emitters) -> {
-            emitters.remove(emitter);
+            emitters.remove(registration);
             if (emitters.isEmpty()) {
                 emittersByUser.remove(userId);
             }
         });
-        emittersByRole.forEach((role, emitters) -> removeRoleEmitter(role, emitter));
+        emittersByRole.forEach((role, emitters) -> removeRoleEmitter(role, registration));
     }
 
-    private void removeRoleEmitter(String role, SseEmitter emitter) {
-        List<SseEmitter> emitters = emittersByRole.get(role);
+    private void removeRoleEmitter(String role, EmitterRegistration registration) {
+        List<EmitterRegistration> emitters = emittersByRole.get(role);
         if (emitters == null) {
             return;
         }
-        emitters.remove(emitter);
+        emitters.remove(registration);
         if (emitters.isEmpty()) {
             emittersByRole.remove(role);
         }
+    }
+
+    private record EmitterRegistration(SseEmitter emitter, String deviceId) {
     }
 }
