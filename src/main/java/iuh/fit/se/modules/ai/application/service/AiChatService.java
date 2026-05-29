@@ -5,6 +5,7 @@ import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort;
 import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort.BookContext;
 import iuh.fit.se.modules.ai.application.port.out.ChatHistoryPersistencePort;
 import iuh.fit.se.modules.ai.application.port.out.LlmPort;
+import iuh.fit.se.modules.ai.application.port.out.SalesRankingPort;
 import iuh.fit.se.modules.ai.application.port.out.VectorStorePort;
 import iuh.fit.se.modules.ai.domain.ChatMessage;
 import iuh.fit.se.modules.ai.domain.ChatRole;
@@ -15,11 +16,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.text.Normalizer;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 public class AiChatService implements AiChatUseCase {
 
     private static final int RAG_TOP_K = 5;
-    private static final Pattern REQUESTED_BOOK_COUNT_PATTERN = Pattern.compile("\\b(\\d{1,2})\\b");
 
     static final String FALLBACK_RESPONSE = "Xin lỗi, SEBook Assistant đang tạm thời không kết nối được AI. "
             + "Bạn vui lòng thử lại sau ít phút nhé.";
@@ -36,6 +35,7 @@ public class AiChatService implements AiChatUseCase {
     private final ChatHistoryPersistencePort historyPort;
     private final VectorStorePort vectorStorePort;
     private final CatalogBookPort catalogBookPort;
+    private final SalesRankingPort salesRankingPort;
 
     @Override
     public String chat(String sessionId, Long customerId, String message) {
@@ -55,15 +55,23 @@ public class AiChatService implements AiChatUseCase {
         historyPort.saveMessage(userMsg);
 
         // 2. Retrieve relevant catalog data and call LLM with previous history.
-        List<BookContext> relevantBooks = findRelevantBooks(message);
         int requestedBookCount = resolveRequestedBookCount(message);
-        String prompt = buildPromptWithCatalogContext(message, relevantBooks, requestedBookCount);
+        boolean hasRequestedBookCount = AiCatalogMatchSupport.hasRequestedBookCount(message);
+        List<BookContext> relevantBooks = findRelevantBooks(message, requestedBookCount);
+        String prompt = buildPromptWithCatalogContext(message, relevantBooks, requestedBookCount, hasRequestedBookCount);
         String response;
-        try {
-            response = llmPort.chat(prompt, previousMessages);
-        } catch (Exception e) {
-            log.error("AI chat failed for sessionId: {}", sessionId, e);
-            response = buildCatalogFallbackResponse(relevantBooks, requestedBookCount);
+        if (!relevantBooks.isEmpty() && shouldAnswerFromCatalog(message)) {
+            response = buildCatalogFallbackResponse(relevantBooks, requestedBookCount, hasRequestedBookCount);
+        } else if (relevantBooks.isEmpty()
+                && (shouldAnswerFromCatalog(message) || AiCatalogMatchSupport.hasStrictTopic(message))) {
+            response = "Hiện tại chúng tôi không có đủ sản phẩm cho yêu cầu của bạn.";
+        } else {
+            try {
+                response = llmPort.chat(prompt, previousMessages);
+            } catch (Exception e) {
+                log.error("AI chat failed for sessionId: {}", sessionId, e);
+                response = buildCatalogFallbackResponse(relevantBooks, requestedBookCount, hasRequestedBookCount);
+            }
         }
 
         // 3. Save assistant response
@@ -75,7 +83,12 @@ public class AiChatService implements AiChatUseCase {
         return response;
     }
 
-    private String buildPromptWithCatalogContext(String userMessage, List<BookContext> books, int requestedBookCount) {
+    private String buildPromptWithCatalogContext(
+            String userMessage,
+            List<BookContext> books,
+            int requestedBookCount,
+            boolean hasRequestedBookCount
+    ) {
         if (books.isEmpty()) {
             return userMessage;
         }
@@ -93,6 +106,10 @@ public class AiChatService implements AiChatUseCase {
             prompt.append(" - Tác giả: ").append(nullToFallback(book.author(), "Không rõ"));
             prompt.append(" - Giá: ").append(formatPrice(book.price()));
             prompt.append(" - Tồn kho: ").append(book.quantity() > 0 ? "Còn hàng: " + book.quantity() : "Hết hàng");
+            prompt.append(" - Link: ").append(AiCatalogMatchSupport.productLink(book.id()));
+            if (book.categoryNames() != null && !book.categoryNames().isEmpty()) {
+                prompt.append(" - Danh mục: ").append(String.join(", ", book.categoryNames()));
+            }
             if (book.averageRating() != null) {
                 prompt.append(" - Đánh giá: ").append(book.averageRating());
                 if (book.ratingCount() > 0) {
@@ -112,13 +129,36 @@ public class AiChatService implements AiChatUseCase {
         prompt.append(userMessage);
         prompt.append("\n\nHãy trả lời bằng tiếng Việt có dấu, ngắn gọn, đúng vai trò tư vấn bán sách. ");
         prompt.append("Nếu gợi ý sách, hãy nêu tên sách, tác giả và lý do phù hợp. ");
+        prompt.append("Luôn kèm link sản phẩm dạng /books/{id} cho mỗi sách được gợi ý. ");
         prompt.append("Khách hàng yêu cầu tối đa ").append(requestedBookCount)
                 .append(" cuốn, nên chỉ gợi ý đúng số lượng này nếu kho sách có đủ.");
+        if (hasRequestedBookCount && books.size() < requestedBookCount) {
+            prompt.append(" Hiện tại chúng tôi không có đủ sản phẩm cho yêu cầu của bạn, hãy nói rõ câu này trong câu trả lời.");
+        }
 
         return prompt.toString();
     }
 
-    private String buildCatalogFallbackResponse(List<BookContext> books, int requestedBookCount) {
+    private boolean shouldAnswerFromCatalog(String userMessage) {
+        String normalized = AiCatalogMatchSupport.normalizeText(userMessage);
+        return AiCatalogMatchSupport.hasTitleSearchIntent(userMessage)
+                || AiCatalogMatchSupport.hasAuthorSearchIntent(userMessage)
+                || AiCatalogMatchSupport.hasAudienceSearchIntent(userMessage)
+                || AiCatalogMatchSupport.hasRankingIntent(userMessage)
+                || AiCatalogMatchSupport.hasStrictTopic(userMessage)
+                || AiCatalogMatchSupport.hasCatalogIntentKeywords(userMessage)
+                || normalized.contains("goi y")
+                || normalized.contains("tim sach")
+                || normalized.contains("sach nao")
+                || normalized.contains("cuon nao")
+                || normalized.contains("quyen nao");
+    }
+
+    private String buildCatalogFallbackResponse(
+            List<BookContext> books,
+            int requestedBookCount,
+            boolean hasRequestedBookCount
+    ) {
         if (books.isEmpty()) {
             return FALLBACK_RESPONSE;
         }
@@ -135,67 +175,81 @@ public class AiChatService implements AiChatUseCase {
             response.append(nullToFallback(book.title(), "Không rõ tên sách"));
             response.append(" - ").append(nullToFallback(book.author(), "Không rõ tác giả"));
             response.append(" - ").append(book.quantity() > 0 ? "Còn hàng: " + book.quantity() : "Hết hàng");
+            response.append(" - Link: ").append(AiCatalogMatchSupport.productLink(book.id()));
             if (book.description() != null && !book.description().isBlank()) {
                 response.append("\n   ").append(truncate(book.description(), 180));
             }
             response.append("\n");
         }
         response.append("Bạn có thể bấm vào kết quả tìm kiếm hoặc tìm tên sách trên trang danh sách sách để xem chi tiết.");
+        if (hasRequestedBookCount && limitedBooks.size() < requestedBookCount) {
+            response.append("\nHiện tại chúng tôi không có đủ sản phẩm cho yêu cầu của bạn.");
+        }
         return response.toString();
     }
 
     private int resolveRequestedBookCount(String userMessage) {
-        if (userMessage == null || userMessage.isBlank()) {
-            return RAG_TOP_K;
-        }
-
-        Matcher matcher = REQUESTED_BOOK_COUNT_PATTERN.matcher(userMessage);
-        if (matcher.find()) {
-            return clampBookCount(Integer.parseInt(matcher.group(1)));
-        }
-
-        String normalized = Normalizer.normalize(userMessage.toLowerCase(), Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "");
-        if (normalized.contains("mot ")) {
-            return 1;
-        }
-        if (normalized.contains("hai ")) {
-            return 2;
-        }
-        if (normalized.contains("ba ")) {
-            return 3;
-        }
-        if (normalized.contains("bon ") || normalized.contains("tu ")) {
-            return 4;
-        }
-        if (normalized.contains("nam ")) {
-            return 5;
-        }
-        return RAG_TOP_K;
+        return AiCatalogMatchSupport.resolveRequestedBookCount(userMessage, RAG_TOP_K);
     }
 
-    private int clampBookCount(int count) {
-        if (count < 1) {
-            return 1;
-        }
-        return Math.min(count, RAG_TOP_K);
-    }
-
-    private List<BookContext> findRelevantBooks(String userMessage) {
+    private List<BookContext> findRelevantBooks(String userMessage, int requestedBookCount) {
         try {
+            if (AiCatalogMatchSupport.hasRankingIntent(userMessage)) {
+                return salesRankingPort.getTopSellingBooks(requestedBookCount);
+            }
+
             List<Long> bookIds = vectorStorePort.findSimilarBooks(userMessage, RAG_TOP_K);
             if (bookIds == null || bookIds.isEmpty()) {
-                return List.of();
+                return supplementWithCatalogCategoryBooks(userMessage, List.of(), requestedBookCount);
             }
-            return bookIds.stream()
+            List<BookContext> books = bookIds.stream()
                     .map(this::findBookSafely)
                     .filter(Objects::nonNull)
                     .filter(BookContext::isActive)
                     .toList();
+            List<BookContext> matchedBooks = AiCatalogMatchSupport.keepOnlyExplicitTopicMatches(userMessage, books);
+            matchedBooks = AiCatalogMatchSupport.keepOnlyCatalogIntentKeywordMatches(userMessage, matchedBooks);
+            return supplementWithCatalogCategoryBooks(userMessage, matchedBooks, requestedBookCount);
         } catch (Exception e) {
             log.warn("Unable to retrieve AI catalog context for prompt: {}", userMessage, e);
             return List.of();
         }
+    }
+
+    private List<BookContext> supplementWithCatalogCategoryBooks(
+            String userMessage,
+            List<BookContext> currentBooks,
+            int requestedBookCount
+    ) {
+        if (currentBooks.size() >= requestedBookCount) {
+            return currentBooks;
+        }
+        List<String> topics = AiCatalogMatchSupport.categoryTopicsIn(userMessage);
+        if (topics.isEmpty()) {
+            return currentBooks;
+        }
+
+        Map<Long, BookContext> booksById = new LinkedHashMap<>();
+        currentBooks.stream()
+                .filter(book -> book.id() != null)
+                .forEach(book -> booksById.put(book.id(), book));
+
+        for (String topic : topics) {
+            List<BookContext> categoryBooks = catalogBookPort.searchBooksByCategoryName(topic);
+            if (categoryBooks == null || categoryBooks.isEmpty()) {
+                continue;
+            }
+            categoryBooks.stream()
+                    .filter(Objects::nonNull)
+                    .filter(book -> book.id() != null)
+                    .filter(BookContext::isActive)
+                    .forEach(book -> booksById.putIfAbsent(book.id(), book));
+            if (booksById.size() >= requestedBookCount) {
+                break;
+            }
+        }
+
+        return booksById.values().stream().toList();
     }
 
     private BookContext findBookSafely(Long bookId) {
