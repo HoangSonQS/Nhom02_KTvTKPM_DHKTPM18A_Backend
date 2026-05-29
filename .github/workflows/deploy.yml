@@ -71,7 +71,7 @@ jobs:
             cd /opt/app
             git fetch origin main
             git checkout main
-            git pull origin main
+            git reset --hard origin/main
 
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             export APP_VERSION="${{ github.sha }}"
