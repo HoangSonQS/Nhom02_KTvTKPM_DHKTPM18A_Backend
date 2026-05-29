@@ -226,6 +226,7 @@ SET quantity = EXCLUDED.quantity,
 
 INSERT INTO prm_coupon (
     code,
+    name,
     description,
     discount_type,
     discount_value,
@@ -243,6 +244,7 @@ INSERT INTO prm_coupon (
 VALUES
     (
         'WELCOME10',
+        'Welcome 10%',
         'Giam 10% cho don demo',
         'PERCENTAGE',
         10,
@@ -259,6 +261,7 @@ VALUES
     ),
     (
         'FREESHIP30',
+        'Free Ship 30K',
         'Giam 30000 cho don tu 150000',
         'FIXED_AMOUNT',
         30000,
@@ -274,7 +277,8 @@ VALUES
         NOW()
     )
 ON CONFLICT (code) DO UPDATE
-SET description = EXCLUDED.description,
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
     discount_type = EXCLUDED.discount_type,
     discount_value = EXCLUDED.discount_value,
     min_order_value = EXCLUDED.min_order_value,

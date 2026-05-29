@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_PRIMARY_HOST:localhost}:5432/${DB_NAME:sebook}
+    username: ${DB_USER:appuser}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: SeBookWritePool
+      maximum-pool-size: ${DB_WRITE_POOL_MAX:20}
+      minimum-idle: ${DB_WRITE_POOL_MIN_IDLE:5}
+      connection-timeout: 10000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      leak-detection-threshold: 30000
+
+app:
+  datasource:
+    read:
+      replicas:
+        - url: jdbc:postgresql://${DB_READ_HOST_1:localhost}:5432/${DB_NAME:sebook}
+          username: ${DB_USER:appuser}
+          password: ${DB_PASSWORD}
+        - url: jdbc:postgresql://${DB_READ_HOST_2:localhost}:5432/${DB_NAME:sebook}
+          username: ${DB_USER:appuser}
+          password: ${DB_PASSWORD}
+      hikari:
+        maximum-pool-size: ${DB_READ_POOL_MAX:20}
+        minimum-idle: ${DB_READ_POOL_MIN_IDLE:5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name:SEBook-Backend}
+    export:
+      prometheus:
+        enabled: true
