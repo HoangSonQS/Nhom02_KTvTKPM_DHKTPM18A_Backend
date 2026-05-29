@@ -150,7 +150,10 @@ services:
       PGHOST: postgres-primary
       PGPORT: 5432
       REPLICA_SLOT: replica_1
-    command: ["/bin/bash", "/usr/local/bin/init-replica.sh"]
+    command:
+      - /bin/bash
+      - -c
+      - tr -d '\r' < /usr/local/bin/init-replica.sh > /tmp/init-replica.sh && /bin/bash /tmp/init-replica.sh
     volumes:
       - postgres-read-1-data:/var/lib/postgresql/data
       - ./postgres/replica/init-replica.sh:/usr/local/bin/init-replica.sh:ro
@@ -175,7 +178,10 @@ services:
       PGHOST: postgres-primary
       PGPORT: 5432
       REPLICA_SLOT: replica_2
-    command: ["/bin/bash", "/usr/local/bin/init-replica.sh"]
+    command:
+      - /bin/bash
+      - -c
+      - tr -d '\r' < /usr/local/bin/init-replica.sh > /tmp/init-replica.sh && /bin/bash /tmp/init-replica.sh
     volumes:
       - postgres-read-2-data:/var/lib/postgresql/data
       - ./postgres/replica/init-replica.sh:/usr/local/bin/init-replica.sh:ro
