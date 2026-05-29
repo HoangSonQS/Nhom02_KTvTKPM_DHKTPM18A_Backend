@@ -51,7 +51,7 @@ docker compose restart nginx
 
 ## app-1
 
-**Image:** build từ `Dockerfile`  
+**Image:** `${DOCKERHUB_USERNAME}/sebook-backend:${APP_VERSION:-latest}`  
 **Role:** Spring Boot backend instance thứ nhất.  
 **Port:** `8080:8080`, internal `8080`
 
@@ -67,6 +67,8 @@ environment:
   DB_URL: jdbc:postgresql://postgres-primary:5432/${DB_NAME:-sebook}
   REDIS_HOST: redis
   LOGGING_FILE_NAME: /logs/app/application.log
+image: ${DOCKERHUB_USERNAME}/sebook-backend:${APP_VERSION:-latest}
+pull_policy: always
 volumes:
   - ./logs/app:/logs/app
   - ./config/keys:/app/config/keys:ro
@@ -98,7 +100,7 @@ docker compose restart app-1
 
 ## app-2
 
-**Image:** build từ `Dockerfile`  
+**Image:** `${DOCKERHUB_USERNAME}/sebook-backend:${APP_VERSION:-latest}`  
 **Role:** Spring Boot backend instance thứ hai.  
 **Port:** `8081:8080`, internal `8080`
 
@@ -110,6 +112,8 @@ environment:
   DB_PRIMARY_HOST: postgres-primary
   DB_READ_HOST_1: postgres-replica-1
   DB_READ_HOST_2: postgres-replica-2
+image: ${DOCKERHUB_USERNAME}/sebook-backend:${APP_VERSION:-latest}
+pull_policy: always
 ports:
   - "8081:8080"
 ```

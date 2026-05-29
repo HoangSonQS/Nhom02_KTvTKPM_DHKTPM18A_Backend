@@ -39,10 +39,12 @@ Cẩn thận với `make clean`: lệnh này xóa database, Redis, Prometheus, G
 
 ## Deploy phiên bản mới
 
-### Build cả hai app
+Production deploy đi qua GitHub Actions trong [cicd.md](./cicd.md). Compose trên EC2 pull image từ DockerHub, không build app trực tiếp trên server.
+
+### Pull image mới
 
 ```bash
-docker compose build app-1 app-2
+APP_VERSION=<git-sha-moi> docker compose pull app-1 app-2
 ```
 
 ### Rolling update với 2 instances
@@ -93,7 +95,8 @@ Vì vậy `docker compose up -d --scale app=3` không áp dụng trực tiếp. 
 4. Chạy:
 
 ```bash
-docker compose up -d --build app-3
+docker compose pull app-3
+docker compose up -d app-3
 docker compose exec nginx nginx -s reload
 ```
 

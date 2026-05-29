@@ -18,6 +18,7 @@ make up
 | [logging.md](./logging.md) | Hệ thống logging, metrics, alert |
 | [database.md](./database.md) | PostgreSQL streaming replication |
 | [operations.md](./operations.md) | Vận hành, deploy, troubleshoot |
+| [cicd.md](./cicd.md) | CI/CD GitHub Actions, DockerHub, EC2 |
 | [adr/](./adr/) | Architecture Decision Records |
 
 ## Stack
