@@ -45,9 +45,9 @@ services:
       REDIS_PORT: 6379
       APP_AUTH_COOKIE_SECURE: ${APP_AUTH_COOKIE_SECURE:-true}
       APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-None}
-      LOGGING_FILE_NAME: /app/logs/app/application.log
+      LOGGING_FILE_NAME: /logs/app/application.log
     volumes:
-      - ./logs/app:/app/logs/app
+      - ./logs/app:/logs/app
       - ./config/keys:/app/config/keys:ro
     depends_on:
       postgres-primary:
@@ -89,9 +89,9 @@ services:
       REDIS_PORT: 6379
       APP_AUTH_COOKIE_SECURE: ${APP_AUTH_COOKIE_SECURE:-true}
       APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-None}
-      LOGGING_FILE_NAME: /app/logs/app/application.log
+      LOGGING_FILE_NAME: /logs/app/application.log
     volumes:
-      - ./logs/app:/app/logs/app
+      - ./logs/app:/logs/app
       - ./config/keys:/app/config/keys:ro
     depends_on:
       postgres-primary:
@@ -150,7 +150,10 @@ services:
       PGHOST: postgres-primary
       PGPORT: 5432
       REPLICA_SLOT: replica_1
-    command: ["/bin/bash", "/usr/local/bin/init-replica.sh"]
+    command:
+      - /bin/bash
+      - -c
+      - tr -d '\r' < /usr/local/bin/init-replica.sh > /tmp/init-replica.sh && /bin/bash /tmp/init-replica.sh
     volumes:
       - postgres-read-1-data:/var/lib/postgresql/data
       - ./postgres/replica/init-replica.sh:/usr/local/bin/init-replica.sh:ro
@@ -161,7 +164,7 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_REPLICATION_USER:-replicator}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_REPLICATION_USER:-replicator} -d postgres"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -175,7 +178,10 @@ services:
       PGHOST: postgres-primary
       PGPORT: 5432
       REPLICA_SLOT: replica_2
-    command: ["/bin/bash", "/usr/local/bin/init-replica.sh"]
+    command:
+      - /bin/bash
+      - -c
+      - tr -d '\r' < /usr/local/bin/init-replica.sh > /tmp/init-replica.sh && /bin/bash /tmp/init-replica.sh
     volumes:
       - postgres-read-2-data:/var/lib/postgresql/data
       - ./postgres/replica/init-replica.sh:/usr/local/bin/init-replica.sh:ro
@@ -186,7 +192,7 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_REPLICATION_USER:-replicator}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_REPLICATION_USER:-replicator} -d postgres"]
       interval: 15s
       timeout: 5s
       retries: 10

@@ -1,0 +1,50 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: application-alerts
+    folder: Production
+    interval: 1m
+    rules:
+      - uid: error-spike
+        title: "ERROR spike detected"
+        condition: C
+        data:
+          - refId: A
+            queryType: ''
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: 'sum(count_over_time({job="spring-error"}[5m]))'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            queryType: ''
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 10
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "Co nhieu ERROR trong 5 phut qua"
+          description: "Job {{ $labels.job }} co {{ $values.A }} errors"
+        labels:
+          severity: warning
