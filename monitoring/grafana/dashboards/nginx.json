@@ -1,0 +1,32 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "targets": [{"expr": "rate(nginx_http_requests_total[5m])", "legendFormat": "requests"}],
+      "title": "Nginx request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "targets": [{"expr": "nginx_connections_active", "legendFormat": "active"}],
+      "title": "Active connections",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["nginx", "sebook"],
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "SEBook Nginx",
+  "uid": "sebook-nginx",
+  "version": 1
+}

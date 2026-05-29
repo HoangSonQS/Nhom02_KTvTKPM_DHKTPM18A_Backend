@@ -1,0 +1,60 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-access
+          __path__: /logs/nginx/access.log
+    pipeline_stages:
+      - json:
+          expressions:
+            status: status
+            method: method
+            uri: uri
+            response_time: response_time
+            remote_addr: remote_addr
+      - labels:
+          status:
+          method:
+
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-error
+          __path__: /logs/nginx/error.log
+
+  - job_name: spring-boot
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: spring-boot
+          __path__: /logs/app/*.log
+    pipeline_stages:
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}|^\{'
+          max_wait_time: 3s
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger_name
+            message: message
+            traceId: traceId
+            spanId: spanId
+      - labels:
+          level:
+          logger:

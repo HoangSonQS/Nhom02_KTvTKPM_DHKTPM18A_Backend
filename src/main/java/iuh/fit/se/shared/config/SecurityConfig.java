@@ -69,7 +69,10 @@ public class SecurityConfig {
                                                                 "/api-docs/**",
                                                                 "/swagger-ui/**",
                                                                 "/swagger-ui.html",
-                                                                "/v3/api-docs/**")
+                                                                "/v3/api-docs/**",
+                                                                "/actuator/health",
+                                                                "/actuator/info",
+                                                                "/actuator/prometheus")
                                                 .permitAll()
                                                 // Logout phải đăng nhập mới cho gọi
                                                 .requestMatchers("/api/v1/auth/logout").authenticated()
