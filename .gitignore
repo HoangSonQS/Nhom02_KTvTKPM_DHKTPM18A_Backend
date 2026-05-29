@@ -35,6 +35,10 @@ build/
 .env
 compose.override.yaml
 certs/
+!nginx/certs/
+nginx/certs/*
+!nginx/certs/.gitignore
 config/keys/
 scratch/
 *.pem
+*.key

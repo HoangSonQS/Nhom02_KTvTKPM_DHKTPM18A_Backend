@@ -21,8 +21,14 @@ sudo mkdir -p "$APP_DIR"
 sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
 if [ ! -d "$APP_DIR/.git" ]; then
-  rm -rf "$APP_DIR"
-  git clone "$REPO_URL" "$APP_DIR"
+  if [ -z "$(find "$APP_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+    git clone "$REPO_URL" "$APP_DIR"
+  else
+    echo "ERROR: $APP_DIR already exists and is not a git repository."
+    echo "Refusing to delete it because it may contain .env, certs, logs, or backups."
+    echo "Move/backup the directory manually, or initialize it as the deployment git checkout."
+    exit 1
+  fi
 fi
 
 cd "$APP_DIR"
@@ -34,7 +40,7 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
-mkdir -p logs/nginx logs/app backups config/keys
+mkdir -p logs/nginx logs/app backups config/keys nginx/certs
 
 echo ""
 echo "=== QUAN TRỌNG: Điền giá trị thật vào /opt/app/.env ==="
