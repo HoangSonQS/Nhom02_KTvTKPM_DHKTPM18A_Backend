@@ -16,8 +16,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system spring && useradd --system --gid spring spring \
-    && mkdir -p /app/logs/app /app/config/keys \
-    && chown -R spring:spring /app
+    && mkdir -p /logs/app /app/config/keys \
+    && chown -R spring:spring /app /logs
 
 COPY --from=build /workspace/target/*.war /app/app.war
 
