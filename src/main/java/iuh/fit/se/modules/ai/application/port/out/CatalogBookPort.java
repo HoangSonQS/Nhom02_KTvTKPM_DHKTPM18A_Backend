@@ -14,6 +14,8 @@ public interface CatalogBookPort {
 
     List<BookDocument> searchBooks(String title, Long categoryId);
 
+    List<BookContext> searchBooksByCategoryName(String categoryName);
+
     @Builder
     record BookContext(
             Long id,
@@ -24,6 +26,7 @@ public interface CatalogBookPort {
             int quantity,
             boolean isActive,
             Set<String> keywords,
+            Set<String> categoryNames,
             BigDecimal averageRating,
             int ratingCount
     ) {
