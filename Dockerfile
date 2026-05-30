@@ -11,19 +11,20 @@ RUN ./mvnw -B -q -DskipTests package
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-RUN apk add --no-cache curl wget ca-certificates \
+RUN apk add --no-cache curl wget ca-certificates su-exec \
     && addgroup -S spring \
     && adduser -S spring -G spring \
     && mkdir -p /logs/app /app/config/keys \
     && chown -R spring:spring /app /logs
 
 COPY --from=build /workspace/target/*.war /app/app.jar
+COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
-USER spring
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
   CMD wget -qO- http://localhost:8080/actuator/health || exit 1
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

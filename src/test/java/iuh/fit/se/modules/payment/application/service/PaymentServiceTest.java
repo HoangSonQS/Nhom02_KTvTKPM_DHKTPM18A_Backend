@@ -12,11 +12,19 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TimeZone;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -46,7 +54,7 @@ class PaymentServiceTest {
         vnpParams.put("vnp_TransactionNo", "vnp-12345");
         vnpParams.put("vnp_SecureHash", "mock-hash");
 
-        doReturn(true).when(paymentService).verifyChecksum(anyMap());
+        lenient().doReturn(true).when(paymentService).verifyChecksum(anyMap());
 
         orderDto = OrderPaymentPort.OrderPaymentDto.builder()
                 .orderId(1L)
@@ -111,5 +119,49 @@ class PaymentServiceTest {
         assertTrue(response.contains("RspCode\":\"00")); // Confirm success to VNPay
         verify(paymentPersistencePort).save(argThat(p -> p.getStatus() == PaymentStatus.FAILED));
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void createPaymentUrl_whenJvmRunsUtc_usesVietnamTimezoneForVnpayDates() {
+        TimeZone originalTimeZone = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        try {
+            ReflectionTestUtils.setField(paymentService, "tmnCode", "TEST_TMNCODE");
+            ReflectionTestUtils.setField(paymentService, "hashSecret", "TEST_HASH_SECRET");
+            ReflectionTestUtils.setField(paymentService, "returnUrl", "https://api.test/api/v1/payments/vnpay-return");
+
+            orderDto.setStatus("PENDING");
+            orderDto.setCustomerId(5L);
+            orderDto.setDiscountAmount(BigDecimal.ZERO);
+            when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+
+            LocalDateTime before = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusSeconds(2);
+            String paymentUrl = paymentService.createPaymentUrl(1L, 5L, "127.0.0.1");
+            LocalDateTime after = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).plusSeconds(2);
+
+            Map<String, String> queryParams = parseQuery(paymentUrl);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+            LocalDateTime createDate = LocalDateTime.parse(queryParams.get("vnp_CreateDate"), formatter);
+            LocalDateTime expireDate = LocalDateTime.parse(queryParams.get("vnp_ExpireDate"), formatter);
+
+            assertFalse(createDate.isBefore(before));
+            assertFalse(createDate.isAfter(after));
+            assertEquals(createDate.plusMinutes(15), expireDate);
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
+    }
+
+    private Map<String, String> parseQuery(String url) {
+        Map<String, String> params = new HashMap<>();
+        String query = URI.create(url).getRawQuery();
+        for (String pair : query.split("&")) {
+            String[] parts = pair.split("=", 2);
+            params.put(
+                    URLDecoder.decode(parts[0], StandardCharsets.UTF_8),
+                    parts.length > 1 ? URLDecoder.decode(parts[1], StandardCharsets.UTF_8) : ""
+            );
+        }
+        return params;
     }
 }
