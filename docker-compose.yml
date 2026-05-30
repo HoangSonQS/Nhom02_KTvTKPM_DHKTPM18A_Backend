@@ -28,6 +28,7 @@ services:
     image: ${DOCKERHUB_USERNAME}/sebook-backend:${APP_VERSION:-latest}
     pull_policy: always
     container_name: sebook-app-1
+    user: "0:0"
     env_file:
       - .env
     environment:
@@ -46,7 +47,7 @@ services:
       APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-None}
       LOGGING_FILE_NAME: /logs/app/application.log
     volumes:
-      - app-logs:/logs/app
+      - ./logs/app:/logs/app
       - ./config/keys:/app/config/keys:ro
     depends_on:
       postgres-primary:
@@ -71,6 +72,7 @@ services:
     image: ${DOCKERHUB_USERNAME}/sebook-backend:${APP_VERSION:-latest}
     pull_policy: always
     container_name: sebook-app-2
+    user: "0:0"
     env_file:
       - .env
     environment:
@@ -89,7 +91,7 @@ services:
       APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-None}
       LOGGING_FILE_NAME: /logs/app/application.log
     volumes:
-      - app-logs:/logs/app
+      - ./logs/app:/logs/app
       - ./config/keys:/app/config/keys:ro
     depends_on:
       postgres-primary:
@@ -267,7 +269,7 @@ services:
     command: ["-config.file=/etc/promtail/promtail-config.yml"]
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
-      - app-logs:/logs/app:ro
+      - ./logs/app:/logs/app:ro
       - ./logs/nginx:/logs/nginx:ro
       - /var/log:/var/log:ro
     depends_on:
@@ -322,7 +324,6 @@ networks:
     driver: bridge
 
 volumes:
-  app-logs:
   postgres-primary-data:
   postgres-read-1-data:
   postgres-read-2-data:
