@@ -233,7 +233,10 @@ public class BookService implements BookUseCase {
     @Transactional(readOnly = true)
     @Cacheable(value = "books", key = "T(iuh.fit.se.shared.cache.CacheKeyUtility).createSaltedKey('books', 'search:' + #title + ':' + #categoryId)")
     public List<BookDTO> searchBooks(String title, Long categoryId) {
-        List<Book> books = bookPersistencePort.search(title, categoryId);
+        String normalizedTitle = title == null || title.isBlank()
+                ? null
+                : title.toLowerCase(java.util.Locale.ROOT).trim();
+        List<Book> books = bookPersistencePort.search(normalizedTitle, categoryId);
         List<Long> bookIds = books.stream().map(Book::getId).collect(Collectors.toList());
 
         // Bulk fetch real stocks from Inventory Source of Truth

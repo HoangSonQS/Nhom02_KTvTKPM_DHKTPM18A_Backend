@@ -63,6 +63,7 @@ public class InternalCatalogBookAdapter implements CatalogBookPort {
                 .description(book.description())
                 .price(book.price())
                 .quantity(book.quantity())
+                .imageUrl(book.imageUrl())
                 .isActive(book.isActive())
                 .keywords(book.keywords())
                 .categoryNames(resolveCategoryNames(book.categoryIds()))
