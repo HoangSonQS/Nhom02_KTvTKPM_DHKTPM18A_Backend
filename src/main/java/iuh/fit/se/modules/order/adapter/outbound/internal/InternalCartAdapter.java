@@ -36,6 +36,14 @@ public class InternalCartAdapter implements CartPort {
     }
 
     @Override
+    public void updateItemQuantity(Long userId, Long bookId, int quantity) {
+        cartUseCase.updateItemQuantity(userId, CartInternalUseCase.UpdateQuantityCommand.builder()
+                .bookId(bookId)
+                .quantity(quantity)
+                .build());
+    }
+
+    @Override
     public void clearCart(Long userId) {
         cartUseCase.clearCart(userId);
     }

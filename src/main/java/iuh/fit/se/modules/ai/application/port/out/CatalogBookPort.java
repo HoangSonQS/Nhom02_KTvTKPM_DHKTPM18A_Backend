@@ -24,6 +24,7 @@ public interface CatalogBookPort {
             String description,
             BigDecimal price,
             int quantity,
+            String imageUrl,
             boolean isActive,
             Set<String> keywords,
             Set<String> categoryNames,
