@@ -1,5 +1,6 @@
 package iuh.fit.se.modules.catalog.application.service;
 
+import iuh.fit.se.modules.catalog.application.port.in.CategoryDTO;
 import iuh.fit.se.modules.catalog.application.port.in.CategoryUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.CategoryPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Category;
@@ -77,5 +78,13 @@ public class CategoryService implements CategoryUseCase {
     @Transactional(readOnly = true)
     public List<Category> getAllCategories() {
         return categoryPersistencePort.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryDTO> getAllCategorySummaries() {
+        return categoryPersistencePort.findAll().stream()
+                .map(category -> new CategoryDTO(category.getId(), category.getName(), category.isActive()))
+                .toList();
     }
 }

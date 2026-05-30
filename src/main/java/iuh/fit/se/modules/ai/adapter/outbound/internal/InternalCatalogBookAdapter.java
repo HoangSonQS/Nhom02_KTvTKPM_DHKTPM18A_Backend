@@ -2,9 +2,9 @@ package iuh.fit.se.modules.ai.adapter.outbound.internal;
 
 import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort;
 import iuh.fit.se.modules.catalog.application.port.in.BookDTO;
+import iuh.fit.se.modules.catalog.application.port.in.CategoryDTO;
 import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.catalog.application.port.in.CategoryUseCase;
-import iuh.fit.se.modules.catalog.domain.Category;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -41,10 +41,10 @@ public class InternalCatalogBookAdapter implements CatalogBookPort {
 
     @Override
     public List<BookContext> searchBooksByCategoryName(String categoryName) {
-        Long categoryId = categoryUseCase.getAllCategories().stream()
-                .filter(Category::isActive)
-                .filter(category -> Objects.equals(normalize(category.getName()), normalize(categoryName)))
-                .map(Category::getId)
+        Long categoryId = categoryUseCase.getAllCategorySummaries().stream()
+                .filter(CategoryDTO::active)
+                .filter(category -> Objects.equals(normalize(category.name()), normalize(categoryName)))
+                .map(CategoryDTO::id)
                 .findFirst()
                 .orElse(null);
         if (categoryId == null) {
@@ -75,9 +75,9 @@ public class InternalCatalogBookAdapter implements CatalogBookPort {
         if (categoryIds == null || categoryIds.isEmpty()) {
             return Set.of();
         }
-        Map<Long, String> namesById = categoryUseCase.getAllCategories().stream()
-                .filter(Category::isActive)
-                .collect(Collectors.toMap(Category::getId, Category::getName, (first, ignored) -> first));
+        Map<Long, String> namesById = categoryUseCase.getAllCategorySummaries().stream()
+                .filter(CategoryDTO::active)
+                .collect(Collectors.toMap(CategoryDTO::id, CategoryDTO::name, (first, ignored) -> first));
         return categoryIds.stream()
                 .map(namesById::get)
                 .filter(name -> name != null && !name.isBlank())
