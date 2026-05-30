@@ -46,7 +46,7 @@ services:
       APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-None}
       LOGGING_FILE_NAME: /logs/app/application.log
     volumes:
-      - ./logs/app:/logs/app
+      - app-logs:/logs/app
       - ./config/keys:/app/config/keys:ro
     depends_on:
       postgres-primary:
@@ -89,7 +89,7 @@ services:
       APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-None}
       LOGGING_FILE_NAME: /logs/app/application.log
     volumes:
-      - ./logs/app:/logs/app
+      - app-logs:/logs/app
       - ./config/keys:/app/config/keys:ro
     depends_on:
       postgres-primary:
@@ -267,7 +267,8 @@ services:
     command: ["-config.file=/etc/promtail/promtail-config.yml"]
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
-      - ./logs:/logs:ro
+      - app-logs:/logs/app:ro
+      - ./logs/nginx:/logs/nginx:ro
       - /var/log:/var/log:ro
     depends_on:
       - loki
@@ -321,6 +322,7 @@ networks:
     driver: bridge
 
 volumes:
+  app-logs:
   postgres-primary-data:
   postgres-read-1-data:
   postgres-read-2-data:
