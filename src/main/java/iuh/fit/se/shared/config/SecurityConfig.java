@@ -60,6 +60,7 @@ public class SecurityConfig {
                                                                 "/api/v1/flash-sales/**",
                                                                 "/api/v1/home/**",
                                                                 "/api/v1/promotions/active",
+                                                                "/api/v1/ai/agent/messages",
                                                                 "/api/v1/newsletter/**",
                                                                 "/api/v1/notifications/stream",
                                                                 "/api/v1/notifications/public-stream",

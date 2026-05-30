@@ -11,7 +11,8 @@ import java.util.List;
 public interface BookJpaRepository extends JpaRepository<BookJpaEntity, Long> {
 
     @Query("SELECT b FROM BookJpaEntity b LEFT JOIN b.categoryIds c " +
-           "WHERE (:title IS NULL OR b.title LIKE %:title%) " +
+           "WHERE (:title IS NULL OR LOWER(b.title) LIKE %:title% " +
+           "OR LOWER(b.author) LIKE %:title%) " +
            "AND (:categoryId IS NULL OR c = :categoryId)")
     List<BookJpaEntity> search(@Param("title") String title, @Param("categoryId") Long categoryId);
 }

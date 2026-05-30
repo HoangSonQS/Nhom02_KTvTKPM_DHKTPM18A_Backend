@@ -8,6 +8,7 @@ import iuh.fit.se.modules.order.domain.SagaStatus;
 import iuh.fit.se.shared.audit.application.port.out.AuditEventPublisherPort;
 import iuh.fit.se.shared.audit.domain.event.UserActionAuditedEvent;
 import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
+import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.event.realtime.OrderRealtimeEvent;
@@ -28,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -125,6 +127,50 @@ class OrderServiceTest {
     }
 
     @Test
+    void givenSelectedBookQuantityLessThanCartQuantity_whenCheckout_thenOrderOnlySelectedQuantityAndKeepRemainingCart() {
+        command.setSelectedBookIds(List.of(101L));
+        command.setSelectedBookQuantities(Map.of(101L, 1));
+        when(cartPort.getCartByUserId(userId)).thenReturn(cartDto);
+        when(orderPersistencePort.findByRequestId(anyString())).thenReturn(Optional.empty());
+        doNothing().when(inventoryPort).decreaseStockBulk(anyList(), anyString());
+
+        OrderInternalUseCase.OrderResponse response = orderService.checkout(userId, command);
+
+        assertNotNull(response);
+        assertEquals(1, response.getItems().get(0).getQuantity());
+        verify(inventoryPort).decreaseStockBulk(argThat(items ->
+                items.size() == 1 && items.get(0).getBookId().equals(101L) && items.get(0).getQuantity() == 1
+        ), eq("req-123"));
+        verify(cartPort).updateItemQuantity(userId, 101L, 1);
+        verify(cartPort, never()).removeItem(userId, 101L);
+    }
+
+    @Test
+    void givenSelectedBookQuantityEqualsCartQuantity_whenCheckout_thenRemoveCheckedOutBookFromCart() {
+        command.setSelectedBookIds(List.of(101L));
+        command.setSelectedBookQuantities(Map.of(101L, 1));
+        CartPort.CartDto oneItemCart = CartPort.CartDto.builder()
+                .userId(userId)
+                .items(List.of(CartPort.CartItemDto.builder()
+                        .bookId(101L)
+                        .title("Clean Code")
+                        .price(new BigDecimal("100000"))
+                        .quantity(1)
+                        .build()))
+                .build();
+        when(cartPort.getCartByUserId(userId)).thenReturn(oneItemCart);
+        when(orderPersistencePort.findByRequestId(anyString())).thenReturn(Optional.empty());
+        doNothing().when(inventoryPort).decreaseStockBulk(anyList(), anyString());
+
+        OrderInternalUseCase.OrderResponse response = orderService.checkout(userId, command);
+
+        assertNotNull(response);
+        assertEquals(1, response.getItems().get(0).getQuantity());
+        verify(cartPort).removeItem(userId, 101L);
+        verify(cartPort, never()).updateItemQuantity(eq(userId), eq(101L), anyInt());
+    }
+
+    @Test
     void testCheckout_InventoryFail_ShouldStopSaga() {
         // Given
         when(cartPort.getCartByUserId(userId)).thenReturn(cartDto);
@@ -157,6 +203,37 @@ class OrderServiceTest {
         verify(inventoryPort).increaseStockBulk(anyList(), eq(command.getRequestId()));
         assertNotNull(sharedOrder);
         assertEquals(SagaStatus.FAILED, sharedOrder.getSagaStatus());
+    }
+
+    @Test
+    void givenCustomerConfirmedOrder_whenCancelMyPendingOrder_thenCancelBeforeProcessing() {
+        sharedOrder = Order.builder()
+                .id(11L)
+                .userId(userId)
+                .requestId("req-order-11")
+                .fulfillmentStatus(FulfillmentStatus.CONFIRMED)
+                .sagaStatus(SagaStatus.COMPLETED)
+                .totalAmount(new BigDecimal("100000"))
+                .discountAmount(BigDecimal.ZERO)
+                .shippingAddress("123 Test St")
+                .customerPhone("0901234567")
+                .expiredAt(java.time.LocalDateTime.now().plusHours(1))
+                .items(List.of())
+                .build();
+        when(orderPersistencePort.findByIdAndUserId(11L, userId)).thenReturn(Optional.of(sharedOrder));
+        when(orderUserPort.getUserDetails(userId)).thenReturn(OrderUserPort.UserDto.builder()
+                .fullName("Test User")
+                .email("test@example.com")
+                .build());
+
+        OrderInternalUseCase.OrderResponse response =
+                orderService.cancelMyPendingOrder(11L, userId, "Customer cancel request");
+
+        assertEquals("CANCELLED", response.getFulfillmentStatus());
+        verify(orderPersistencePort).save(sharedOrder);
+        verify(inventoryPort).increaseStockBulk(anyList(), eq("req-order-11"));
+        verify(promotionPort).releaseCoupon("req-order-11");
+        verify(eventPublisher).publishEvent(any(OrderFulfillmentStatusChangedEvent.class));
     }
 
     @Test

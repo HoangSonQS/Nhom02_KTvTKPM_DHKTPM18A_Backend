@@ -122,6 +122,7 @@ public interface OrderInternalUseCase {
         private String couponCode;
         private String paymentMethod;
         private java.util.List<Long> selectedBookIds;
+        private java.util.Map<Long, Integer> selectedBookQuantities;
     }
 
     @Data

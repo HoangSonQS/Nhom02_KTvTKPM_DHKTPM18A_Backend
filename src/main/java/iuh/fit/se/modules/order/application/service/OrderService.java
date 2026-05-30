@@ -104,6 +104,7 @@ public class OrderService implements OrderInternalUseCase {
                     .couponCode(command.getCouponCode())
                     .paymentMethod(command.getPaymentMethod())
                     .selectedBookIds(command.getSelectedBookIds())
+                    .selectedBookQuantities(command.getSelectedBookQuantities())
                     .build();
 
             // 3. Fetch Cart
@@ -111,7 +112,7 @@ public class OrderService implements OrderInternalUseCase {
             if (cart.getItems() == null || cart.getItems().isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_INPUT, "Giỏ hàng rỗng, không thể tạo đơn hàng.");
             }
-            cart = filterCartBySelectedBookIds(cart, resolvedCommand.getSelectedBookIds());
+            cart = filterCartBySelectedBookIds(cart, resolvedCommand.getSelectedBookIds(), resolvedCommand.getSelectedBookQuantities());
             if (cart.getItems() == null || cart.getItems().isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_INPUT, "Vui lòng chọn ít nhất một sách để thanh toán.");
             }
@@ -264,19 +265,34 @@ public class OrderService implements OrderInternalUseCase {
     }
 
     @Transactional
-    private CartPort.CartDto filterCartBySelectedBookIds(CartPort.CartDto cart, List<Long> selectedBookIds) {
+    private CartPort.CartDto filterCartBySelectedBookIds(CartPort.CartDto cart, List<Long> selectedBookIds, Map<Long, Integer> selectedQuantities) {
         if (selectedBookIds == null || selectedBookIds.isEmpty()) {
             return cart;
         }
 
         Set<Long> selectedIds = Set.copyOf(selectedBookIds);
+        Map<Long, Integer> quantities = selectedQuantities == null ? Map.of() : selectedQuantities;
         List<CartPort.CartItemDto> selectedItems = cart.getItems().stream()
                 .filter(item -> selectedIds.contains(item.getBookId()))
+                .map(item -> selectedQuantityItem(item, quantities))
                 .collect(Collectors.toList());
 
         return CartPort.CartDto.builder()
                 .userId(cart.getUserId())
                 .items(selectedItems)
+                .build();
+    }
+
+    private CartPort.CartItemDto selectedQuantityItem(CartPort.CartItemDto item, Map<Long, Integer> selectedQuantities) {
+        Integer selectedQuantity = selectedQuantities.get(item.getBookId());
+        if (selectedQuantity == null || selectedQuantity <= 0 || selectedQuantity >= item.getQuantity()) {
+            return item;
+        }
+        return CartPort.CartItemDto.builder()
+                .bookId(item.getBookId())
+                .title(item.getTitle())
+                .price(item.getPrice())
+                .quantity(selectedQuantity)
                 .build();
     }
 
@@ -286,7 +302,20 @@ public class OrderService implements OrderInternalUseCase {
             return;
         }
 
-        checkedOutCart.getItems().forEach(item -> cartPort.removeItem(userId, item.getBookId()));
+        CartPort.CartDto currentCart = cartPort.getCartByUserId(userId);
+        checkedOutCart.getItems().forEach(item -> {
+            int currentQuantity = currentCart.getItems().stream()
+                    .filter(cartItem -> cartItem.getBookId().equals(item.getBookId()))
+                    .map(CartPort.CartItemDto::getQuantity)
+                    .findFirst()
+                    .orElse(item.getQuantity());
+            int remainingQuantity = currentQuantity - item.getQuantity();
+            if (remainingQuantity > 0) {
+                cartPort.updateItemQuantity(userId, item.getBookId(), remainingQuantity);
+            } else {
+                cartPort.removeItem(userId, item.getBookId());
+            }
+        });
     }
 
     public Order updateOrderFromCart(Order order, CheckoutCommand command, CartPort.CartDto cart, BigDecimal totalAmount) {
@@ -402,7 +431,8 @@ public class OrderService implements OrderInternalUseCase {
         Order order = orderPersistencePort.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
 
-        if (order.getFulfillmentStatus() != FulfillmentStatus.PENDING) {
+        FulfillmentStatus fromStatus = order.getFulfillmentStatus();
+        if (fromStatus != FulfillmentStatus.PENDING && fromStatus != FulfillmentStatus.CONFIRMED) {
             throw new InvalidOrderTransitionException("Chỉ có thể hủy đơn hàng khi chưa được xác nhận");
         }
 
@@ -414,7 +444,7 @@ public class OrderService implements OrderInternalUseCase {
         OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
         eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
                 saved,
-                FulfillmentStatus.PENDING,
+                fromStatus,
                 FulfillmentStatus.CANCELLED,
                 reason,
                 customer.getFullName(),
