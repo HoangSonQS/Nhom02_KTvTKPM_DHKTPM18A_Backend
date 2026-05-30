@@ -74,7 +74,31 @@ class PaymentServiceTest {
         // Then
         assertTrue(response.contains("RspCode\":\"00"));
         verify(paymentPersistencePort).save(any(Payment.class));
+        verify(orderPaymentPort).updateOrderPaid(1L);
         verify(eventPublisher).publishEvent(any(PaymentSuccessDomainEvent.class));
+    }
+
+    @Test
+    void testProcessVnpayIpn_existingTransaction_repairsPendingOrderStatus() {
+        // Given
+        Payment existingPayment = Payment.builder()
+                .orderId(1L)
+                .amount(new BigDecimal("200000"))
+                .paymentMethod("VNPAY")
+                .status(PaymentStatus.SUCCESS)
+                .transactionId("vnp-12345")
+                .build();
+        when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+        when(paymentPersistencePort.findByTransactionId("vnp-12345")).thenReturn(Optional.of(existingPayment));
+
+        // When
+        String response = paymentService.processVnpayIpn(vnpParams);
+
+        // Then
+        assertTrue(response.contains("Already confirmed"));
+        verify(orderPaymentPort).updateOrderPaid(1L);
+        verify(paymentPersistencePort, never()).save(any(Payment.class));
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

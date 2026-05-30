@@ -25,10 +25,34 @@ Lenh tren se:
 - Build backend tu `Dockerfile` local thanh image `sebook-backend:local`.
 - Khong pull backend image `${DOCKERHUB_USERNAME}/sebook-backend` tu Docker Hub.
 
+## Moi lan sua code backend local
+
+Sau khi sua code Java, Docker khong tu nap code moi vao container dang chay. Can build lai image local va recreate container app:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
+
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build --force-recreate app-1 app-2 nginx
+```
+
+Neu chi muon rebuild backend, khong can down ca stack:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local.yml build app-1
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --force-recreate app-1 app-2 nginx
+```
+
+Neu nghi Docker dang dung cache cu:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local.yml build --no-cache app-1
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --force-recreate app-1 app-2 nginx
+```
+
 ## Xem log backend
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f app-1 app-2
+docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f --tail=200 app-1 app-2
 ```
 
 ## Build lai backend sach tu source local
