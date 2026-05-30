@@ -131,6 +131,10 @@ public class PaymentService implements PaymentUseCase {
         if (vnp_TransactionNo != null) {
             Optional<Payment> existing = paymentPersistencePort.findByTransactionId(vnp_TransactionNo);
             if (existing.isPresent()) {
+                if (!"CONFIRMED".equals(order.getStatus())) {
+                    orderPaymentPort.updateOrderPaid(orderId);
+                    log.info("Payment Callback: Order {} status repaired to CONFIRMED for existing transaction {}.", orderId, vnp_TransactionNo);
+                }
                 log.info("Payment Callback: TransactionId {} already recorded, skipping duplicate.", vnp_TransactionNo);
                 return "{\"RspCode\":\"00\",\"Message\":\"Already confirmed\"}";
             }
@@ -146,6 +150,7 @@ public class PaymentService implements PaymentUseCase {
                 .build();
         
         paymentPersistencePort.save(payment);
+        orderPaymentPort.updateOrderPaid(orderId);
         eventPublisher.publishEvent(PaymentSuccessDomainEvent.of(payment, order.getCustomerId(), order.getRequestId()));
 
         log.info("Payment Callback: Successfully updated status for Order {}.", orderId);
