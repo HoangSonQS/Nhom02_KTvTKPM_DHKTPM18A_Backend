@@ -15,4 +15,6 @@ public interface CategoryUseCase {
     void deleteCategory(Long id);
 
     List<Category> getAllCategories();
+
+    List<CategoryDTO> getAllCategorySummaries();
 }
