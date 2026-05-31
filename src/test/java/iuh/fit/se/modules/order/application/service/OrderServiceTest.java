@@ -237,6 +237,31 @@ class OrderServiceTest {
     }
 
     @Test
+    void givenPendingVnpayOrder_whenConfirmMyPendingOrderAsCod_thenConfirmOrderAndCoupon() {
+        sharedOrder = Order.builder()
+                .id(12L)
+                .userId(userId)
+                .requestId("req-order-12")
+                .fulfillmentStatus(FulfillmentStatus.PENDING)
+                .sagaStatus(SagaStatus.COMPLETED)
+                .totalAmount(new BigDecimal("100000"))
+                .discountAmount(BigDecimal.ZERO)
+                .shippingAddress("123 Test St")
+                .customerPhone("0901234567")
+                .expiredAt(java.time.LocalDateTime.now().plusHours(1))
+                .items(List.of())
+                .build();
+        when(orderPersistencePort.findByIdAndUserId(12L, userId)).thenReturn(Optional.of(sharedOrder));
+
+        OrderInternalUseCase.OrderResponse response = orderService.confirmMyPendingOrderAsCod(12L, userId);
+
+        assertEquals("CONFIRMED", response.getFulfillmentStatus());
+        verify(promotionPort).confirmCouponUsage("req-order-12");
+        verify(orderPersistencePort).save(sharedOrder);
+        verify(eventPublisher).publishEvent(any(OrderRealtimeEvent.class));
+    }
+
+    @Test
     void givenOrderStatusChanged_whenUpdateOrderStatus_thenAuditValueDescribesDiff() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 "seller@example.com",

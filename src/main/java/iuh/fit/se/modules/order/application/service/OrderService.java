@@ -498,6 +498,39 @@ public class OrderService implements OrderInternalUseCase {
 
     @Override
     @Transactional
+    public OrderResponse confirmMyPendingOrderAsCod(Long orderId, Long userId) {
+        Order order = orderPersistencePort.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        FulfillmentStatus fromStatus = order.getFulfillmentStatus();
+        if (fromStatus != FulfillmentStatus.PENDING) {
+            throw new InvalidOrderTransitionException("Chi co the chuyen sang COD khi don hang dang cho thanh toan");
+        }
+
+        order.confirm();
+        promotionPort.confirmCouponUsage(order.getRequestId());
+        Order saved = orderPersistencePort.save(order);
+        OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
+        String reason = "Customer switched pending VNPAY order to COD";
+        eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                saved,
+                fromStatus,
+                FulfillmentStatus.CONFIRMED,
+                reason,
+                customer.getFullName(),
+                customer.getEmail()
+        ));
+        eventPublisher.publishEvent(OrderRealtimeEvent.statusChanged(
+                saved.getId(),
+                saved.getUserId(),
+                saved.getTotalAmount(),
+                saved.getFulfillmentStatus().name()
+        ));
+        publishAudit("CUSTOMER_SWITCH_PAYMENT_TO_COD", orderId, fromStatus, FulfillmentStatus.CONFIRMED, reason);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public void markOrderAsPaid(Long orderId) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));

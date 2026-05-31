@@ -15,6 +15,7 @@ public enum AiAgentIntent {
     PLACE_ORDER,
     CANCEL_ORDER,
     PAY_ORDER,
+    CHANGE_PAYMENT_METHOD,
     CHANGE_SHIPPING_ADDRESS,
     UNKNOWN,
 
@@ -42,7 +43,7 @@ public enum AiAgentIntent {
 
     public boolean isImportantWrite() {
         return switch (normalized()) {
-            case PLACE_ORDER, CANCEL_ORDER, PAY_ORDER, CHANGE_SHIPPING_ADDRESS -> true;
+            case PLACE_ORDER, CANCEL_ORDER, PAY_ORDER, CHANGE_PAYMENT_METHOD, CHANGE_SHIPPING_ADDRESS -> true;
             default -> false;
         };
     }

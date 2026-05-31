@@ -5,6 +5,7 @@ import iuh.fit.se.modules.payment.application.port.out.PaymentPersistencePort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.PaymentStatus;
 import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;
+import iuh.fit.se.shared.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -143,6 +144,84 @@ class PaymentServiceTest {
         assertTrue(response.contains("RspCode\":\"00")); // Confirm success to VNPay
         verify(paymentPersistencePort).save(argThat(p -> p.getStatus() == PaymentStatus.FAILED));
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void givenLatestVnpayPaymentFailedAndOrderPending_whenSwitchToCod_thenConfirmOrderAsCod() {
+        orderDto.setStatus("PENDING");
+        orderDto.setCustomerId(5L);
+        Payment failedPayment = Payment.builder()
+                .orderId(1L)
+                .amount(new BigDecimal("200000"))
+                .paymentMethod("VNPAY")
+                .status(PaymentStatus.FAILED)
+                .build();
+        when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+        when(paymentPersistencePort.findLatestByOrderId(1L)).thenReturn(Optional.of(failedPayment));
+
+        paymentService.switchPendingVnpayOrderToCod(1L, 5L);
+
+        verify(orderPaymentPort).confirmPendingOrderAsCod(1L, 5L);
+    }
+
+    @Test
+    void givenLatestVnpayPaymentPendingAndOrderPending_whenSwitchToCod_thenConfirmOrderAsCod() {
+        orderDto.setStatus("PENDING");
+        orderDto.setCustomerId(5L);
+        Payment pendingPayment = Payment.builder()
+                .orderId(1L)
+                .amount(new BigDecimal("200000"))
+                .paymentMethod("VNPAY")
+                .status(PaymentStatus.PENDING)
+                .build();
+        when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+        when(paymentPersistencePort.findLatestByOrderId(1L)).thenReturn(Optional.of(pendingPayment));
+
+        paymentService.switchPendingVnpayOrderToCod(1L, 5L);
+
+        verify(orderPaymentPort).confirmPendingOrderAsCod(1L, 5L);
+    }
+
+    @Test
+    void givenPendingOrderWithoutPaymentCallback_whenSwitchToCod_thenConfirmOrderAsCod() {
+        orderDto.setStatus("PENDING");
+        orderDto.setCustomerId(5L);
+        when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+        when(paymentPersistencePort.findLatestByOrderId(1L)).thenReturn(Optional.empty());
+
+        paymentService.switchPendingVnpayOrderToCod(1L, 5L);
+
+        verify(orderPaymentPort).confirmPendingOrderAsCod(1L, 5L);
+    }
+
+    @Test
+    void givenLatestPaymentIsNotPendingOrFailedVnpay_whenSwitchToCod_thenRejectRequest() {
+        orderDto.setStatus("PENDING");
+        orderDto.setCustomerId(5L);
+        Payment successfulPayment = Payment.builder()
+                .orderId(1L)
+                .amount(new BigDecimal("200000"))
+                .paymentMethod("VNPAY")
+                .status(PaymentStatus.SUCCESS)
+                .build();
+        when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+        when(paymentPersistencePort.findLatestByOrderId(1L)).thenReturn(Optional.of(successfulPayment));
+
+        assertThrows(AppException.class, () -> paymentService.switchPendingVnpayOrderToCod(1L, 5L));
+
+        verify(orderPaymentPort, never()).confirmPendingOrderAsCod(anyLong(), anyLong());
+    }
+
+    @Test
+    void givenOrderAlreadyConfirmed_whenSwitchToCod_thenRejectRequest() {
+        orderDto.setStatus("CONFIRMED");
+        orderDto.setCustomerId(5L);
+        when(orderPaymentPort.findOrderForPayment(1L)).thenReturn(Optional.of(orderDto));
+
+        assertThrows(AppException.class, () -> paymentService.switchPendingVnpayOrderToCod(1L, 5L));
+
+        verify(paymentPersistencePort, never()).findLatestByOrderId(anyLong());
+        verify(orderPaymentPort, never()).confirmPendingOrderAsCod(anyLong(), anyLong());
     }
 
     @Test

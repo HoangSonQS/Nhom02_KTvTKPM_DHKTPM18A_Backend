@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -53,6 +54,13 @@ public class PaymentController {
         String ipAddress = VnPayUtils.getIpAddress(request);
         String paymentUrl = paymentUseCase.createPaymentUrl(orderId, requesterId, ipAddress);
         return ResponseEntity.ok(ApiResponse.success(Map.of("paymentUrl", paymentUrl)));
+    }
+
+    @PreAuthorize("hasAuthority('ORDER_CREATE')")
+    @PostMapping("/orders/{orderId}/switch-to-cod")
+    public ResponseEntity<ApiResponse<Void>> switchPendingVnpayOrderToCod(@PathVariable Long orderId) {
+        paymentUseCase.switchPendingVnpayOrderToCod(orderId, SecurityUtils.getCurrentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @GetMapping("/vnpay-return")

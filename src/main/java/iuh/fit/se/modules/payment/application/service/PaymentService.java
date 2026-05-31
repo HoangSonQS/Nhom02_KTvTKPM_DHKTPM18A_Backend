@@ -6,6 +6,8 @@ import iuh.fit.se.modules.payment.application.port.out.PaymentPersistencePort;
 import iuh.fit.se.modules.payment.domain.Payment;
 import iuh.fit.se.modules.payment.domain.PaymentStatus;
 import iuh.fit.se.modules.payment.domain.event.PaymentSuccessDomainEvent;
+import iuh.fit.se.shared.exception.AppException;
+import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.event.payment.PaymentFailedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -310,6 +312,34 @@ public class PaymentService implements PaymentUseCase {
         
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
         return iuh.fit.se.modules.payment.adapter.outbound.vnpay.VnPayUtils.VNP_PAYURL + "?" + queryUrl;
+    }
+
+    @Override
+    @Transactional
+    public void switchPendingVnpayOrderToCod(Long orderId, Long requesterId) {
+        OrderPaymentPort.OrderPaymentDto order = orderPaymentPort.findOrderForPayment(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
+        if (!Objects.equals(requesterId, order.getCustomerId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Ban khong co quyen thay doi phuong thuc thanh toan cua don hang nay");
+        }
+        if (!"PENDING".equals(order.getStatus())) {
+            throw new AppException(ErrorCode.ORD_INVALID_STATUS, "Don hang khong con o trang thai cho thanh toan");
+        }
+        Optional<Payment> latestPayment = paymentPersistencePort.findLatestByOrderId(orderId);
+        if (latestPayment.isPresent()) {
+            Payment payment = latestPayment.get();
+            boolean isPendingOrFailedVnpay = "VNPAY".equalsIgnoreCase(payment.getPaymentMethod())
+                    && (payment.getStatus() == PaymentStatus.PENDING || payment.getStatus() == PaymentStatus.FAILED);
+            if (!isPendingOrFailedVnpay) {
+                throw new AppException(ErrorCode.PAY_COD_SWITCH_NOT_ALLOWED);
+            }
+            log.info("Switching pending order {} from {} payment {} ({}) to COD",
+                    orderId, payment.getPaymentMethod(), payment.getId(), payment.getStatus());
+        } else {
+            // VNPay URL generation does not persist a payment row until its callback arrives.
+            log.info("Switching pending order {} to COD before receiving a VNPay callback", orderId);
+        }
+        orderPaymentPort.confirmPendingOrderAsCod(orderId, requesterId);
     }
 
     @Override
