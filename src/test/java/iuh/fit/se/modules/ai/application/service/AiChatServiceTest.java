@@ -58,10 +58,10 @@ class AiChatServiceTest {
     void givenLlmFailure_whenChat_thenReturnFallbackAndSaveAssistantMessage() {
         when(historyPort.findById("session-1")).thenReturn(Optional.empty());
         when(historyPort.findMessagesBySessionId("session-1")).thenReturn(List.of());
-        when(vectorStorePort.findSimilarBooks("xin chao", 5)).thenReturn(List.of());
-        when(llmPort.chat(eq("xin chao"), any())).thenThrow(new RuntimeException("Gemini unavailable"));
+        when(vectorStorePort.findSimilarBooks("mot cau hoi khac", 5)).thenReturn(List.of());
+        when(llmPort.chat(eq("mot cau hoi khac"), any())).thenThrow(new RuntimeException("Gemini unavailable"));
 
-        String response = aiChatService.chat("session-1", 2L, "xin chao");
+        String response = aiChatService.chat("session-1", 2L, "mot cau hoi khac");
 
         assertEquals(AiChatService.FALLBACK_RESPONSE, response);
 
@@ -79,23 +79,62 @@ class AiChatServiceTest {
     void givenUserMessageWithoutCatalogContext_whenChat_thenSendCurrentMessageAsPromptOnly() {
         when(historyPort.findById("session-1")).thenReturn(Optional.empty());
         when(historyPort.findMessagesBySessionId("session-1")).thenReturn(List.of());
-        when(vectorStorePort.findSimilarBooks("xin chao", 5)).thenReturn(List.of());
-        when(llmPort.chat(eq("xin chao"), any())).thenReturn("Ban co the doc Tat den.");
+        when(vectorStorePort.findSimilarBooks("toi muon tro chuyen them", 5)).thenReturn(List.of());
+        when(llmPort.chat(eq("toi muon tro chuyen them"), any())).thenReturn("Ban co the doc Tat den.");
 
-        aiChatService.chat("session-1", 2L, "xin chao");
+        aiChatService.chat("session-1", 2L, "toi muon tro chuyen them");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ChatMessage>> historyCaptor = ArgumentCaptor.forClass(List.class);
-        verify(llmPort).chat(eq("xin chao"), historyCaptor.capture());
+        verify(llmPort).chat(eq("toi muon tro chuyen them"), historyCaptor.capture());
 
         List<ChatMessage> history = historyCaptor.getValue();
         long userMessageCount = history.stream()
                 .filter(message -> message.getRole() == ChatRole.USER)
-                .filter(message -> "xin chao".equals(message.getContent()))
+                .filter(message -> "toi muon tro chuyen them".equals(message.getContent()))
                 .count();
 
         assertEquals(0, userMessageCount);
         assertTrue(history.stream().noneMatch(message -> message.getRole() == ChatRole.ASSISTANT));
+    }
+
+    @Test
+    void givenGreeting_whenChat_thenReturnNaturalGreetingWithoutCallingRemoteAi() {
+        when(historyPort.findById("session-greeting")).thenReturn(Optional.empty());
+        when(historyPort.findMessagesBySessionId("session-greeting")).thenReturn(List.of());
+
+        String response = aiChatService.chat("session-greeting", 2L, "Xin chao");
+
+        assertTrue(response.contains("Xin ch\u00e0o"));
+        assertTrue(response.contains("SEBook"));
+        verify(vectorStorePort, never()).findSimilarBooks(any(), any(Integer.class));
+        verify(llmPort, never()).chat(any(), any());
+    }
+
+    @Test
+    void givenHowToOrderQuestion_whenChat_thenReturnNaturalGuidanceWithoutCallingRemoteAi() {
+        when(historyPort.findById("session-guide")).thenReturn(Optional.empty());
+        when(historyPort.findMessagesBySessionId("session-guide")).thenReturn(List.of());
+
+        String response = aiChatService.chat("session-guide", 2L, "Lam sao de dat hang tren website?");
+
+        assertTrue(response.contains("gi\u1ecf h\u00e0ng"));
+        assertTrue(response.contains("thanh to\u00e1n"));
+        verify(vectorStorePort, never()).findSimilarBooks(any(), any(Integer.class));
+        verify(llmPort, never()).chat(any(), any());
+    }
+
+    @Test
+    void givenBroadStudentRecommendation_whenChat_thenAskForMorePreferenceWithoutCallingRemoteAi() {
+        when(historyPort.findById("session-student")).thenReturn(Optional.empty());
+        when(historyPort.findMessagesBySessionId("session-student")).thenReturn(List.of());
+
+        String response = aiChatService.chat("session-student", 2L, "Sach nao phu hop cho sinh vien?");
+
+        assertTrue(response.contains("ng\u00e0nh"));
+        assertTrue(response.contains("ch\u1ee7 \u0111\u1ec1"));
+        verify(vectorStorePort, never()).findSimilarBooks(any(), any(Integer.class));
+        verify(llmPort, never()).chat(any(), any());
     }
 
     @Test

@@ -24,7 +24,7 @@ public class GeminiIntentParser {
                 Intent hợp lệ:
                 SEARCH_BOOK, VIEW_BOOK_DETAIL, CHECK_STOCK, ADD_TO_CART, REMOVE_FROM_CART, UPDATE_CART_QUANTITY,
                 VIEW_CART, PLACE_ORDER, VIEW_ORDER, VIEW_LATEST_ORDER, CHECK_ORDER_STATUS, CANCEL_ORDER, PAY_ORDER,
-                CHANGE_SHIPPING_ADDRESS, RECOMMEND_BOOK, UNKNOWN.
+                CHANGE_PAYMENT_METHOD, CHANGE_SHIPPING_ADDRESS, RECOMMEND_BOOK, UNKNOWN.
 
                 Schema bắt buộc:
                 {"intent":"string","entities":{"bookName":"string or null","bookId":null,"quantity":null,"orderId":null,"category":null,"author":null,"couponCode":null,"paymentMethod":null,"shippingAddress":null,"customerPhone":null},"confidence":0.0,"needConfirmation":false,"reason":"short string"}

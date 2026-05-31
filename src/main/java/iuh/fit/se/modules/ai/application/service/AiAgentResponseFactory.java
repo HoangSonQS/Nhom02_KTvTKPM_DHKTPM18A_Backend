@@ -133,6 +133,10 @@ public class AiAgentResponseFactory {
             title = "X\u00e1c nh\u1eadn h\u1ee7y \u0111\u01a1n h\u00e0ng";
             description = "H\u1ee7y \u0111\u01a1n h\u00e0ng #" + payload.orderId() + ".";
         }
+        if (action.getIntent().normalized() == AiAgentIntent.CHANGE_PAYMENT_METHOD) {
+            title = "X\u00e1c nh\u1eadn \u0111\u1ed5i ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n";
+            description = "Chuy\u1ec3n \u0111\u01a1n h\u00e0ng #" + payload.orderId() + " sang thanh to\u00e1n " + payload.paymentMethod() + ".";
+        }
         if (action.getIntent().normalized() == AiAgentIntent.PLACE_ORDER
                 && payload.bookId() == null
                 && (payload.bookTitle() == null || payload.bookTitle().isBlank())) {

@@ -50,6 +50,9 @@ public class AiAgentRuleEngine {
         if (isAmbiguousWrite(normalized)) {
             return AiAgentAnalysis.unknown(AiAgentSource.RULE, "ambiguous write");
         }
+        if (looksLikeChangePaymentMethod(normalized)) {
+            return paymentMethodAnalysis(extractOrderId(message), normalizePaymentMethod(message));
+        }
         if (looksLikeCancelOrder(normalized)) {
             return orderAnalysis(AiAgentIntent.CANCEL_ORDER, extractOrderId(message), 0.93, true, "cancel order request");
         }
@@ -78,6 +81,9 @@ public class AiAgentRuleEngine {
             if (hasSpecificBookQuery(bookName)) {
                 return analysis(AiAgentIntent.VIEW_BOOK_DETAIL, bookName, null, 1, null, null, null, 0.9, false, "book detail question");
             }
+        }
+        if (looksLikeBroadAudienceRecommendation(normalized)) {
+            return AiAgentAnalysis.unknown(AiAgentSource.RULE, "broad audience recommendation");
         }
         if (looksLikeSearchOrRecommend(normalized)) {
             String query = extractSearchQuery(normalized);
@@ -137,6 +143,7 @@ public class AiAgentRuleEngine {
             case "ADD_TO_CART" -> AiAgentIntent.ADD_TO_CART;
             case "VIEW_BOOK_DETAIL" -> AiAgentIntent.VIEW_BOOK_DETAIL;
             case "PAY_ORDER" -> AiAgentIntent.PAY_ORDER;
+            case "CHANGE_PAYMENT_METHOD" -> AiAgentIntent.CHANGE_PAYMENT_METHOD;
             case "CANCEL_ORDER" -> AiAgentIntent.CANCEL_ORDER;
             case "PLACE_ORDER" -> AiAgentIntent.PLACE_ORDER;
             default -> AiAgentIntent.UNKNOWN;
@@ -204,6 +211,18 @@ public class AiAgentRuleEngine {
         );
     }
 
+    private AiAgentAnalysis paymentMethodAnalysis(Long orderId, String paymentMethod) {
+        return new AiAgentAnalysis(
+                AiAgentIntent.CHANGE_PAYMENT_METHOD,
+                new AiAgentEntities(null, null, 1, null, paymentMethod, null, null, orderId, null, null),
+                0.95,
+                AiAgentSource.RULE,
+                true,
+                "change payment method request",
+                List.of()
+        );
+    }
+
     private boolean looksLikeStockQuestion(String normalized) {
         return normalized.contains("con hang")
                 || normalized.contains("con bao nhieu")
@@ -257,6 +276,12 @@ public class AiAgentRuleEngine {
                 && (normalized.contains("don") || normalized.contains("order"));
     }
 
+    private boolean looksLikeChangePaymentMethod(String normalized) {
+        return (normalized.contains("doi") || normalized.contains("chuyen"))
+                && normalized.contains("thanh toan")
+                && (normalized.contains("cod") || normalized.contains("tien mat"));
+    }
+
     private boolean looksLikeViewCart(String normalized) {
         return normalized.contains("gio hang") && (normalized.contains("xem") || normalized.contains("co gi") || normalized.contains("hien tai"));
     }
@@ -303,6 +328,13 @@ public class AiAgentRuleEngine {
                 || normalized.contains("tuong tu")
                 || normalized.contains("goi y")
                 || normalized.contains("de xuat");
+    }
+
+    private boolean looksLikeBroadAudienceRecommendation(String normalized) {
+        return normalized.contains("phu hop cho")
+                && (normalized.contains("sach nao")
+                || normalized.contains("quyen nao")
+                || normalized.contains("cuon nao"));
     }
 
     private boolean looksLikePurchase(String normalized) {
@@ -392,6 +424,7 @@ public class AiAgentRuleEngine {
     private String extractPurchaseBookQuery(String message) {
         String source = stripCheckoutDetails(message);
         String cleaned = PURCHASE_CLEANUP_PATTERN.matcher(removeQuantityPhrases(normalize(source))).replaceAll(" ");
+        cleaned = cleaned.replaceAll("\\b(va|chon)\\b", " ");
         cleaned = removeContextReferenceWords(cleaned);
         cleaned = cleaned.replaceAll("\\s+", " ").trim();
         return cleaned.isBlank() ? null : cleaned;
@@ -449,11 +482,10 @@ public class AiAgentRuleEngine {
             try {
                 return Integer.parseInt(matcher.group());
             } catch (NumberFormatException e) {
-                return 1;
+                return null;
             }
         }
-        Integer wordQuantity = vietnameseWordQuantity(normalize(message));
-        return wordQuantity == null ? 1 : wordQuantity;
+        return vietnameseWordQuantity(normalize(message));
     }
 
     private Integer vietnameseWordQuantity(String normalized) {

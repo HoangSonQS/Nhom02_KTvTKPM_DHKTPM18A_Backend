@@ -47,6 +47,7 @@ public enum ErrorCode {
     PAY_TRANSACTION_FAILED(4401, "Giao dịch thanh toán thất bại", HttpStatus.PAYMENT_REQUIRED),
     PAY_DUPLICATE_TXN(4402, "Giao dịch đã được ghi nhận trước đó", HttpStatus.CONFLICT),
     PAY_ORDER_MISMATCH(4403, "Thông tin đơn hàng không khớp", HttpStatus.BAD_REQUEST),
+    PAY_COD_SWITCH_NOT_ALLOWED(4404, "Chỉ có thể chuyển sang COD khi đơn hàng đang chờ thanh toán VNPAY", HttpStatus.CONFLICT),
 
     // ===== Logistics Module (LOG_) =====
     LOG_INVALID_STATE_TRANSITION(4501, "Chuyển đổi trạng thái không hợp lệ", HttpStatus.CONFLICT),

@@ -13,7 +13,7 @@ public class AiAgentValidator {
         return switch (intent.normalized()) {
             case VIEW_CART, VIEW_ORDER, VIEW_LATEST_ORDER, CHECK_ORDER_STATUS,
                  ADD_TO_CART, REMOVE_FROM_CART, UPDATE_CART_QUANTITY,
-                 PLACE_ORDER, CANCEL_ORDER, PAY_ORDER, CHANGE_SHIPPING_ADDRESS -> true;
+                 PLACE_ORDER, CANCEL_ORDER, PAY_ORDER, CHANGE_PAYMENT_METHOD, CHANGE_SHIPPING_ADDRESS -> true;
             default -> false;
         };
     }
@@ -38,8 +38,13 @@ public class AiAgentValidator {
             if (payload.customerPhone() == null) missing.add("số điện thoại");
             if (payload.paymentMethod() == null) missing.add("phương thức thanh toán COD hoặc VNPAY");
         }
-        if ((normalized == AiAgentIntent.CANCEL_ORDER || normalized == AiAgentIntent.PAY_ORDER) && payload.orderId() == null) {
+        if ((normalized == AiAgentIntent.CANCEL_ORDER
+                || normalized == AiAgentIntent.PAY_ORDER
+                || normalized == AiAgentIntent.CHANGE_PAYMENT_METHOD) && payload.orderId() == null) {
             missing.add("id đơn hàng");
+        }
+        if (normalized == AiAgentIntent.CHANGE_PAYMENT_METHOD && !"COD".equals(payload.paymentMethod())) {
+            missing.add("phương thức thanh toán COD");
         }
         return missing;
     }
