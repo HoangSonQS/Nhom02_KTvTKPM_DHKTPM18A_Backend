@@ -24,6 +24,11 @@ public class PaymentPersistenceAdapter implements PaymentPersistencePort {
     }
 
     @Override
+    public Optional<Payment> findLatestByOrderId(Long orderId) {
+        return jpaRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId);
+    }
+
+    @Override
     public Optional<Payment> findByTransactionId(String transactionId) {
         return jpaRepository.findByTransactionId(transactionId);
     }

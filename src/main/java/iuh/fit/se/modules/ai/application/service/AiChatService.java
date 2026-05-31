@@ -54,6 +54,12 @@ public class AiChatService implements AiChatUseCase {
         historyPort.saveSession(session);
         historyPort.saveMessage(userMsg);
 
+        String faqResponse = naturalFaqResponse(message);
+        if (faqResponse != null) {
+            saveAssistantMessage(session, sessionId, faqResponse);
+            return faqResponse;
+        }
+
         // 2. Retrieve relevant catalog data and call LLM with previous history.
         int requestedBookCount = resolveRequestedBookCount(message);
         boolean hasRequestedBookCount = AiCatalogMatchSupport.hasRequestedBookCount(message);
@@ -81,6 +87,28 @@ public class AiChatService implements AiChatUseCase {
         historyPort.saveMessage(assistantMsg);
 
         return response;
+    }
+
+    private String naturalFaqResponse(String message) {
+        String normalized = AiCatalogMatchSupport.normalizeText(message);
+        if (normalized.matches("^(xin chao|chao|hello|hi)( ban| shop| sebook)?[ !?.]*$")) {
+            return "Xin ch\u00e0o! M\u00ecnh l\u00e0 SEBook Assistant. M\u00ecnh c\u00f3 th\u1ec3 gi\u00fap b\u1ea1n t\u00ecm s\u00e1ch, t\u01b0 v\u1ea5n ch\u1ecdn s\u00e1ch ho\u1eb7c h\u01b0\u1edbng d\u1eabn \u0111\u1eb7t h\u00e0ng.";
+        }
+        if ((normalized.contains("lam sao") || normalized.contains("cach") || normalized.contains("huong dan"))
+                && normalized.contains("dat hang")) {
+            return "B\u1ea1n ch\u1ecdn s\u00e1ch, th\u00eam v\u00e0o gi\u1ecf h\u00e0ng, m\u1edf gi\u1ecf v\u00e0 nh\u1ea5n \u0111\u1eb7t h\u00e0ng. Sau \u0111\u00f3 b\u1ea1n nh\u1eadp \u0111\u1ecba ch\u1ec9 giao h\u00e0ng, s\u1ed1 \u0111i\u1ec7n tho\u1ea1i v\u00e0 ch\u1ecdn ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n.";
+        }
+        if (normalized.contains("sach nao") && normalized.contains("phu hop cho sinh vien")) {
+            return "M\u00ecnh c\u00f3 th\u1ec3 g\u1ee3i \u00fd s\u00e1ch cho sinh vi\u00ean. B\u1ea1n \u0111ang h\u1ecdc ng\u00e0nh n\u00e0o ho\u1eb7c mu\u1ed1n \u0111\u1ecdc ch\u1ee7 \u0111\u1ec1 g\u00ec, v\u00ed d\u1ee5 l\u1eadp tr\u00ecnh, kinh t\u1ebf hay k\u1ef9 n\u0103ng s\u1ed1ng?";
+        }
+        return null;
+    }
+
+    private void saveAssistantMessage(ChatSession session, String sessionId, String response) {
+        ChatMessage assistantMsg = ChatMessage.create(sessionId, ChatRole.ASSISTANT, response);
+        session.markActive();
+        historyPort.saveSession(session);
+        historyPort.saveMessage(assistantMsg);
     }
 
     private String buildPromptWithCatalogContext(

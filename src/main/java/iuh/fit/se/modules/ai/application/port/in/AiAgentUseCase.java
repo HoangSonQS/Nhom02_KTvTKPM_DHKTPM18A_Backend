@@ -117,6 +117,7 @@ public interface AiAgentUseCase {
             String author,
             BigDecimal price,
             int quantity,
+            Integer requestedQuantity,
             String imageUrl,
             String description
     ) {
