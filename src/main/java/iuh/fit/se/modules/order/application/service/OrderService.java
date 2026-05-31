@@ -450,6 +450,12 @@ public class OrderService implements OrderInternalUseCase {
                 customer.getFullName(),
                 customer.getEmail()
         ));
+        eventPublisher.publishEvent(OrderRealtimeEvent.statusChanged(
+                saved.getId(),
+                saved.getUserId(),
+                saved.getTotalAmount(),
+                saved.getFulfillmentStatus().name()
+        ));
         log.info("Order {} cancelled by customer {} before confirmation. Reason: {}", orderId, userId, reason);
         return mapToResponse(saved);
     }
@@ -495,9 +501,27 @@ public class OrderService implements OrderInternalUseCase {
     public void markOrderAsPaid(Long orderId) {
         Order order = orderPersistencePort.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
-        
+
+        FulfillmentStatus fromStatus = order.getFulfillmentStatus();
         order.confirm(); // V28: markPaid() đã bị xoá, dùng confirm() — FulfillmentStatus → CONFIRMED
-        orderPersistencePort.save(order);
+        Order saved = orderPersistencePort.save(order);
+        if (fromStatus != saved.getFulfillmentStatus()) {
+            OrderUserPort.UserDto customer = orderUserPort.getUserDetails(saved.getUserId());
+            eventPublisher.publishEvent(OrderFulfillmentStatusChangedEvent.of(
+                    saved,
+                    fromStatus,
+                    saved.getFulfillmentStatus(),
+                    "Payment completed",
+                    customer.getFullName(),
+                    customer.getEmail()
+            ));
+            eventPublisher.publishEvent(OrderRealtimeEvent.statusChanged(
+                    saved.getId(),
+                    saved.getUserId(),
+                    saved.getTotalAmount(),
+                    saved.getFulfillmentStatus().name()
+            ));
+        }
         log.info("Order {} fulfillment status set to CONFIRMED (via payment)", orderId);
     }
 
