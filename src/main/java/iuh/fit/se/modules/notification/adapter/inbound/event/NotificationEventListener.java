@@ -34,7 +34,7 @@ public class NotificationEventListener {
     private final MeterRegistry meterRegistry;
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleOrderCreated(OrderCreatedIntegrationEvent event) {
         setupMdc(event.correlationId());
         try {
@@ -53,7 +53,7 @@ public class NotificationEventListener {
     }
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handlePaymentSuccess(PaymentSuccessIntegrationEvent event) {
         setupMdc(event.correlationId());
         try {
@@ -90,7 +90,7 @@ public class NotificationEventListener {
     }
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handlePaymentFailed(PaymentFailedIntegrationEvent event) {
         setupMdc(event.correlationId());
         try {
@@ -113,7 +113,7 @@ public class NotificationEventListener {
     }
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleOrderStatusChanged(OrderStatusChangedIntegrationEvent event) {
         setupMdc(event.correlationId());
         try {
