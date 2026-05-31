@@ -6,6 +6,7 @@ import java.util.Optional;
 public interface OrderPaymentPort {
     Optional<OrderPaymentDto> findOrderForPayment(Long orderId);
     void updateOrderPaid(Long orderId);
+    void confirmPendingOrderAsCod(Long orderId, Long requesterId);
 
     @lombok.Data
     @lombok.Builder

@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.ai.application.port.in.AiAgentUseCase;
 import iuh.fit.se.modules.ai.application.port.in.AiAgentUseCase.*;
+import iuh.fit.se.modules.ai.application.port.in.AiChatUseCase;
 import iuh.fit.se.modules.ai.application.port.out.*;
+import iuh.fit.se.modules.ai.application.port.out.AiCheckoutDraftPersistencePort.CheckoutDraft;
+import iuh.fit.se.modules.ai.application.port.out.AiSearchContextPersistencePort.SearchContext;
 import iuh.fit.se.modules.ai.application.port.out.CatalogBookPort.BookContext;
 import iuh.fit.se.modules.ai.domain.*;
 import iuh.fit.se.modules.cart.application.port.in.CartInternalUseCase;
@@ -29,11 +32,10 @@ import java.util.*;
 public class AiAgentService implements AiAgentUseCase {
 
     private static final double RULE_THRESHOLD = 0.85;
-    private static final double MIN_CONFIDENCE = 0.65;
     private static final int RAG_TOP_K = 5;
     private static final int PENDING_EXPIRY_MINUTES = 10;
 
-    private final LlmPort llmPort;
+    private final AiChatUseCase chatUseCase;
     private final ChatHistoryPersistencePort historyPort;
     private final VectorStorePort vectorStorePort;
     private final CatalogBookPort catalogBookPort;
@@ -41,19 +43,27 @@ public class AiAgentService implements AiAgentUseCase {
     private final OrderInternalUseCase orderUseCase;
     private final PaymentUseCase paymentUseCase;
     private final AiAgentPendingActionPersistencePort pendingActionPort;
+    private final AiCheckoutDraftPersistencePort checkoutDraftPort;
+    private final AiSearchContextPersistencePort searchContextPort;
     private final ObjectMapper objectMapper;
     private final AiAgentRuleEngine ruleEngine;
-    private final GeminiIntentParser geminiIntentParser;
     private final AiAgentValidator validator;
     private final AiAgentResponseFactory responseFactory;
     private final Map<String, List<BookReference>> sessionBookContext = new ConcurrentHashMap<>();
+    private final Map<String, CheckoutDraft> sessionCheckoutDraft = new ConcurrentHashMap<>();
+    private final Map<String, SearchContext> sessionSearchContext = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
     public AgentResponse handleMessage(AgentMessageCommand command) {
         String message = effectiveMessage(command);
+        AiAgentAnalysis analysis = ruleEngine.analyze(message, command.clientAction()).withDefaults(AiAgentSource.RULE);
+        if (!isRuleMatch(analysis)) {
+            return chatbotFallback(command, message, analysis);
+        }
+        analysis = applyConversationContext(command.sessionId(), message, analysis);
         saveMessage(command.sessionId(), command.userId(), ChatRole.USER, message);
-        AgentResponse response = routeMessage(command, message);
+        AgentResponse response = routeMessage(command, message, analysis);
         rememberBookContext(command.sessionId(), response);
         saveMessage(command.sessionId(), command.userId(), ChatRole.ASSISTANT, response.message());
         return response;
@@ -84,6 +94,7 @@ public class AiAgentService implements AiAgentUseCase {
                 case PLACE_ORDER -> executePlaceOrder(userId, payload, requesterIpAddress);
                 case CANCEL_ORDER -> executeCancelOrder(userId, payload);
                 case PAY_ORDER -> executePayOrder(userId, payload, requesterIpAddress);
+                case CHANGE_PAYMENT_METHOD -> executeChangePaymentMethod(userId, payload);
                 case CHANGE_SHIPPING_ADDRESS -> unsupportedImportantAction(action.getIntent());
                 // Legacy pending actions are still accepted.
                 case ADD_TO_CART -> executeAddToCart(userId, payload);
@@ -121,28 +132,16 @@ public class AiAgentService implements AiAgentUseCase {
                 .build();
     }
 
-    private AgentResponse routeMessage(AgentMessageCommand command, String message) {
-        AiAgentAnalysis analysis = resolveAnalysis(message, command.clientAction());
-        analysis = applyConversationContext(command.sessionId(), message, analysis);
+    private AgentResponse routeMessage(AgentMessageCommand command, String message, AiAgentAnalysis analysis) {
         log.debug("AI agent route intent={}, source={}, confidence={}", analysis.intent(), analysis.source(), analysis.confidence());
 
-        if (validator.lowConfidence(analysis, MIN_CONFIDENCE)) {
-            if (looksAmbiguousForImportantWrite(message)) {
-                return naturalGeneralReply(message, analysis);
-            }
-            return responseFactory.base(
-                            "M\u00ecnh ch\u01b0a ch\u1eafc b\u1ea1n mu\u1ed1n l\u00e0m g\u00ec. B\u1ea1n c\u00f3 th\u1ec3 n\u00f3i r\u00f5 h\u01a1n, v\u00ed d\u1ee5: \"t\u00ecm s\u00e1ch kinh t\u1ebf\", \"th\u00eam 2 cu\u1ed1n Clean Code v\u00e0o gi\u1ecf\", ho\u1eb7c \"\u0111\u01a1n h\u00e0ng g\u1ea7n nh\u1ea5t c\u1ee7a t\u00f4i\".",
-                            analysis)
-                    .suggestions(responseFactory.defaultSuggestions())
-                    .build();
-        }
         AiAgentIntent intent = analysis.intent().normalized();
         if (validator.requiresAuth(intent) && command.userId() == null) {
             return loginRequired(analysis);
         }
 
         return switch (intent) {
-            case SEARCH_BOOK, RECOMMEND_BOOK -> searchBooks(message, analysis);
+            case SEARCH_BOOK, RECOMMEND_BOOK -> searchBooks(command.sessionId(), message, analysis);
             case VIEW_BOOK_DETAIL -> bookDetail(analysis, message);
             case CHECK_STOCK -> checkStock(analysis, message);
             case VIEW_CART -> viewCart(command.userId(), analysis);
@@ -151,24 +150,33 @@ public class AiAgentService implements AiAgentUseCase {
             case ADD_TO_CART -> executeLightWrite(command.userId(), message, analysis, this::executeAddToCart);
             case UPDATE_CART_QUANTITY -> executeLightWrite(command.userId(), message, analysis, this::executeUpdateCart);
             case REMOVE_FROM_CART -> executeLightWrite(command.userId(), message, analysis, this::executeRemoveCart);
-            case PLACE_ORDER, CANCEL_ORDER, PAY_ORDER, CHANGE_SHIPPING_ADDRESS -> createPendingAction(command, message, analysis);
-            case UNKNOWN -> naturalGeneralReply(message, analysis);
-            default -> naturalGeneralReply(message, analysis);
+            case PLACE_ORDER, CANCEL_ORDER, PAY_ORDER, CHANGE_PAYMENT_METHOD, CHANGE_SHIPPING_ADDRESS -> createPendingAction(command, message, analysis);
+            case UNKNOWN -> throw new IllegalStateException("UNKNOWN intent must be delegated to chatbot");
+            default -> throw new IllegalStateException("Unsupported normalized AI agent intent: " + intent);
         };
     }
 
-    private AiAgentAnalysis resolveAnalysis(String message, ClientAction clientAction) {
-        AiAgentAnalysis rule = ruleEngine.analyze(message, clientAction).withDefaults(AiAgentSource.RULE);
-        if (rule.confidence() >= RULE_THRESHOLD && rule.intent().normalized() != AiAgentIntent.UNKNOWN) {
-            return rule;
-        }
-        AiAgentAnalysis gemini = geminiIntentParser.parse(message).withDefaults(AiAgentSource.GEMINI);
-        if (looksAmbiguousForImportantWrite(message) && gemini.intent().normalized().isImportantWrite()) {
-            return AiAgentAnalysis.unknown(AiAgentSource.GEMINI, "ambiguous important write");
-        }
-        return gemini.intent().normalized() == AiAgentIntent.UNKNOWN && rule.confidence() > gemini.confidence()
-                ? rule
-                : gemini;
+    private boolean isRuleMatch(AiAgentAnalysis analysis) {
+        return analysis != null
+                && analysis.intent() != null
+                && analysis.intent().normalized() != AiAgentIntent.UNKNOWN
+                && analysis.confidence() >= RULE_THRESHOLD;
+    }
+
+    private AgentResponse chatbotFallback(
+            AgentMessageCommand command,
+            String message,
+            AiAgentAnalysis ruleAnalysis
+    ) {
+        String answer = chatUseCase.chat(command.sessionId(), command.userId(), message);
+        String ruleReason = ruleAnalysis == null ? "" : ruleAnalysis.reason();
+        AiAgentAnalysis fallback = AiAgentAnalysis.unknown(
+                AiAgentSource.FALLBACK,
+                "rule miss delegated to chatbot: " + ruleReason
+        );
+        return responseFactory.base(answer, fallback)
+                .suggestions(responseFactory.defaultSuggestions())
+                .build();
     }
 
     private AiAgentAnalysis applyConversationContext(String sessionId, String message, AiAgentAnalysis analysis) {
@@ -233,12 +241,16 @@ public class AiAgentService implements AiAgentUseCase {
                 || normalized.contains("sach nay");
         boolean genericTakeReference = normalized.contains("lay")
                 && (normalized.contains("cuon") || normalized.contains("quyen") || normalized.contains("sach"));
+        boolean genericOrderReference = (normalized.contains("dat")
+                || normalized.contains("mua")
+                || normalized.contains("order"))
+                && (normalized.contains("cuon") || normalized.contains("quyen") || normalized.contains("sach"));
         boolean suppliesCheckoutInfo = normalized.contains("dat hang")
                 && (normalized.contains("cod")
                 || normalized.contains("vnpay")
                 || normalized.contains("dia chi")
                 || normalized.contains("so dien thoai"));
-        if ((refersToPreviousBook || genericTakeReference || suppliesCheckoutInfo) && context.size() == 1) {
+        if ((refersToPreviousBook || genericTakeReference || genericOrderReference || suppliesCheckoutInfo) && context.size() == 1) {
             return Optional.of(context.get(0));
         }
         return Optional.empty();
@@ -260,22 +272,65 @@ public class AiAgentService implements AiAgentUseCase {
         }
     }
 
-    private AgentResponse searchBooks(String message, AiAgentAnalysis analysis) {
-        String query = catalogQuery(message, analysis);
+    private AgentResponse searchBooks(String sessionId, String message, AiAgentAnalysis analysis) {
+        boolean requestsOtherBooks = requestsOtherBooks(message);
+        SearchContext previousSearch = findSearchContext(sessionId);
+        String query = requestsOtherBooks && previousSearch != null
+                ? previousSearch.query()
+                : catalogQuery(message, analysis);
+        Set<Long> excludedBookIds = requestsOtherBooks && previousSearch != null
+                ? previousSearch.shownBookIds()
+                : Set.of();
         boolean allowVectorFallback = analysis != null && analysis.intent() != null
                 && analysis.intent().normalized() == AiAgentIntent.RECOMMEND_BOOK;
-        List<BookContext> books = findRelevantBooks(query, allowVectorFallback);
+        List<BookContext> books = findRelevantBooks(query, allowVectorFallback, excludedBookIds);
         if (books.isEmpty()) {
             return responseFactory.base("M\u00ecnh ch\u01b0a t\u00ecm th\u1ea5y s\u00e1ch ph\u00f9 h\u1ee3p trong kho SEBook. B\u1ea1n th\u1eed m\u00f4 t\u1ea3 th\u1ec3 lo\u1ea1i, t\u00e1c gi\u1ea3 ho\u1eb7c ch\u1ee7 \u0111\u1ec1 c\u1ee5 th\u1ec3 h\u01a1n nh\u00e9.", analysis)
                     .suggestions(responseFactory.defaultSuggestions())
                     .build();
         }
+        rememberSearchContext(sessionId, query, excludedBookIds, books);
         List<BookResult> results = books.stream().map(this::toBookResult).toList();
         return responseFactory.base("M\u00ecnh t\u00ecm th\u1ea5y " + books.size() + " quy\u1ec3n s\u00e1ch ph\u00f9 h\u1ee3p.", analysis)
                 .books(results)
                 .cards(books.stream().map(responseFactory::bookCard).toList())
                 .suggestions(List.of("Th\u00eam s\u00e1ch v\u00e0o gi\u1ecf", "Xem chi ti\u1ebft s\u00e1ch", "T\u00ecm s\u00e1ch kh\u00e1c"))
                 .build();
+    }
+
+    private boolean requestsOtherBooks(String message) {
+        String normalized = normalizeForSearch(message);
+        return normalized.contains("sach khac")
+                || normalized.contains("quyen khac")
+                || normalized.contains("cuon khac")
+                || normalized.contains("tim khac")
+                || normalized.equals("khac");
+    }
+
+    private void rememberSearchContext(
+            String sessionId,
+            String query,
+            Set<Long> previousBookIds,
+            List<BookContext> books
+    ) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+        Set<Long> shownBookIds = new LinkedHashSet<>(previousBookIds);
+        books.stream()
+                .map(BookContext::id)
+                .filter(Objects::nonNull)
+                .forEach(shownBookIds::add);
+        sessionSearchContext.put(sessionId, new SearchContext(query, Set.copyOf(shownBookIds)));
+        searchContextPort.save(sessionId, new SearchContext(query, Set.copyOf(shownBookIds)));
+    }
+
+    private SearchContext findSearchContext(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return null;
+        }
+        return searchContextPort.findBySessionId(sessionId)
+                .orElseGet(() -> sessionSearchContext.get(sessionId));
     }
 
     private String catalogQuery(String message, AiAgentAnalysis analysis) {
@@ -297,7 +352,7 @@ public class AiAgentService implements AiAgentUseCase {
     private AgentResponse bookDetail(AiAgentAnalysis analysis, String originalMessage) {
         BookContext book = resolveBook(analysis.entities(), originalMessage);
         if (book == null) {
-            return searchBooks(originalMessage, analysis);
+            return searchBooks(null, originalMessage, analysis);
         }
         return responseFactory.base("\u0110\u00e2y l\u00e0 th\u00f4ng tin s\u00e1ch \"" + book.title() + "\".", analysis)
                 .books(List.of(toBookResult(book)))
@@ -400,6 +455,7 @@ public class AiAgentService implements AiAgentUseCase {
             return ambiguousSelection.get();
         }
         ActionPayload payload = resolveOrderReference(command.userId(), message, analysis, buildPayload(message, analysis));
+        payload = mergeCheckoutDraft(command.sessionId(), analysis, payload);
         if (payload.bookId() != null) {
             Optional<AgentResponse> invalid = inventoryValidationResponse(payload, analysis);
             if (invalid.isPresent()) {
@@ -408,12 +464,13 @@ public class AiAgentService implements AiAgentUseCase {
         }
         List<String> missing = validator.missingFields(analysis.intent(), payload);
         if (!missing.isEmpty()) {
+            rememberCheckoutDraft(command.sessionId(), analysis, payload);
             BookContext book = payload.bookId() == null ? null : safeGetBook(payload.bookId());
             String prefix = book == null
                     ? "M\u00ecnh c\u1ea7n th\u00eam th\u00f4ng tin tr\u01b0\u1edbc khi th\u1ef1c hi\u1ec7n: "
                     : "M\u00ecnh \u0111\u00e3 t\u00ecm th\u1ea5y s\u00e1ch \"" + book.title() + "\". \u0110\u1ec3 \u0111\u1eb7t h\u00e0ng, m\u00ecnh c\u1ea7n th\u00eam: ";
             return responseFactory.base(prefix + String.join(", ", missing) + ".", analysis)
-                    .books(book == null ? null : List.of(toBookResult(book)))
+                    .books(book == null ? null : List.of(toBookResult(book, payload.quantity())))
                     .cards(book == null ? null : List.of(responseFactory.bookCard(book)))
                     .suggestions(missingFieldSuggestions(missing))
                     .build();
@@ -426,6 +483,7 @@ public class AiAgentService implements AiAgentUseCase {
                 LocalDateTime.now().plusMinutes(PENDING_EXPIRY_MINUTES)
         );
         pendingActionPort.save(action);
+        forgetCheckoutDraft(command.sessionId());
         BigDecimal estimatedTotal = payload.unitPrice() == null ? null : payload.unitPrice().multiply(BigDecimal.valueOf(payload.quantity()));
         return responseFactory.base("B\u1ea1n x\u00e1c nh\u1eadn th\u1ef1c hi\u1ec7n thao t\u00e1c n\u00e0y ch\u1ee9?", analysis)
                 .confirmationCard(responseFactory.confirmationCard(action, payload))
@@ -433,6 +491,70 @@ public class AiAgentService implements AiAgentUseCase {
                 .actions(responseFactory.pendingActions(action))
                 .suggestions(List.of("X\u00e1c nh\u1eadn", "H\u1ee7y", "Xem gi\u1ecf h\u00e0ng"))
                 .build();
+    }
+
+    private ActionPayload mergeCheckoutDraft(String sessionId, AiAgentAnalysis analysis, ActionPayload payload) {
+        if (!isTargetedPlaceOrder(analysis, payload)
+                || analysis.entities() == null
+                || analysis.entities().quantity() != null) {
+            return payload;
+        }
+        CheckoutDraft draft = findCheckoutDraft(sessionId);
+        if (draft == null || !sameBook(draft, payload)) {
+            return payload;
+        }
+        return new ActionPayload(
+                payload.bookId(),
+                payload.bookTitle(),
+                draft.quantity(),
+                payload.couponCode(),
+                payload.paymentMethod(),
+                payload.shippingAddress(),
+                payload.customerPhone(),
+                payload.selectedBookIds(),
+                payload.orderId(),
+                payload.unitPrice(),
+                payload.cartCheckout()
+        );
+    }
+
+    private void rememberCheckoutDraft(String sessionId, AiAgentAnalysis analysis, ActionPayload payload) {
+        if (sessionId == null || sessionId.isBlank() || !isTargetedPlaceOrder(analysis, payload)) {
+            return;
+        }
+        CheckoutDraft draft = new CheckoutDraft(payload.bookId(), payload.bookTitle(), payload.quantity());
+        sessionCheckoutDraft.put(sessionId, draft);
+        checkoutDraftPort.save(sessionId, draft);
+    }
+
+    private CheckoutDraft findCheckoutDraft(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return null;
+        }
+        return checkoutDraftPort.findBySessionId(sessionId)
+                .orElseGet(() -> sessionCheckoutDraft.get(sessionId));
+    }
+
+    private void forgetCheckoutDraft(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+        sessionCheckoutDraft.remove(sessionId);
+        checkoutDraftPort.delete(sessionId);
+    }
+
+    private boolean isTargetedPlaceOrder(AiAgentAnalysis analysis, ActionPayload payload) {
+        return analysis != null
+                && analysis.intent() != null
+                && analysis.intent().normalized() == AiAgentIntent.PLACE_ORDER
+                && payload.bookId() != null;
+    }
+
+    private boolean sameBook(CheckoutDraft draft, ActionPayload payload) {
+        if (draft.bookId() != null && payload.bookId() != null) {
+            return draft.bookId().equals(payload.bookId());
+        }
+        return Objects.equals(normalizeForSearch(draft.bookTitle()), normalizeForSearch(payload.bookTitle()));
     }
 
     private Optional<AgentResponse> inventoryValidationResponse(ActionPayload payload, AiAgentAnalysis analysis) {
@@ -465,7 +587,9 @@ public class AiAgentService implements AiAgentUseCase {
             return payload;
         }
         AiAgentIntent intent = analysis.intent().normalized();
-        if (!(intent == AiAgentIntent.CANCEL_ORDER || intent == AiAgentIntent.PAY_ORDER)) {
+        if (!(intent == AiAgentIntent.CANCEL_ORDER
+                || intent == AiAgentIntent.PAY_ORDER
+                || intent == AiAgentIntent.CHANGE_PAYMENT_METHOD)) {
             return payload;
         }
         if (!looksLikeLatestOrderReference(message)) {
@@ -644,6 +768,22 @@ public class AiAgentService implements AiAgentUseCase {
                 .suggestions(responseFactory.defaultSuggestions())
                 .build();
     }
+
+    private AgentResponse executeChangePaymentMethod(Long userId, ActionPayload payload) {
+        paymentUseCase.switchPendingVnpayOrderToCod(payload.orderId(), userId);
+        OrderInternalUseCase.OrderResponse order = orderUseCase.getMyOrderById(payload.orderId(), userId);
+        OrderResult result = toOrderResult(order, "COD");
+        return AgentResponse.builder()
+                .message("M\u00ecnh \u0111\u00e3 chuy\u1ec3n \u0111\u01a1n h\u00e0ng #" + order.getOrderId() + " sang thanh to\u00e1n COD.")
+                .intent(AiAgentIntent.CHANGE_PAYMENT_METHOD)
+                .source(AiAgentSource.FALLBACK.name())
+                .confidence(1.0)
+                .order(result)
+                .cards(List.of(responseFactory.orderCard(result, null)))
+                .suggestions(responseFactory.defaultSuggestions())
+                .build();
+    }
+
     private AgentResponse unsupportedImportantAction(AiAgentIntent intent) {
         return AgentResponse.builder()
                 .message("Thao t\u00e1c n\u00e0y ch\u01b0a \u0111\u01b0\u1ee3c h\u1ed7 tr\u1ee3 qua AI Agent.")
@@ -652,22 +792,6 @@ public class AiAgentService implements AiAgentUseCase {
                 .error(responseFactory.error("UNSUPPORTED_ACTION", "Ch\u01b0a h\u1ed7 tr\u1ee3 thao t\u00e1c"))
                 .suggestions(responseFactory.defaultSuggestions())
                 .build();
-    }
-
-    private AgentResponse naturalGeneralReply(String message, AiAgentAnalysis analysis) {
-        String answer = naturalize("Tr\u1ea3 l\u1eddi th\u00e2n thi\u1ec7n cho kh\u00e1ch h\u00e0ng SEBook. N\u1ebfu ph\u00f9 h\u1ee3p, h\u01b0\u1edbng d\u1eabn kh\u00e1ch h\u1ecfi v\u1ec1 s\u00e1ch, gi\u1ecf h\u00e0ng ho\u1eb7c \u0111\u01a1n h\u00e0ng. C\u00e2u h\u1ecfi: " + message);
-        return responseFactory.base(answer, analysis)
-                .suggestions(responseFactory.defaultSuggestions())
-                .build();
-    }
-
-    private String naturalize(String prompt) {
-        try {
-            return llmPort.chat(prompt, List.of());
-        } catch (Exception e) {
-            log.warn("Unable to generate natural AI agent response: {}", e.getMessage());
-            return "M\u00ecnh c\u00f3 th\u1ec3 gi\u00fap b\u1ea1n t\u00ecm s\u00e1ch, ki\u1ec3m tra t\u1ed3n kho, th\u00eam v\u00e0o gi\u1ecf h\u00e0ng ho\u1eb7c xem \u0111\u01a1n h\u00e0ng. B\u1ea1n mu\u1ed1n l\u00e0m g\u00ec ti\u1ebfp theo?";
-        }
     }
 
     private ActionPayload buildPayload(String message, AiAgentAnalysis analysis) {
@@ -761,15 +885,24 @@ public class AiAgentService implements AiAgentUseCase {
     }
 
     private List<BookContext> findRelevantBooks(String userMessage) {
-        return findRelevantBooks(userMessage, true);
+        return findRelevantBooks(userMessage, true, Set.of());
     }
 
     private List<BookContext> findRelevantBooks(String userMessage, boolean allowVectorFallback) {
+        return findRelevantBooks(userMessage, allowVectorFallback, Set.of());
+    }
+
+    private List<BookContext> findRelevantBooks(
+            String userMessage,
+            boolean allowVectorFallback,
+            Set<Long> excludedBookIds
+    ) {
         try {
             List<BookContext> catalogBooks = safeSearchBooks(userMessage).stream()
                     .map(document -> safeGetBook(document.id()))
                     .filter(Objects::nonNull)
                     .filter(BookContext::isActive)
+                    .filter(book -> !excludedBookIds.contains(book.id()))
                     .filter(book -> isRelevantToQuery(userMessage, book))
                     .limit(RAG_TOP_K)
                     .toList();
@@ -780,6 +913,7 @@ public class AiAgentService implements AiAgentUseCase {
                     .map(document -> safeGetBook(document.id()))
                     .filter(Objects::nonNull)
                     .filter(BookContext::isActive)
+                    .filter(book -> !excludedBookIds.contains(book.id()))
                     .filter(book -> isRelevantToQuery(userMessage, book))
                     .limit(RAG_TOP_K)
                     .toList();
@@ -789,13 +923,15 @@ public class AiAgentService implements AiAgentUseCase {
             if (!allowVectorFallback) {
                 return List.of();
             }
-            List<Long> bookIds = vectorStorePort.findSimilarBooks(userMessage, RAG_TOP_K);
+            List<Long> bookIds = vectorStorePort.findSimilarBooks(userMessage, RAG_TOP_K + excludedBookIds.size());
             if (bookIds == null || bookIds.isEmpty()) return List.of();
             return bookIds.stream()
                     .map(this::safeGetBook)
                     .filter(Objects::nonNull)
                     .filter(BookContext::isActive)
+                    .filter(book -> !excludedBookIds.contains(book.id()))
                     .filter(book -> isRelevantToQuery(userMessage, book))
+                    .limit(RAG_TOP_K)
                     .toList();
         } catch (Exception e) {
             log.warn("Unable to retrieve agent catalog context: {}", e.getMessage());
@@ -928,12 +1064,17 @@ public class AiAgentService implements AiAgentUseCase {
     }
 
     private BookResult toBookResult(BookContext book) {
+        return toBookResult(book, null);
+    }
+
+    private BookResult toBookResult(BookContext book, Integer requestedQuantity) {
         return BookResult.builder()
                 .bookId(book.id())
                 .title(book.title())
                 .author(book.author())
                 .price(book.price())
                 .quantity(book.quantity())
+                .requestedQuantity(requestedQuantity)
                 .imageUrl(book.imageUrl())
                 .description(book.description())
                 .build();
@@ -1026,26 +1167,6 @@ public class AiAgentService implements AiAgentUseCase {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private boolean looksAmbiguousForImportantWrite(String value) {
-        String normalized = value == null ? "" : Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase(Locale.ROOT)
-                .replace('\u0111', 'd');
-        return normalized.contains("co nen mua")
-                || normalized.contains("nen mua")
-                || normalized.contains("dang mua")
-                || normalized.contains("da mua")
-                || normalized.contains("phan van")
-                || normalized.contains("tinh dat sau")
-                || normalized.contains("neu con hang")
-                || normalized.contains("lam sao")
-                || normalized.contains("hoi cach")
-                || normalized.contains("cach huy")
-                || normalized.contains("cach dat")
-                || normalized.contains("xem thu")
-                || (normalized.contains("tim") && normalized.contains("dat") && normalized.contains("phu hop"));
-    }
-
     @FunctionalInterface
     private interface LightWriteExecutor {
         AgentResponse execute(Long userId, ActionPayload payload);
@@ -1069,4 +1190,5 @@ public class AiAgentService implements AiAgentUseCase {
 
     private record BookReference(Long id, String title) {
     }
+
 }

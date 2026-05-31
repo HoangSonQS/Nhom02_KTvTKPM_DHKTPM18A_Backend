@@ -35,4 +35,9 @@ public class InternalOrderPaymentAdapter implements OrderPaymentPort {
     public void updateOrderPaid(Long orderId) {
         orderUseCase.markOrderAsPaid(orderId);
     }
+
+    @Override
+    public void confirmPendingOrderAsCod(Long orderId, Long requesterId) {
+        orderUseCase.confirmMyPendingOrderAsCod(orderId, requesterId);
+    }
 }

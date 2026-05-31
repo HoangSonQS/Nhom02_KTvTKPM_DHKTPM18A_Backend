@@ -18,6 +18,8 @@ public interface OrderInternalUseCase {
 
     OrderResponse confirmMyOrderReceived(Long orderId, Long userId);
 
+    OrderResponse confirmMyPendingOrderAsCod(Long orderId, Long userId);
+
     void markOrderAsPaid(Long orderId);
 
     // Admin/Staff methods
