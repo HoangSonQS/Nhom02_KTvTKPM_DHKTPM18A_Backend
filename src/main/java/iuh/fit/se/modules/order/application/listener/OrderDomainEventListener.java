@@ -7,6 +7,7 @@ import iuh.fit.se.modules.order.domain.event.OrderCreatedDomainEvent;
 import iuh.fit.se.modules.order.domain.event.OrderFulfillmentStatusChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -17,6 +18,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class OrderDomainEventListener {
 
     private final OrderEventPort orderEventPort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleOrderCreated(OrderCreatedDomainEvent domainEvent) {
@@ -33,6 +35,7 @@ public class OrderDomainEventListener {
 
         // Publish to Outbox via Port
         orderEventPort.publishOrderCreated(integrationEvent);
+        eventPublisher.publishEvent(integrationEvent);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -50,5 +53,6 @@ public class OrderDomainEventListener {
                 domainEvent.getCorrelationId());
 
         orderEventPort.publishOrderStatusChanged(integrationEvent);
+        eventPublisher.publishEvent(integrationEvent);
     }
 }
