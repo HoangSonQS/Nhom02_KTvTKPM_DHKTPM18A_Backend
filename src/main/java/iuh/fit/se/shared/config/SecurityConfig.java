@@ -64,6 +64,7 @@ public class SecurityConfig {
                                                                 "/api/v1/newsletter/**",
                                                                 "/api/v1/notifications/stream",
                                                                 "/api/v1/notifications/public-stream",
+                                                                "/api/v1/notifications/ws",
                                                                 "/api/v1/payments/vnpay-ipn",
                                                                 "/api/v1/payments/vnpay-return",
                                                                 "/favicon.ico",
