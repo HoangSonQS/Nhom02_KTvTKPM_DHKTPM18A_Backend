@@ -2,13 +2,17 @@ package iuh.fit.se.modules.auth.application.service;
 
 import iuh.fit.se.modules.auth.application.port.in.AdminUserUseCase;
 import iuh.fit.se.modules.auth.application.port.out.UserPersistencePort;
+import iuh.fit.se.modules.auth.application.port.out.RefreshTokenPersistencePort;
 import iuh.fit.se.modules.auth.domain.Role;
 import iuh.fit.se.modules.auth.domain.User;
 import iuh.fit.se.modules.account.application.port.in.AccountInternalUseCase;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.SessionRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +25,8 @@ public class AdminUserService implements AdminUserUseCase {
     private final UserPersistencePort userPersistencePort;
     private final AccountInternalUseCase accountInternalUseCase;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenPersistencePort refreshTokenPersistencePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -47,6 +53,11 @@ public class AdminUserService implements AdminUserUseCase {
                 role);
         User saved = userPersistencePort.save(staff);
         accountInternalUseCase.createDefaultProfile(saved.getId());
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forUser(
+                "USER_CHANGED",
+                saved.getId(),
+                "Da tao tai khoan nhan vien"
+        ));
         return toSummary(saved);
     }
 
@@ -57,7 +68,15 @@ public class AdminUserService implements AdminUserUseCase {
         var user = userPersistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.AUTH_USER_NOT_FOUND));
         user.disable();
-        return toSummary(userPersistencePort.save(user));
+        User saved = userPersistencePort.save(user);
+        refreshTokenPersistencePort.revokeAllUserSessions(saved.getId().toString());
+        eventPublisher.publishEvent(SessionRealtimeEvent.expiredByAdminLock(saved.getId()));
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forUser(
+                "USER_CHANGED",
+                saved.getId(),
+                "Tai khoan da bi khoa"
+        ));
+        return toSummary(saved);
     }
 
     private Role parseStaffRole(String rawRole) {

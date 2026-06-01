@@ -40,8 +40,7 @@ public class ReturnRequestController {
     }
 
     private ReturnRequest createReturnRequest(CreateReturnRequestDTO dto, byte[] evidenceImageBytes) {
-        // In real app, get customerId from SecurityContext
-        Long customerId = 1L; 
+        Long customerId = SecurityUtils.getCurrentUserId();
 
         ReturnRequestUseCase.CreateReturnCommand command = ReturnRequestUseCase.CreateReturnCommand.builder()
                 .orderId(dto.getOrderId())
@@ -63,7 +62,7 @@ public class ReturnRequestController {
     @GetMapping("/returns/my")
     @PreAuthorize("hasAuthority('RETURN_READ_OWN') or hasAuthority('RETURN_READ_SELF')")
     public ApiResponse<List<ReturnRequestResponseDTO>> getMyReturns() {
-        Long customerId = 1L; // Get from SecurityContext
+        Long customerId = SecurityUtils.getCurrentUserId();
         return ApiResponse.success(returnRequestUseCase.getByCustomer(customerId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList()));

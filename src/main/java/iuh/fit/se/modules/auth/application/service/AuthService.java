@@ -10,6 +10,7 @@ import iuh.fit.se.modules.auth.domain.User;
 import iuh.fit.se.modules.account.application.port.in.AccountInternalUseCase;
 import iuh.fit.se.shared.config.JwtTokenProvider;
 import iuh.fit.se.shared.event.realtime.SessionRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -100,6 +101,11 @@ public class AuthService implements AuthUseCase, AuthInternalUseCase {
         // Gọi sang module Account thông qua Interface Port/In để tạo profile rỗng
         // (Sync)
         accountInternalUseCase.createDefaultProfile(saved.getId());
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forUser(
+                "USER_CHANGED",
+                saved.getId(),
+                "Co tai khoan khach hang moi"
+        ));
 
         // Đăng ký mặc định cấp deviceId mới
         String deviceId = UUID.randomUUID().toString();

@@ -22,8 +22,12 @@ public class PurchaseOrderRealtimeEventListener {
     public void handlePurchaseOrderRealtime(PurchaseOrderRealtimeEvent event) {
         notificationService.publishRealtimeToRoles(PURCHASE_ORDER_MANAGEMENT_ROLES, new RealtimeEventResponse(
                 event.type(),
-                event.purchaseOrderId(),
                 null,
+                null,
+                null,
+                null,
+                null,
+                event.purchaseOrderId(),
                 null,
                 null,
                 null,

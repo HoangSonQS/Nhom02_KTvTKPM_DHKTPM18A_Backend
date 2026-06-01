@@ -11,7 +11,7 @@ import iuh.fit.se.modules.catalog.domain.Book;
 import iuh.fit.se.shared.event.catalog.BookCreatedEvent;
 import iuh.fit.se.shared.event.catalog.BookUpdatedEvent;
 import iuh.fit.se.shared.event.catalog.BookDeletedEvent;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
@@ -91,8 +91,9 @@ public class BookService implements BookUseCase {
                 .price(savedBook.getPrice())
                 .initialQuantity(command.quantity())
                 .build());
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
-                "BOOK",
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                "BOOK_CHANGED",
+                savedBook.getId(),
                 "Da them sach " + savedBook.getTitle()
         ));
 
@@ -154,8 +155,9 @@ public class BookService implements BookUseCase {
                 .author(updatedBook.getAuthor())
                 .description(updatedBook.getDescription())
                 .build());
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
-                "BOOK",
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                "BOOK_CHANGED",
+                updatedBook.getId(),
                 "Da cap nhat sach " + updatedBook.getTitle()
         ));
 
@@ -200,8 +202,9 @@ public class BookService implements BookUseCase {
         eventPublisher.publishEvent(BookDeletedEvent.builder()
                 .bookId(id)
                 .build());
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
-                "BOOK",
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                "BOOK_CHANGED",
+                id,
                 "Da xoa sach #" + id
         ));
 

@@ -3,10 +3,12 @@ package iuh.fit.se.modules.inventory.application.service;
 import iuh.fit.se.modules.inventory.application.port.in.InventoryAdminUseCase;
 import iuh.fit.se.modules.inventory.application.port.out.InventoryPersistencePort;
 import iuh.fit.se.modules.inventory.domain.InventoryStock;
+import iuh.fit.se.shared.event.inventory.InventoryStockChangedIntegrationEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import java.util.List;
 public class InventoryAdminService implements InventoryAdminUseCase {
 
     private final InventoryPersistencePort persistencePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -52,6 +55,7 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
         InventoryStock stock = InventoryStock.create(bookId, initialQuantity);
         persistencePort.saveStock(stock);
+        eventPublisher.publishEvent(InventoryStockChangedIntegrationEvent.of(bookId, initialQuantity, initialQuantity, "INITIALIZE"));
         log.info("[ADMIN] Initialized stock for bookId={} with quantity={}", bookId, initialQuantity);
         return InventoryResponse.from(stock);
     }
@@ -70,6 +74,7 @@ public class InventoryAdminService implements InventoryAdminUseCase {
 
         stock.increase(amount);
         persistencePort.saveStock(stock);
+        eventPublisher.publishEvent(InventoryStockChangedIntegrationEvent.of(bookId, amount, stock.getQuantity(), "INCREASE"));
         log.info("[ADMIN] Increased stock for bookId={} by amount={}. New total={}", bookId, amount, stock.getQuantity());
         return InventoryResponse.from(stock);
     }
@@ -95,6 +100,7 @@ public class InventoryAdminService implements InventoryAdminUseCase {
         }
 
         persistencePort.saveStock(stock);
+        eventPublisher.publishEvent(InventoryStockChangedIntegrationEvent.of(bookId, amount, stock.getQuantity(), "DECREASE"));
         log.info("[ADMIN] Decreased stock for bookId={} by amount={}. New total={}", bookId, amount, stock.getQuantity());
         return InventoryResponse.from(stock);
     }

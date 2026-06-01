@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationResponse;
 import iuh.fit.se.modules.notification.application.port.in.RealtimeEventResponse;
+import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimeLocalPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,7 +23,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class NotificationWebSocketAdapter extends TextWebSocketHandler {
+public class NotificationWebSocketAdapter extends TextWebSocketHandler implements NotificationRealtimeLocalPort {
 
     private final ObjectMapper objectMapper;
 
@@ -60,14 +61,17 @@ public class NotificationWebSocketAdapter extends TextWebSocketHandler {
         closeQuietly(session);
     }
 
+    @Override
     public void publish(Long userId, CustomerNotificationResponse notification) {
         publish(sessionsByUser.get(userId), "notification", notification);
     }
 
+    @Override
     public void publishEventToUser(Long userId, RealtimeEventResponse event) {
         publish(sessionsByUser.get(userId), "realtime", event);
     }
 
+    @Override
     public void publishEventToUserExceptDevice(Long userId, String excludedDeviceId, RealtimeEventResponse event) {
         List<SocketRegistration> sessions = sessionsByUser.get(userId);
         if (sessions == null || sessions.isEmpty()) {
@@ -78,6 +82,7 @@ public class NotificationWebSocketAdapter extends TextWebSocketHandler {
                 .toList(), "realtime", event);
     }
 
+    @Override
     public void publishEventToRoles(Set<String> roles, RealtimeEventResponse event) {
         if (roles == null || roles.isEmpty()) {
             return;
