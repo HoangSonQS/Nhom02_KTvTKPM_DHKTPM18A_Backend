@@ -79,7 +79,25 @@ jobs:
             docker compose pull app-1 app-2
             docker compose up -d --no-deps --force-recreate app-1 app-2
 
-            sleep 30
+            echo "Waiting for app instances to become healthy..."
+            for i in $(seq 1 24); do
+              if curl -fsS http://localhost:8080/actuator/health >/dev/null \
+                && curl -fsS http://localhost:8081/actuator/health >/dev/null; then
+                echo "Both app instances are healthy."
+                break
+              fi
+
+              if [ "$i" -eq 24 ]; then
+                echo "App instances did not become healthy in time."
+                docker compose ps
+                docker compose logs app-1 --tail=80
+                docker compose logs app-2 --tail=80
+                exit 1
+              fi
+
+              echo "Apps are still starting... attempt $i/24"
+              sleep 10
+            done
 
             docker compose up -d nginx nginx-exporter
 
@@ -91,4 +109,4 @@ jobs:
             fi
 
             docker image prune -f
-            echo "Deploy thành công: $(date)"
+            echo "Deploy completed: $(date)"
