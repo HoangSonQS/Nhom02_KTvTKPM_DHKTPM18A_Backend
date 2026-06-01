@@ -48,3 +48,89 @@ groups:
           description: "Job {{ $labels.job }} co {{ $values.A }} errors"
         labels:
           severity: warning
+
+      - uid: nginx-high-traffic
+        title: "High API traffic detected"
+        condition: C
+        data:
+          - refId: A
+            queryType: ''
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'sum(rate(nginx_http_requests_total[5m]))'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            queryType: ''
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 30
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "Traffic cao trong 3 phut"
+          description: "Nginx request rate vuot nguong 30 requests/second. Can xem xet scale backend instances."
+        labels:
+          severity: warning
+
+      - uid: nginx-high-connections
+        title: "High active connections detected"
+        condition: C
+        data:
+          - refId: A
+            queryType: ''
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'nginx_connections_active'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            queryType: ''
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 300
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "So ket noi Nginx dang cao"
+          description: "Nginx active connections vuot 300 trong 3 phut. Can xem xet scale hoac dieu tra traffic."
+        labels:
+          severity: warning

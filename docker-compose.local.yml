@@ -1,11 +1,75 @@
 services:
-  app-1:
+  postgres-primary:
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:pg15}
+    container_name: sebook-postgres-primary-local
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sebook}
+      POSTGRES_USER: ${DB_USER:-root}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${LOCAL_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-primary-local-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-root} -d ${DB_NAME:-sebook}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sebook-local
+
+  redis:
+    image: redis:7-alpine
+    container_name: sebook-redis-local
+    ports:
+      - "${LOCAL_REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis-local-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sebook-local
+
+  app:
+    profiles: ["app"]
     build:
       context: .
       dockerfile: Dockerfile
     image: sebook-backend:local
+    container_name: sebook-app-local
     pull_policy: never
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      DB_NAME: ${DB_NAME:-sebook}
+      DB_USERNAME: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_URL: jdbc:postgresql://postgres-primary:5432/${DB_NAME:-sebook}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      APP_AUTH_COOKIE_SECURE: "false"
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:4173}
+    ports:
+      - "${LOCAL_APP_PORT:-8080}:8080"
+    volumes:
+      - ./logs:/logs/app
+      - ./config/keys:/app/config/keys:ro
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sebook-local
 
-  app-2:
-    image: sebook-backend:local
-    pull_policy: never
+networks:
+  sebook-local:
+    name: sebook-local
+
+volumes:
+  postgres-primary-local-data:
+  redis-local-data:

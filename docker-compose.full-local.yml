@@ -1,0 +1,14 @@
+services:
+  app-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sebook-backend:local
+    pull_policy: never
+
+  app-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sebook-backend:local
+    pull_policy: never
