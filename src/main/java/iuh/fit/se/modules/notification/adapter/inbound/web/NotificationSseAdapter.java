@@ -2,7 +2,7 @@ package iuh.fit.se.modules.notification.adapter.inbound.web;
 
 import iuh.fit.se.modules.notification.application.port.in.CustomerNotificationResponse;
 import iuh.fit.se.modules.notification.application.port.in.RealtimeEventResponse;
-import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimePort;
+import iuh.fit.se.modules.notification.application.port.out.NotificationRealtimeLocalPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @Component
 @Slf4j
-public class NotificationSseAdapter implements NotificationRealtimePort {
+public class NotificationSseAdapter implements NotificationRealtimeLocalPort {
 
     private static final long TIMEOUT_MILLIS = 30 * 60 * 1000L;
 

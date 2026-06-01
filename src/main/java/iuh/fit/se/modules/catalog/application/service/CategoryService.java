@@ -4,7 +4,7 @@ import iuh.fit.se.modules.catalog.application.port.in.CategoryDTO;
 import iuh.fit.se.modules.catalog.application.port.in.CategoryUseCase;
 import iuh.fit.se.modules.catalog.application.port.out.CategoryPersistencePort;
 import iuh.fit.se.modules.catalog.domain.Category;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,8 @@ public class CategoryService implements CategoryUseCase {
                 .isActive(true)
                 .build();
         Category savedCategory = categoryPersistencePort.save(category);
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                "CATEGORY_CHANGED",
                 "CATEGORY",
                 "Da them danh muc " + savedCategory.getName()
         ));
@@ -56,7 +57,8 @@ public class CategoryService implements CategoryUseCase {
 
         category.rename(newName);
         Category savedCategory = categoryPersistencePort.save(category);
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                "CATEGORY_CHANGED",
                 "CATEGORY",
                 "Da cap nhat danh muc " + savedCategory.getName()
         ));
@@ -68,7 +70,8 @@ public class CategoryService implements CategoryUseCase {
     @iuh.fit.se.shared.audit.annotation.Auditable(action = "STAFF_DELETE_CATEGORY")
     public void deleteCategory(Long id) {
         categoryPersistencePort.delete(id);
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                "CATEGORY_CHANGED",
                 "CATEGORY",
                 "Da xoa danh muc #" + id
         ));

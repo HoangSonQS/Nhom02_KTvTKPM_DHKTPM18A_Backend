@@ -14,14 +14,18 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class InventoryRealtimeEventListener {
 
-    private static final Set<String> INVENTORY_MANAGEMENT_ROLES = Set.of("ADMIN", "STAFF_WAREHOUSE");
+    private static final Set<String> INVENTORY_AFFECTED_ROLES = Set.of("ADMIN", "STAFF_WAREHOUSE", "CUSTOMER", "PUBLIC");
 
     private final NotificationService notificationService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleStockChanged(InventoryStockChangedIntegrationEvent event) {
-        String type = "INCREASE".equals(event.changeType()) ? "INVENTORY_INCREASED" : "INVENTORY_DECREASED";
-        notificationService.publishRealtimeToRoles(INVENTORY_MANAGEMENT_ROLES, new RealtimeEventResponse(
+        String type = switch (event.changeType()) {
+            case "INITIALIZE" -> "INVENTORY_INITIALIZED";
+            case "INCREASE" -> "INVENTORY_INCREASED";
+            default -> "INVENTORY_DECREASED";
+        };
+        notificationService.publishRealtimeToRoles(INVENTORY_AFFECTED_ROLES, new RealtimeEventResponse(
                 type,
                 null,
                 null,

@@ -10,7 +10,7 @@ import iuh.fit.se.modules.inventory.domain.StocktakeItem;
 import iuh.fit.se.modules.inventory.domain.StocktakeSession;
 import iuh.fit.se.modules.inventory.domain.StocktakeStatus;
 import iuh.fit.se.shared.event.inventory.InventoryStockChangedIntegrationEvent;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +56,7 @@ public class StocktakeService implements StocktakeUseCase {
                 items
         );
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Phiên kiểm kê đã được tạo");
+        publishStocktakeChanged(saved, "Phiên kiểm kê đã được tạo");
         return toResponse(saved);
     }
 
@@ -67,7 +67,7 @@ public class StocktakeService implements StocktakeUseCase {
         StocktakeSession session = load(id);
         session.assignStaff(command.assignedStaffId(), command.assignedStaffEmail());
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Phiên kiểm kê đã được giao");
+        publishStocktakeChanged(saved, "Phiên kiểm kê đã được giao");
         return toResponse(saved);
     }
 
@@ -111,7 +111,7 @@ public class StocktakeService implements StocktakeUseCase {
         });
 
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Kết quả kiểm kê đã được cập nhật");
+        publishStocktakeChanged(saved, "Kết quả kiểm kê đã được cập nhật");
         return toResponse(saved);
     }
 
@@ -123,7 +123,7 @@ public class StocktakeService implements StocktakeUseCase {
         ensureCanEditActuals(session, userId, role);
         session.submit(email);
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Báo cáo kiểm kê đã được gửi");
+        publishStocktakeChanged(saved, "Báo cáo kiểm kê đã được gửi");
         return toResponse(saved);
     }
 
@@ -144,7 +144,7 @@ public class StocktakeService implements StocktakeUseCase {
         session.getItems().forEach(item -> applyApprovedStocktake(session.getId(), item));
         session.approve(approvedBy);
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Báo cáo kiểm kê đã được duyệt");
+        publishStocktakeChanged(saved, "Báo cáo kiểm kê đã được duyệt");
         return toResponse(saved);
     }
 
@@ -155,7 +155,7 @@ public class StocktakeService implements StocktakeUseCase {
         StocktakeSession session = load(id);
         session.reject(rejectedBy, command.reason());
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Báo cáo kiểm kê đã bị từ chối");
+        publishStocktakeChanged(saved, "Báo cáo kiểm kê đã bị từ chối");
         return toResponse(saved);
     }
 
@@ -166,7 +166,7 @@ public class StocktakeService implements StocktakeUseCase {
         StocktakeSession session = load(id);
         session.cancel(cancelledBy);
         StocktakeSession saved = stocktakePort.save(session);
-        publishStocktakeChanged("Phiên kiểm kê đã bị hủy");
+        publishStocktakeChanged(saved, "Phiên kiểm kê đã bị hủy");
         return toResponse(saved);
     }
 
@@ -313,8 +313,8 @@ public class StocktakeService implements StocktakeUseCase {
         };
     }
 
-    private void publishStocktakeChanged(String message) {
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(STOCKTAKE_SOURCE, message));
+    private void publishStocktakeChanged(StocktakeSession session, String message) {
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.stocktake(session.getId(), session.getStatus().name(), message));
     }
 
     private String toJson(Object... entries) {

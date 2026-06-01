@@ -50,6 +50,8 @@ class AiAgentServiceTest {
     private AiCheckoutDraftPersistencePort checkoutDraftPort;
     @Mock
     private AiSearchContextPersistencePort searchContextPort;
+    @Mock
+    private AiBookContextPersistencePort bookContextPort;
 
     private AiAgentService service;
 
@@ -67,6 +69,7 @@ class AiAgentServiceTest {
                 pendingActionPort,
                 checkoutDraftPort,
                 searchContextPort,
+                bookContextPort,
                 objectMapper,
                 new AiAgentRuleEngine(),
                 new AiAgentValidator(),
@@ -75,6 +78,7 @@ class AiAgentServiceTest {
         lenient().when(historyPort.findById(anyString())).thenReturn(Optional.empty());
         lenient().when(checkoutDraftPort.findBySessionId(anyString())).thenReturn(Optional.empty());
         lenient().when(searchContextPort.findBySessionId(anyString())).thenReturn(Optional.empty());
+        lenient().when(bookContextPort.findBySessionId(anyString())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -968,6 +972,7 @@ class AiAgentServiceTest {
         assertThat(stockResponse.books()).hasSize(1);
         assertThat(missingInfoResponse.message()).doesNotContain("sách cần thao tác");
         assertThat(missingInfoResponse.books()).hasSize(1);
+        assertThat(missingInfoResponse.checkoutScope()).isEqualTo("BOOK");
         assertThat(checkoutResponse.pendingAction()).isNotNull();
         assertThat(checkoutResponse.confirmationCard().description()).contains("Clean Code");
         assertThat(checkoutResponse.confirmationCard().description()).doesNotContain("giỏ hàng");
@@ -976,6 +981,33 @@ class AiAgentServiceTest {
         assertThat(payload.selectedBookIds()).containsExactly(10L);
         assertThat(payload.cartCheckout()).isFalse();
         verify(orderUseCase, never()).checkout(anyLong(), any());
+    }
+
+    @Test
+    void givenBookContextFromAnotherInstance_whenOrderThatBook_thenUseRedisContext() {
+        when(bookContextPort.findBySessionId("session-redis-book-context")).thenReturn(Optional.of(
+                new AiBookContextPersistencePort.BookContext(List.of(
+                        new AiBookContextPersistencePort.BookReference(10L, "Clean Code")
+                ))
+        ));
+        when(catalogBookPort.getBook(10L)).thenReturn(CatalogBookPort.BookContext.builder()
+                .id(10L)
+                .title("Clean Code")
+                .author("Robert C. Martin")
+                .price(BigDecimal.valueOf(350000))
+                .quantity(15)
+                .isActive(true)
+                .build());
+
+        AiAgentUseCase.AgentResponse response = service.handleMessage(
+                new AiAgentUseCase.AgentMessageCommand("session-redis-book-context", 5L, "Dat cho toi cuon do")
+        );
+
+        assertThat(response.books()).hasSize(1);
+        assertThat(response.books().get(0).bookId()).isEqualTo(10L);
+        assertThat(response.checkoutScope()).isEqualTo("BOOK");
+        assertThat(response.pendingAction()).isNull();
+        verify(pendingActionPort, never()).save(any());
     }
 
     @Test
@@ -996,6 +1028,28 @@ class AiAgentServiceTest {
         assertThat(response.message()).doesNotContain("sách cần thao tác");
         assertThat(response.books()).hasSize(1);
         assertThat(response.books().get(0).bookId()).isEqualTo(101L);
+        assertThat(response.pendingAction()).isNull();
+        assertThat(response.confirmationCard()).isNull();
+        verifyNoInteractions(cartUseCase, orderUseCase, paymentUseCase, pendingActionPort);
+    }
+
+    @Test
+    void givenPreviousMultipleBookContext_whenOrderThatBook_thenAskToChooseBookWithoutCheckoutPrompt() {
+        when(catalogBookPort.searchBooks(eq("van hoc"), isNull())).thenReturn(List.of(
+                CatalogBookPort.BookDocument.builder().id(101L).title("Van Hoc Co Dien").author("Hector Malot").build(),
+                CatalogBookPort.BookDocument.builder().id(102L).title("Van Hoc Hien Dai").author("Paulo Coelho").build()
+        ));
+        when(catalogBookPort.getBook(101L)).thenReturn(bookContext(101L, "Van Hoc Co Dien", "Hector Malot"));
+        when(catalogBookPort.getBook(102L)).thenReturn(bookContext(102L, "Van Hoc Hien Dai", "Paulo Coelho"));
+
+        service.handleMessage(new AiAgentUseCase.AgentMessageCommand("session-context-ambiguous", 5L, "Tim sach van hoc"));
+        AiAgentUseCase.AgentResponse response = service.handleMessage(
+                new AiAgentUseCase.AgentMessageCommand("session-context-ambiguous", 5L, "Dat cho toi cuon do")
+        );
+
+        assertThat(response.intent()).isEqualTo(AiAgentIntent.PLACE_ORDER);
+        assertThat(response.books()).hasSize(2);
+        assertThat(response.suggestions()).hasSize(3);
         assertThat(response.pendingAction()).isNull();
         assertThat(response.confirmationCard()).isNull();
         verifyNoInteractions(cartUseCase, orderUseCase, paymentUseCase, pendingActionPort);
@@ -1207,7 +1261,7 @@ class AiAgentServiceTest {
 
         AiAgentUseCase.AgentResponse response = service.handleMessage(
                 new AiAgentUseCase.AgentMessageCommand("session-cart-checkout-complete", 5L,
-                        "Dat hang COD; dia chi giao hang: 12 nvb, An Bien, An Giang; so dien thoai: 0788912345")
+                        "Dat toan bo gio hang COD; dia chi giao hang: 12 nvb, An Bien, An Giang; so dien thoai: 0788912345")
         );
 
         ArgumentCaptor<AiAgentPendingAction> captor = ArgumentCaptor.forClass(AiAgentPendingAction.class);
@@ -1217,6 +1271,7 @@ class AiAgentServiceTest {
 
         assertThat(response.intent()).isEqualTo(AiAgentIntent.PLACE_ORDER);
         assertThat(response.pendingAction()).isNotNull();
+        assertThat(response.checkoutScope()).isEqualTo("CART");
         assertThat(payload.bookId()).isNull();
         assertThat(payload.bookTitle()).isNull();
         assertThat(payload.selectedBookIds()).isNull();
@@ -1226,6 +1281,81 @@ class AiAgentServiceTest {
         assertThat(response.confirmationCard().description()).doesNotContain("Dat hang COD");
         assertThat(response.confirmationCard().description()).doesNotContain("null");
         verifyNoInteractions(catalogBookPort, cartUseCase, orderUseCase, paymentUseCase);
+    }
+
+    @Test
+    void givenStructuredBookCheckoutAction_whenHandleMessage_thenKeepBookScopeForAddressStep() {
+        when(catalogBookPort.getBook(10L)).thenReturn(CatalogBookPort.BookContext.builder()
+                .id(10L)
+                .title("Clean Code")
+                .author("Robert C. Martin")
+                .price(BigDecimal.valueOf(350000))
+                .quantity(15)
+                .isActive(true)
+                .build());
+
+        AiAgentUseCase.AgentResponse response = service.handleMessage(
+                new AiAgentUseCase.AgentMessageCommand(
+                        "session-structured-book",
+                        5L,
+                        "",
+                        AiAgentUseCase.ClientAction.builder()
+                                .action("PLACE_ORDER")
+                                .bookId(10L)
+                                .quantity(1)
+                                .checkoutScope("BOOK")
+                                .build()
+                )
+        );
+
+        assertThat(response.books()).hasSize(1);
+        assertThat(response.books().get(0).bookId()).isEqualTo(10L);
+        assertThat(response.checkoutScope()).isEqualTo("BOOK");
+        assertThat(response.pendingAction()).isNull();
+        verify(pendingActionPort, never()).save(any());
+    }
+
+    @Test
+    void givenStructuredCartCheckoutAction_whenHandleMessage_thenCreateCartPendingAction() throws Exception {
+        when(pendingActionPort.save(any(AiAgentPendingAction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AiAgentUseCase.AgentResponse response = service.handleMessage(
+                new AiAgentUseCase.AgentMessageCommand(
+                        "session-structured-cart",
+                        5L,
+                        "",
+                        AiAgentUseCase.ClientAction.builder()
+                                .action("PLACE_ORDER")
+                                .checkoutScope("CART")
+                                .paymentMethod("COD")
+                                .shippingAddress("12 NVB, HCM")
+                                .customerPhone("0909000000")
+                                .build()
+                )
+        );
+
+        ArgumentCaptor<AiAgentPendingAction> captor = ArgumentCaptor.forClass(AiAgentPendingAction.class);
+        verify(pendingActionPort).save(captor.capture());
+        AiAgentService.ActionPayload payload = new ObjectMapper()
+                .readValue(captor.getValue().getPayload(), AiAgentService.ActionPayload.class);
+
+        assertThat(response.checkoutScope()).isEqualTo("CART");
+        assertThat(payload.cartCheckout()).isTrue();
+        assertThat(payload.bookId()).isNull();
+        verifyNoInteractions(catalogBookPort, cartUseCase, orderUseCase, paymentUseCase);
+    }
+
+    @Test
+    void givenGenericCheckoutWithContactButNoBook_whenHandleMessage_thenAskWhichBookAndDoNotCheckoutCart() {
+        AiAgentUseCase.AgentResponse response = service.handleMessage(
+                new AiAgentUseCase.AgentMessageCommand("session-generic-checkout-complete", 5L,
+                        "Dat hang COD; dia chi giao hang: 12 nvb, An Bien, An Giang; so dien thoai: 0788912345")
+        );
+
+        assertThat(response.intent()).isEqualTo(AiAgentIntent.PLACE_ORDER);
+        assertThat(response.pendingAction()).isNull();
+        assertThat(response.confirmationCard()).isNull();
+        verifyNoInteractions(catalogBookPort, cartUseCase, orderUseCase, paymentUseCase, pendingActionPort);
     }
 
     @Test

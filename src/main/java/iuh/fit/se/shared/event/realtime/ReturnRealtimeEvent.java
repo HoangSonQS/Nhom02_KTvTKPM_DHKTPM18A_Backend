@@ -26,4 +26,17 @@ public record ReturnRealtimeEvent(
                 LocalDateTime.now()
         );
     }
+
+    public static ReturnRealtimeEvent created(String returnRequestId, Long orderId, Long userId) {
+        return new ReturnRealtimeEvent(
+                UUID.randomUUID().toString(),
+                "RETURN_CREATED",
+                returnRequestId,
+                orderId,
+                userId,
+                "PENDING",
+                "Co yeu cau tra hang moi #" + returnRequestId,
+                LocalDateTime.now()
+        );
+    }
 }

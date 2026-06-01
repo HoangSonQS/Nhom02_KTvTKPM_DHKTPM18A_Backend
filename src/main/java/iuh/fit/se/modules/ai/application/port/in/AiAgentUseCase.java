@@ -34,7 +34,8 @@ public interface AiAgentUseCase {
             String redirectUrl,
             List<BookResult> books,
             CartResult cart,
-            OrderResult order
+            OrderResult order,
+            String checkoutScope
     ) {
     }
 
@@ -106,7 +107,8 @@ public interface AiAgentUseCase {
             String paymentMethod,
             String shippingAddress,
             String customerPhone,
-            String message
+            String message,
+            String checkoutScope
     ) {
     }
 

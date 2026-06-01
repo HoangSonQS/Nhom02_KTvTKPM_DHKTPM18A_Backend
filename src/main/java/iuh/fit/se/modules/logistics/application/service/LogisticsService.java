@@ -10,7 +10,7 @@ import iuh.fit.se.modules.logistics.application.port.out.PurchaseOrderPersistenc
 import iuh.fit.se.modules.logistics.application.port.out.SupplierPersistencePort;
 import iuh.fit.se.modules.logistics.domain.*;
 import iuh.fit.se.shared.event.logistics.StockAdjustmentIntegrationEvent;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.event.realtime.PurchaseOrderRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
@@ -48,7 +48,8 @@ public class LogisticsService implements LogisticsUseCase {
                 command.getTaxCode()
         );
         Supplier saved = supplierPort.save(supplier);
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                "SUPPLIER_CHANGED",
                 "SUPPLIER",
                 "Đã tạo nhà cung cấp " + saved.getName()
         ));
@@ -68,7 +69,8 @@ public class LogisticsService implements LogisticsUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.LOG_SUPPLIER_NOT_FOUND));
         supplier.softDelete();
         supplierPort.save(supplier);
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                "SUPPLIER_CHANGED",
                 "SUPPLIER",
                 "Đã xóa nhà cung cấp " + supplier.getName()
         ));

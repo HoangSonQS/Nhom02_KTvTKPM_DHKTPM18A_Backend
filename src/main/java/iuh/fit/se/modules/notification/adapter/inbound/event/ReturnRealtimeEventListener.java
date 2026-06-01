@@ -8,9 +8,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.Set;
+
 @Component
 @RequiredArgsConstructor
 public class ReturnRealtimeEventListener {
+
+    private static final Set<String> RETURN_MANAGEMENT_ROLES = Set.of("ADMIN", "STAFF_SELLER");
 
     private final NotificationService notificationService;
 
@@ -22,11 +26,16 @@ public class ReturnRealtimeEventListener {
                 event.userId(),
                 null,
                 null,
+                event.returnRequestId(),
+                null,
+                null,
+                null,
                 null,
                 event.status(),
                 event.message(),
                 event.occurredAt()
         );
         notificationService.publishRealtimeToUser(event.userId(), payload);
+        notificationService.publishRealtimeToRoles(RETURN_MANAGEMENT_ROLES, payload);
     }
 }

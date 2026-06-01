@@ -22,7 +22,7 @@ public class AiAgentRuleEngine {
             "(?iu)\\b(tôi|toi|tao|mình|minh|muốn|muon|hãy|hay|giúp|giup|cho|thêm|them|bỏ|bo|xóa|xoa|vào|vao|khỏi|khoi|giỏ|gio|giỏ hàng|gio hang|sách|sach|quyển|quyen|cuốn|cuon|cái|cai)\\b|\\b\\d{1,2}\\b|[?!.:,;\"']"
     );
     private static final Pattern PURCHASE_CLEANUP_PATTERN = Pattern.compile(
-            "(?iu)\\b(tôi|toi|tao|mình|minh|muốn|muon|hãy|hay|giúp|giup|cho|đặt hàng|dat hang|đặt|dat|mua|order|sách|sach|quyển|quyen|cuốn|cuon|cái|cai|bằng|bang|cod|vnpay|vn pay|thanh toán|thanh toan)\\b|\\b\\d{1,2}\\b|[?!.:,;\"']"
+            "(?iu)\\b(tôi|toi|tao|mình|minh|muốn|muon|hãy|hay|giúp|giup|cho|đặt hàng|dat hang|đặt|dat|mua|order|sách|sach|quyển|quyen|cuốn|cuon|cái|cai|bằng|bang|cod|vnpay|vn pay|thanh toán|thanh toan|toàn bộ|toan bo|giỏ hàng|gio hang|giỏ|gio)\\b|\\b\\d{1,2}\\b|[?!.:,;\"']"
     );
 
     private static final Pattern QUANTITY_PHRASE_CLEANUP_PATTERN = Pattern.compile(
@@ -55,6 +55,20 @@ public class AiAgentRuleEngine {
         }
         if (looksLikeCancelOrder(normalized)) {
             return orderAnalysis(AiAgentIntent.CANCEL_ORDER, extractOrderId(message), 0.93, true, "cancel order request");
+        }
+        if (looksLikeExplicitCartCheckout(normalized)) {
+            return analysis(
+                    AiAgentIntent.PLACE_ORDER,
+                    null,
+                    null,
+                    quantity(stripCheckoutDetails(message)),
+                    normalizePaymentMethod(message),
+                    extractShippingAddress(message),
+                    extractPhoneNumber(message),
+                    0.95,
+                    true,
+                    "explicit cart checkout request"
+            );
         }
         if (looksLikeCartWrite(normalized)) {
             AiAgentIntent intent = cartWriteIntent(normalized);
@@ -294,6 +308,15 @@ public class AiAgentRuleEngine {
                 || normalized.contains("cap nhat")
                 || normalized.contains("so luong")
                 || normalized.contains("thanh"));
+    }
+
+    private boolean looksLikeExplicitCartCheckout(String normalized) {
+        return normalized.contains("gio hang")
+                && (normalized.contains("dat")
+                || normalized.contains("checkout")
+                || normalized.contains("thanh toan")
+                || normalized.contains("cod")
+                || normalized.contains("vnpay"));
     }
 
     private AiAgentIntent cartWriteIntent(String normalized) {

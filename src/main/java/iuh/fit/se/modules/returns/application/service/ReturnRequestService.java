@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,10 @@ public class ReturnRequestService implements ReturnRequestUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.ORD_NOT_FOUND));
 
         // 2. Business Validations
+        if (!Objects.equals(orderDto.getCustomerId(), command.getCustomerId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+
         // FulfillmentStatus.DELIVERED is the eligibility gate for returns (replaces legacy COMPLETED)
         if (!"DELIVERED".equals(orderDto.getStatus())) {
             throw new AppException(ErrorCode.RET_ORDER_NOT_DELIVERED);
@@ -99,6 +104,11 @@ public class ReturnRequestService implements ReturnRequestUseCase {
 
         // 4. Publish Domain Event (Internal)
         eventPublisher.publishEvent(ReturnRequestCreatedDomainEvent.of(saved));
+        eventPublisher.publishEvent(ReturnRealtimeEvent.created(
+                saved.getId(),
+                saved.getOrderId(),
+                saved.getCustomerId()
+        ));
 
         return saved;
     }

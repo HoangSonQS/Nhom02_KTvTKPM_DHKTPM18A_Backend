@@ -5,7 +5,7 @@ import iuh.fit.se.modules.catalog.application.port.in.BookUseCase;
 import iuh.fit.se.modules.promotion.application.port.in.FlashSaleUseCase;
 import iuh.fit.se.modules.promotion.application.port.out.FlashSalePersistencePort;
 import iuh.fit.se.modules.promotion.domain.FlashSale;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -112,6 +112,11 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .ifPresent(sale -> {
                     reserveQuantity(sale, quantity);
                     persistencePort.save(sale);
+                    eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                            "FLASH_SALE_CHANGED",
+                            bookId,
+                            "So luong Flash Sale da thay doi"
+                    ));
                 });
     }
 
@@ -128,8 +133,9 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .active(command.active())
                 .build();
         FlashSaleResponse response = toResponse(persistencePort.save(sale));
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
-                "FLASH_SALE",
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                "FLASH_SALE_CHANGED",
+                command.bookId(),
                 "Đã tạo Flash Sale cho sách #" + command.bookId()
         ));
         return response;
@@ -143,8 +149,9 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay flash sale"));
         sale.update(command.bookId(), command.saleQuantity(), command.discountPercent(), command.startAt(), command.endAt(), command.active());
         FlashSaleResponse response = toResponse(persistencePort.save(sale));
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
-                "FLASH_SALE",
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                "FLASH_SALE_CHANGED",
+                command.bookId(),
                 "Đã cập nhật Flash Sale #" + id
         ));
         return response;
@@ -153,9 +160,12 @@ public class FlashSaleService implements FlashSaleUseCase {
     @Override
     @Transactional
     public void delete(Long id) {
+        FlashSale sale = persistencePort.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay flash sale"));
         persistencePort.deleteById(id);
-        eventPublisher.publishEvent(AdminDataChangedRealtimeEvent.of(
-                "FLASH_SALE",
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
+                "FLASH_SALE_CHANGED",
+                sale.getBookId(),
                 "Đã xóa Flash Sale #" + id
         ));
     }
