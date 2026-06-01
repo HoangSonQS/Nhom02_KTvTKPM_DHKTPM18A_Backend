@@ -116,8 +116,10 @@ public class BookReviewService implements BookReviewUseCase {
         BookReview review = reviewPersistencePort.findById(reviewId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay danh gia"));
         Long bookId = review.getBookId();
+        Long userId = review.getUserId();
         reviewPersistencePort.delete(review);
         refreshBookRating(bookId);
+        eventPublisher.publishEvent(ReviewRealtimeEvent.deleted(reviewId, bookId, userId));
     }
 
     @Override

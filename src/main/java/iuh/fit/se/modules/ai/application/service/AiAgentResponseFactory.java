@@ -49,6 +49,17 @@ public class AiAgentResponseFactory {
                                         .bookId(book.id())
                                         .quantity(1)
                                         .build())
+                                .build(),
+                        AgentAction.builder()
+                                .label("\u0110\u1eb7t cu\u1ed1n n\u00e0y")
+                                .action("PLACE_ORDER")
+                                .bookId(book.id())
+                                .clientAction(ClientAction.builder()
+                                        .action("PLACE_ORDER")
+                                        .bookId(book.id())
+                                        .quantity(1)
+                                        .checkoutScope("BOOK")
+                                        .build())
                                 .build()
                 ))
                 .build();

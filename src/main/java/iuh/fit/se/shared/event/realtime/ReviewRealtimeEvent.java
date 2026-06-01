@@ -32,4 +32,18 @@ public record ReviewRealtimeEvent(
                 LocalDateTime.now()
         );
     }
+
+    public static ReviewRealtimeEvent deleted(Long reviewId, Long bookId, Long userId) {
+        return new ReviewRealtimeEvent(
+                UUID.randomUUID().toString(),
+                "REVIEW_DELETED",
+                reviewId,
+                bookId,
+                userId,
+                0,
+                null,
+                "Danh gia da duoc xoa",
+                LocalDateTime.now()
+        );
+    }
 }

@@ -4,9 +4,11 @@ import iuh.fit.se.modules.promotion.application.port.in.PromotionApplicationResu
 import iuh.fit.se.modules.promotion.application.port.in.PromotionInternalUseCase;
 import iuh.fit.se.modules.promotion.application.port.out.PromotionPersistencePort;
 import iuh.fit.se.modules.promotion.domain.Coupon;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ import iuh.fit.se.modules.promotion.domain.CouponReservationStatus;
 public class PromotionService implements PromotionInternalUseCase {
 
     private final PromotionPersistencePort persistencePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,6 +76,11 @@ public class PromotionService implements PromotionInternalUseCase {
             // Trừ lượt dùng
             coupon.incrementUsage();
             persistencePort.save(coupon);
+            eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                    "COUPON_CHANGED",
+                    "COUPON",
+                    "Luot su dung ma khuyen mai da thay doi"
+            ));
 
             List<String> rules = List.of("DISCOUNT_" + coupon.getDiscountType().name());
             return PromotionApplicationResult.success(orderTotal, discount, rules, traceId);
@@ -155,6 +163,11 @@ public class PromotionService implements PromotionInternalUseCase {
                 res.confirm(); // Tăng usedCount của Coupon và set status reservation = CONFIRMED
                 persistencePort.saveReservation(res);
                 persistencePort.save(res.getCoupon());
+                eventPublisher.publishEvent(DataChangedRealtimeEvent.of(
+                        "COUPON_CHANGED",
+                        "COUPON",
+                        "Luot su dung ma khuyen mai da thay doi"
+                ));
                 log.info("[{}] Coupon usage confirmed for ref: {}", referenceId, referenceId);
             } else {
                 log.info("[{}] Coupon already confirmed or released. Status: {}", referenceId, res.getStatus());

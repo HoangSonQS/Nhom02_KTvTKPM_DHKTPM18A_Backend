@@ -18,4 +18,14 @@ public record SessionRealtimeEvent(
                 LocalDateTime.now()
         );
     }
+
+    public static SessionRealtimeEvent expiredByAdminLock(Long userId) {
+        return new SessionRealtimeEvent(
+                "SESSION_EXPIRED",
+                userId,
+                null,
+                "Tai khoan da bi khoa. Vui long lien he quan tri vien.",
+                LocalDateTime.now()
+        );
+    }
 }

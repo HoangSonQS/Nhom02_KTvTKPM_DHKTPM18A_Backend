@@ -10,9 +10,11 @@ import iuh.fit.se.modules.account.domain.Address;
 import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -24,6 +26,7 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
     private final AccountPersistencePort accountPersistencePort;
     private final AdministrativeUnitLookupPort administrativeUnitLookupPort;
     private final ProfileImagePort profileImagePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -49,7 +52,9 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
         }
 
         account.updateProfile(command.phoneNumber(), avatarUrl, avatarPublicId);
-        return mapToProfileResponse(accountPersistencePort.save(account));
+        Account saved = accountPersistencePort.save(account);
+        publishContactChanged(userId);
+        return mapToProfileResponse(saved);
     }
 
     @Override
@@ -67,7 +72,9 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
                 .build();
 
         account.addAddress(address);
-        return mapToProfileResponse(accountPersistencePort.save(account));
+        Account saved = accountPersistencePort.save(account);
+        publishContactChanged(userId);
+        return mapToProfileResponse(saved);
     }
 
     @Override
@@ -85,7 +92,9 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
                 .build();
 
         account.updateAddress(addressId, updatedData);
-        return mapToProfileResponse(accountPersistencePort.save(account));
+        Account saved = accountPersistencePort.save(account);
+        publishContactChanged(userId);
+        return mapToProfileResponse(saved);
     }
 
     @Override
@@ -93,7 +102,9 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
     public AccountProfileResponse deleteAddress(Long userId, Long addressId) {
         Account account = findAccountByUserId(userId);
         account.removeAddress(addressId);
-        return mapToProfileResponse(accountPersistencePort.save(account));
+        Account saved = accountPersistencePort.save(account);
+        publishContactChanged(userId);
+        return mapToProfileResponse(saved);
     }
 
     @Override
@@ -118,6 +129,14 @@ public class AccountService implements AccountUseCase, AccountInternalUseCase {
     private Account findAccountByUserId(Long userId) {
         return accountPersistencePort.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay profile"));
+    }
+
+    private void publishContactChanged(Long userId) {
+        eventPublisher.publishEvent(DataChangedRealtimeEvent.forUser(
+                "CUSTOMER_CONTACT_CHANGED",
+                userId,
+                "Thong tin lien he khach hang da thay doi"
+        ));
     }
 
     private AccountProfileResponse mapToProfileResponse(Account account) {

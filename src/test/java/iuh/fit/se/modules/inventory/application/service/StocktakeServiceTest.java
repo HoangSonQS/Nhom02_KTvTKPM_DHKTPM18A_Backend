@@ -9,7 +9,7 @@ import iuh.fit.se.modules.inventory.domain.StocktakeItem;
 import iuh.fit.se.modules.inventory.domain.StocktakeSession;
 import iuh.fit.se.modules.inventory.domain.StocktakeStatus;
 import iuh.fit.se.shared.event.inventory.InventoryStockChangedIntegrationEvent;
-import iuh.fit.se.shared.event.realtime.AdminDataChangedRealtimeEvent;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -62,7 +62,7 @@ class StocktakeServiceTest {
                 .extracting(StocktakeUseCase.StocktakeItemResponse::actualQuantity)
                 .containsOnlyNulls();
         verify(inventoryPort, never()).setStockQuantity(any(), anyInt());
-        verify(eventPublisher).publishEvent(any(AdminDataChangedRealtimeEvent.class));
+        verify(eventPublisher).publishEvent(any(DataChangedRealtimeEvent.class));
     }
 
     @Test
@@ -133,6 +133,6 @@ class StocktakeServiceTest {
         assertThat(history.getType()).isEqualTo("STOCKTAKE_ADJUSTMENT");
 
         verify(eventPublisher).publishEvent(any(InventoryStockChangedIntegrationEvent.class));
-        verify(eventPublisher).publishEvent(any(AdminDataChangedRealtimeEvent.class));
+        verify(eventPublisher).publishEvent(any(DataChangedRealtimeEvent.class));
     }
 }

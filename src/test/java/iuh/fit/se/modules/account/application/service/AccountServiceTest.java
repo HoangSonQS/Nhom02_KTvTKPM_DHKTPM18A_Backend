@@ -8,12 +8,14 @@ import iuh.fit.se.modules.account.domain.Account;
 import iuh.fit.se.modules.account.domain.AdministrativeProvince;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
+import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.infrastructure.cloudinary.CloudinaryUploadResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,10 +35,12 @@ class AccountServiceTest {
     private AdministrativeUnitLookupPort administrativeUnitLookupPort;
     @Mock
     private ProfileImagePort profileImagePort;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountService(accountPersistencePort, administrativeUnitLookupPort, profileImagePort);
+        accountService = new AccountService(accountPersistencePort, administrativeUnitLookupPort, profileImagePort, eventPublisher);
     }
 
     @Test
@@ -56,6 +60,7 @@ class AccountServiceTest {
         assertThat(result.addresses()).hasSize(1);
         assertThat(result.addresses().get(0).isDefault()).isTrue();
         verify(accountPersistencePort).save(account);
+        verify(eventPublisher).publishEvent(any(DataChangedRealtimeEvent.class));
     }
 
     @Test

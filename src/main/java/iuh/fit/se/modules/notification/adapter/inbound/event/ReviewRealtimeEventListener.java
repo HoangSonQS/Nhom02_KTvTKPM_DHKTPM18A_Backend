@@ -14,17 +14,21 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ReviewRealtimeEventListener {
 
-    private static final Set<String> ADMIN_ROLES = Set.of("ADMIN");
+    private static final Set<String> REVIEW_AFFECTED_ROLES = Set.of("ADMIN", "CUSTOMER", "PUBLIC");
 
     private final NotificationService notificationService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleReviewRealtime(ReviewRealtimeEvent event) {
-        notificationService.publishRealtimeToRoles(ADMIN_ROLES, new RealtimeEventResponse(
+        notificationService.publishRealtimeToRoles(REVIEW_AFFECTED_ROLES, new RealtimeEventResponse(
                 event.type(),
                 null,
                 event.userId(),
                 event.bookId(),
+                event.reviewId(),
+                null,
+                null,
+                null,
                 event.rating(),
                 null,
                 event.handlingStatus(),
