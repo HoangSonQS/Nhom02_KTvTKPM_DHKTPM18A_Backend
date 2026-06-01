@@ -100,6 +100,28 @@ jobs:
             done
 
             docker compose up -d nginx nginx-exporter
+            docker compose exec -T nginx nginx -s reload
+
+            echo "Waiting for nginx to route to the refreshed app containers..."
+            for i in $(seq 1 12); do
+              if curl -fsS http://localhost/nginx-health >/dev/null \
+                && curl -fsS http://localhost/actuator/health >/dev/null; then
+                echo "Nginx gateway is healthy."
+                break
+              fi
+
+              if [ "$i" -eq 12 ]; then
+                echo "Nginx gateway did not become healthy in time."
+                docker compose ps
+                docker compose logs app-1 --tail=80
+                docker compose logs app-2 --tail=80
+                docker compose logs nginx --tail=80
+                exit 1
+              fi
+
+              echo "Nginx is still reconnecting... attempt $i/12"
+              sleep 5
+            done
 
             if ! curl -f http://localhost/actuator/health; then
               docker compose logs app-1 --tail=50
