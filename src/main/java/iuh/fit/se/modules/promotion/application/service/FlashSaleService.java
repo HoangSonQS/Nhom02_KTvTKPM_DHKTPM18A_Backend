@@ -9,6 +9,7 @@ import iuh.fit.se.shared.event.realtime.DataChangedRealtimeEvent;
 import iuh.fit.se.shared.exception.AppException;
 import iuh.fit.se.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FlashSaleService implements FlashSaleUseCase {
 
     private final FlashSalePersistencePort persistencePort;
@@ -212,9 +214,13 @@ public class FlashSaleService implements FlashSaleUseCase {
             return Optional.of(toResponse(sale));
         } catch (AppException ex) {
             if (ex.getErrorCode() == ErrorCode.RESOURCE_NOT_FOUND) {
+                log.warn("Skipping flash sale {} because its book {} no longer exists", sale.getId(), sale.getBookId());
                 return Optional.empty();
             }
             throw ex;
+        } catch (RuntimeException ex) {
+            log.warn("Skipping invalid flash sale {} while building listing response", sale.getId(), ex);
+            return Optional.empty();
         }
     }
 
