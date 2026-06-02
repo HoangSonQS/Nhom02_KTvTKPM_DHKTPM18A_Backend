@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class HomeDiscoveryService implements HomeDiscoveryUseCase {
 
     private static final int DEFAULT_LIMIT = 8;
+    private static final long BEST_SELLER_MIN_QUANTITY_SOLD = 20L;
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 
     private final BookUseCase bookUseCase;
@@ -159,33 +160,14 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
 
     private List<HomeBookResponse> getBestSellerBooks(int limit) {
         int effectiveLimit = normalizeLimit(limit);
-        List<OrderInternalUseCase.BookSalesResponse> sales = orderUseCase.getBookSales(null, null);
-        List<HomeBookResponse> soldBooks = salesRowsToBooks(
-                sales,
+        return salesRowsToBooks(
+                orderUseCase.getBookSales(null, null).stream()
+                        .filter(sale -> sale.quantitySold() >= BEST_SELLER_MIN_QUANTITY_SOLD)
+                        .toList(),
                 effectiveLimit,
                 "BESTSELLER",
                 sale -> "Da ban " + sale.quantitySold() + " cuon"
         );
-
-        if (soldBooks.size() >= effectiveLimit) {
-            return soldBooks;
-        }
-
-        Set<Long> selectedIds = soldBooks.stream()
-                .map(HomeBookResponse::id)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        Map<Long, OrderInternalUseCase.TopSellingBookResponse> salesMap = getSalesMap(effectiveLimit * 2);
-
-        List<HomeBookResponse> fallbackBooks = allActiveBooks().stream()
-                .filter(book -> !selectedIds.contains(book.id()))
-                .sorted(Comparator.comparing((BookDTO book) -> fallbackPopularityScore(book)).reversed())
-                .limit(effectiveLimit - soldBooks.size())
-                .map(book -> toResponse(book, salesMap.get(book.id()), "BESTSELLER", recommendationReason(book, salesMap.get(book.id()))))
-                .toList();
-
-        return java.util.stream.Stream.concat(soldBooks.stream(), fallbackBooks.stream())
-                .limit(effectiveLimit)
-                .toList();
     }
 
     private List<HomeBookResponse> getSalesRankingBooks(int limit) {
