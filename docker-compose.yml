@@ -14,7 +14,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
-      - ./logs/nginx:/var/log/nginx
+      - nginx-logs:/var/log/nginx
       - ./nginx/certs:/etc/nginx/certs:ro
     networks:
       - frontend
@@ -278,8 +278,7 @@ services:
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - ./logs/app:/logs/app:ro
-      - ./logs/nginx:/logs/nginx:ro
-      - /var/log:/var/log:ro
+      - nginx-logs:/logs/nginx:ro
     depends_on:
       - loki
     networks:
@@ -339,3 +338,4 @@ volumes:
   prometheus-data:
   grafana-data:
   loki-data:
+  nginx-logs:
