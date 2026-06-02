@@ -42,4 +42,34 @@ public interface FlashSaleJpaRepository extends JpaRepository<FlashSale, Long> {
             LocalDateTime startAt,
             LocalDateTime endAt
     );
+
+    @Query("""
+            SELECT COUNT(sale) > 0
+            FROM FlashSale sale
+            WHERE sale.bookId = :bookId
+              AND sale.active = true
+              AND sale.startAt < :endAt
+              AND sale.endAt > :startAt
+            """)
+    boolean existsOverlappingActiveSale(
+            @Param("bookId") Long bookId,
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt
+    );
+
+    @Query("""
+            SELECT COUNT(sale) > 0
+            FROM FlashSale sale
+            WHERE sale.id <> :id
+              AND sale.bookId = :bookId
+              AND sale.active = true
+              AND sale.startAt < :endAt
+              AND sale.endAt > :startAt
+            """)
+    boolean existsOverlappingActiveSaleExcludingId(
+            @Param("id") Long id,
+            @Param("bookId") Long bookId,
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt
+    );
 }

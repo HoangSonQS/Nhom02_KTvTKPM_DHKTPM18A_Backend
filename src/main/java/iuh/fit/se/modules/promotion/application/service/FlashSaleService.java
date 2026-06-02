@@ -87,7 +87,7 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .orElseThrow(() -> new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale da het han hoac het so luong"));
 
         if (sale.getSaleQuantity() < quantity) {
-            throw new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale khong du so luong");
+            throw new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Da qua so luong sach dang sale");
         }
         return calculateSalePrice(basePrice, sale.getDiscountPercent());
     }
@@ -137,6 +137,7 @@ public class FlashSaleService implements FlashSaleUseCase {
     @Transactional
     public FlashSaleResponse create(FlashSaleCommand command) {
         validate(command);
+        rejectDuplicateActiveSale(command, null);
         FlashSale sale = FlashSale.builder()
                 .bookId(command.bookId())
                 .saleQuantity(command.saleQuantity())
@@ -160,6 +161,7 @@ public class FlashSaleService implements FlashSaleUseCase {
         validate(command);
         FlashSale sale = persistencePort.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay flash sale"));
+        rejectDuplicateActiveSale(command, id);
         sale.update(command.bookId(), command.saleQuantity(), command.discountPercent(), command.startAt(), command.endAt(), command.active());
         FlashSaleResponse response = toResponse(persistencePort.save(sale));
         eventPublisher.publishEvent(DataChangedRealtimeEvent.forBook(
@@ -197,6 +199,18 @@ public class FlashSaleService implements FlashSaleUseCase {
             throw new AppException(ErrorCode.INVALID_INPUT, "Thoi gian sale khong hop le");
         }
         bookUseCase.getBook(command.bookId());
+    }
+
+    private void rejectDuplicateActiveSale(FlashSaleCommand command, Long currentSaleId) {
+        if (!command.active()) {
+            return;
+        }
+        boolean duplicated = currentSaleId == null
+                ? persistencePort.existsOverlappingActiveSale(command.bookId(), command.startAt(), command.endAt())
+                : persistencePort.existsOverlappingActiveSaleExcludingId(currentSaleId, command.bookId(), command.startAt(), command.endAt());
+        if (duplicated) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Sach nay da co trong su kien Flash Sale cung khung gio");
+        }
     }
 
     private FlashSaleResponse toResponse(FlashSale sale) {
@@ -251,7 +265,7 @@ public class FlashSaleService implements FlashSaleUseCase {
 
     private void reserveQuantity(FlashSale sale, int quantity) {
         if (sale.getSaleQuantity() < quantity) {
-            throw new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale khong du so luong");
+            throw new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Da qua so luong sach dang sale");
         }
         try {
             sale.reserve(quantity);

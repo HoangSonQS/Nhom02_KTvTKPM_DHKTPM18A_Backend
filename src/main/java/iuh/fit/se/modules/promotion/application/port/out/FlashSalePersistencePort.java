@@ -16,6 +16,10 @@ public interface FlashSalePersistencePort {
 
     Optional<FlashSale> findById(Long id);
 
+    boolean existsOverlappingActiveSale(Long bookId, LocalDateTime startAt, LocalDateTime endAt);
+
+    boolean existsOverlappingActiveSaleExcludingId(Long id, Long bookId, LocalDateTime startAt, LocalDateTime endAt);
+
     FlashSale save(FlashSale sale);
 
     void deleteById(Long id);

@@ -41,6 +41,16 @@ public class FlashSalePersistenceAdapter implements FlashSalePersistencePort {
     }
 
     @Override
+    public boolean existsOverlappingActiveSale(Long bookId, LocalDateTime startAt, LocalDateTime endAt) {
+        return repository.existsOverlappingActiveSale(bookId, startAt, endAt);
+    }
+
+    @Override
+    public boolean existsOverlappingActiveSaleExcludingId(Long id, Long bookId, LocalDateTime startAt, LocalDateTime endAt) {
+        return repository.existsOverlappingActiveSaleExcludingId(id, bookId, startAt, endAt);
+    }
+
+    @Override
     public FlashSale save(FlashSale sale) {
         return repository.save(sale);
     }

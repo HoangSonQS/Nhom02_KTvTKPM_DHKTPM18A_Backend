@@ -135,8 +135,8 @@ public class CartService implements CartInternalUseCase {
             throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
         }
 
-        BigDecimal salePrice = flashSaleUseCase.reserveActiveSalePrice(book.id(), command.getQuantity(), book.price());
-        cart.removeItem(book.id());
+        int targetQuantity = validateCartQuantityLimit(cart, book, command.getQuantity());
+        BigDecimal salePrice = flashSaleUseCase.reserveActiveSalePrice(book.id(), targetQuantity, book.price());
         addItemToCart(cart, book, command.getQuantity(), salePrice);
         cartPersistencePort.save(cart);
     }
