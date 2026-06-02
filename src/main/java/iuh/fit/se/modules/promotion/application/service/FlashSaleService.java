@@ -215,9 +215,14 @@ public class FlashSaleService implements FlashSaleUseCase {
         } catch (AppException ex) {
             if (ex.getErrorCode() == ErrorCode.RESOURCE_NOT_FOUND) {
                 log.warn("Skipping flash sale {} because its book {} no longer exists", sale.getId(), sale.getBookId());
-                return Optional.empty();
+            } else {
+                log.warn("Skipping flash sale {} because it cannot be rendered: [{}] {}",
+                        sale.getId(),
+                        ex.getErrorCode(),
+                        ex.getMessage()
+                );
             }
-            throw ex;
+            return Optional.empty();
         } catch (RuntimeException ex) {
             log.warn("Skipping invalid flash sale {} while building listing response", sale.getId(), ex);
             return Optional.empty();
