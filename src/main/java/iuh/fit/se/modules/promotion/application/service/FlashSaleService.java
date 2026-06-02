@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +32,7 @@ public class FlashSaleService implements FlashSaleUseCase {
     @Transactional(readOnly = true)
     public List<FlashSaleResponse> getAll() {
         return persistencePort.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::toResponse)
+                .flatMap(sale -> toVisibleResponse(sale).stream())
                 .toList();
     }
 
@@ -44,7 +45,7 @@ public class FlashSaleService implements FlashSaleUseCase {
         List<FlashSaleResponse> items = persistencePort
                 .findVisibleToday(0, dayStart, nextDayStart, now)
                 .stream()
-                .map(this::toResponse)
+                .flatMap(sale -> toVisibleResponse(sale).stream())
                 .toList();
         LocalDateTime startAt = items.stream().map(FlashSaleResponse::startAt).min(Comparator.naturalOrder()).orElse(null);
         LocalDateTime endAt = items.stream().map(FlashSaleResponse::endAt).min(Comparator.naturalOrder()).orElse(null);
@@ -204,6 +205,17 @@ public class FlashSaleService implements FlashSaleUseCase {
                 sale.getEndAt(),
                 sale.isActive()
         );
+    }
+
+    private Optional<FlashSaleResponse> toVisibleResponse(FlashSale sale) {
+        try {
+            return Optional.of(toResponse(sale));
+        } catch (AppException ex) {
+            if (ex.getErrorCode() == ErrorCode.RESOURCE_NOT_FOUND) {
+                return Optional.empty();
+            }
+            throw ex;
+        }
     }
 
     private BigDecimal calculateSalePrice(BigDecimal price, int discountPercent) {
