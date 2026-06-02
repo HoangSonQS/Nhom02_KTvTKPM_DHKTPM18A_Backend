@@ -83,6 +83,9 @@ public class FlashSaleService implements FlashSaleUseCase {
                 .findActiveSale(bookId, 0, now)
                 .orElseThrow(() -> new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale da het han hoac het so luong"));
 
+        if (sale.getSaleQuantity() < quantity) {
+            throw new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale khong du so luong");
+        }
         return calculateSalePrice(basePrice, sale.getDiscountPercent());
     }
 
@@ -98,6 +101,9 @@ public class FlashSaleService implements FlashSaleUseCase {
         return persistencePort
                 .findActiveSale(bookId, 0, now)
                 .map(sale -> {
+                    if (sale.getSaleQuantity() < quantity) {
+                        return basePrice;
+                    }
                     return calculateSalePrice(basePrice, sale.getDiscountPercent());
                 })
                 .orElse(basePrice);

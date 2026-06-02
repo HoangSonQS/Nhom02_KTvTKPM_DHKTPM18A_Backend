@@ -46,7 +46,7 @@ public class CartService implements CartInternalUseCase {
                 .map(item -> {
                     BookDTO book = bookUseCase.getBook(item.getBookId());
                     BigDecimal currentPrice = book != null
-                            ? flashSaleUseCase.resolveActiveSalePrice(item.getBookId(), book.price())
+                            ? flashSaleUseCase.reserveActiveSalePriceOrRegular(item.getBookId(), item.getQuantity(), book.price())
                             : item.getPriceAtAddTime();
                     return CartItemResponse.builder()
                             .bookId(item.getBookId())
@@ -93,11 +93,12 @@ public class CartService implements CartInternalUseCase {
             throw new AppException(ErrorCode.INV_OUT_OF_STOCK);
         }
 
-        validateCartQuantityLimit(cart, book, command.getQuantity());
+        int targetQuantity = validateCartQuantityLimit(cart, book, command.getQuantity());
 
         // 4. Áp dụng Domain Logic - dùng tồn kho sách thực tế làm giới hạn
-        BigDecimal effectivePrice = flashSaleUseCase.resolveActiveSalePrice(
+        BigDecimal effectivePrice = flashSaleUseCase.reserveActiveSalePriceOrRegular(
                 book.id(),
+                targetQuantity,
                 book.price()
         );
         addItemToCart(cart, book, command.getQuantity(), effectivePrice);
@@ -106,15 +107,17 @@ public class CartService implements CartInternalUseCase {
         cartPersistencePort.save(cart);
     }
 
-    private void validateCartQuantityLimit(Cart cart, BookDTO book, int addingQuantity) {
+    private int validateCartQuantityLimit(Cart cart, BookDTO book, int addingQuantity) {
         int currentQuantity = cart.getItems().stream()
                 .filter(item -> item.getBookId().equals(book.id()))
                 .mapToInt(item -> item.getQuantity())
                 .findFirst()
                 .orElse(0);
-        if (currentQuantity + addingQuantity > book.quantity()) {
+        int targetQuantity = currentQuantity + addingQuantity;
+        if (targetQuantity > book.quantity()) {
             throw new AppException(ErrorCode.INVALID_INPUT, "So luong sach vuot qua gioi han toi da");
         }
+        return targetQuantity;
     }
 
     @Override
@@ -162,6 +165,17 @@ public class CartService implements CartInternalUseCase {
         }
 
         cart.updateItemQuantity(command.getBookId(), command.getQuantity(), maxQuantity);
+        if (book != null && command.getQuantity() > 0) {
+            BigDecimal effectivePrice = flashSaleUseCase.reserveActiveSalePriceOrRegular(
+                    book.id(),
+                    command.getQuantity(),
+                    book.price()
+            );
+            cart.getItems().stream()
+                    .filter(item -> item.getBookId().equals(book.id()))
+                    .findFirst()
+                    .ifPresent(item -> item.replacePrice(effectivePrice, book.title()));
+        }
         cartPersistencePort.save(cart);
     }
 
