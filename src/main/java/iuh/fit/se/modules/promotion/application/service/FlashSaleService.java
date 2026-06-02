@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class FlashSaleService implements FlashSaleUseCase {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final FlashSalePersistencePort persistencePort;
     private final BookUseCase bookUseCase;
@@ -42,7 +45,7 @@ public class FlashSaleService implements FlashSaleUseCase {
     @Override
     @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public ActiveFlashSaleResponse getActive() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         LocalDateTime dayStart = now.toLocalDate().atStartOfDay();
         LocalDateTime nextDayStart = dayStart.plusDays(1);
         List<FlashSaleResponse> items = persistencePort
@@ -63,7 +66,7 @@ public class FlashSaleService implements FlashSaleUseCase {
             return basePrice;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         return persistencePort
                 .findActiveSale(bookId, 0, now)
                 .map(sale -> calculateSalePrice(basePrice, sale.getDiscountPercent()))
@@ -78,7 +81,7 @@ public class FlashSaleService implements FlashSaleUseCase {
             throw new AppException(ErrorCode.INVALID_INPUT, "Thong tin Flash Sale khong hop le");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         FlashSale sale = persistencePort
                 .findActiveSale(bookId, 0, now)
                 .orElseThrow(() -> new AppException(ErrorCode.PRM_COUPON_EXPIRED, "Flash Sale da het han hoac het so luong"));
@@ -97,7 +100,7 @@ public class FlashSaleService implements FlashSaleUseCase {
             return basePrice;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         return persistencePort
                 .findActiveSale(bookId, 0, now)
                 .map(sale -> {
@@ -116,7 +119,7 @@ public class FlashSaleService implements FlashSaleUseCase {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         persistencePort
                 .findActiveSale(bookId, 0, now)
                 .ifPresent(sale -> {
@@ -240,6 +243,10 @@ public class FlashSaleService implements FlashSaleUseCase {
         return price
                 .multiply(BigDecimal.valueOf(100L - discountPercent))
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(BUSINESS_ZONE);
     }
 
     private void reserveQuantity(FlashSale sale, int quantity) {
