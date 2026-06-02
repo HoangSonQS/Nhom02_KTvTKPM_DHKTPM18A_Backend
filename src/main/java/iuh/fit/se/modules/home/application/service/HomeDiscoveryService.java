@@ -7,6 +7,7 @@ import iuh.fit.se.modules.home.application.port.in.HomeDiscoveryUseCase;
 import iuh.fit.se.modules.order.application.port.in.OrderInternalUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -37,7 +38,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
     private final CartInternalUseCase cartUseCase;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public HomeDiscoveryResponse getDiscovery(int limit) {
         int effectiveLimit = normalizeLimit(limit);
         return new HomeDiscoveryResponse(
@@ -53,7 +54,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<HomeBookResponse> getTrendingBooks(int limit) {
         int effectiveLimit = normalizeLimit(limit);
         LocalDate yesterday = LocalDate.now().minusDays(1);
@@ -67,7 +68,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<HomeBookResponse> getHotBooks(int limit) {
         int effectiveLimit = normalizeLimit(limit);
         LocalDate today = LocalDate.now();
@@ -82,7 +83,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<HomeBookResponse> getShockSaleBooks(int limit) {
         int effectiveLimit = normalizeLimit(limit);
         Map<Long, OrderInternalUseCase.TopSellingBookResponse> sales = getSalesMap(effectiveLimit * 2);
@@ -99,7 +100,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<HomeBookResponse> getRankingBooks(String type, int limit) {
         String normalizedType = type == null ? "BEST_SELLER" : type.trim().toUpperCase();
         return switch (normalizedType) {
@@ -111,7 +112,7 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<HomeBookResponse> getRecommendations(Long userId, int limit) {
         int effectiveLimit = normalizeLimit(limit);
         List<BookDTO> activeBooks = allActiveBooks();
