@@ -99,7 +99,7 @@ jobs:
               sleep 10
             done
 
-            docker compose up -d nginx nginx-exporter prometheus grafana loki promtail
+            docker compose up -d nginx nginx-exporter prometheus grafana loki promtail postgres-exporter redis-exporter
             docker compose exec -T nginx nginx -s reload
 
             echo "Waiting for nginx to route to the refreshed app containers..."
