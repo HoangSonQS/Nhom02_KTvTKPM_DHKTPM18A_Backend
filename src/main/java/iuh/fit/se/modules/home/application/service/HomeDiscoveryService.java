@@ -159,14 +159,33 @@ public class HomeDiscoveryService implements HomeDiscoveryUseCase {
 
     private List<HomeBookResponse> getBestSellerBooks(int limit) {
         int effectiveLimit = normalizeLimit(limit);
-        return salesRowsToBooks(
-                orderUseCase.getBookSales(null, null).stream()
-                        .filter(sale -> sale.quantitySold() >= 30)
-                        .toList(),
+        List<OrderInternalUseCase.BookSalesResponse> sales = orderUseCase.getBookSales(null, null);
+        List<HomeBookResponse> soldBooks = salesRowsToBooks(
+                sales,
                 effectiveLimit,
                 "BESTSELLER",
                 sale -> "Da ban " + sale.quantitySold() + " cuon"
         );
+
+        if (soldBooks.size() >= effectiveLimit) {
+            return soldBooks;
+        }
+
+        Set<Long> selectedIds = soldBooks.stream()
+                .map(HomeBookResponse::id)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, OrderInternalUseCase.TopSellingBookResponse> salesMap = getSalesMap(effectiveLimit * 2);
+
+        List<HomeBookResponse> fallbackBooks = allActiveBooks().stream()
+                .filter(book -> !selectedIds.contains(book.id()))
+                .sorted(Comparator.comparing((BookDTO book) -> fallbackPopularityScore(book)).reversed())
+                .limit(effectiveLimit - soldBooks.size())
+                .map(book -> toResponse(book, salesMap.get(book.id()), "BESTSELLER", recommendationReason(book, salesMap.get(book.id()))))
+                .toList();
+
+        return java.util.stream.Stream.concat(soldBooks.stream(), fallbackBooks.stream())
+                .limit(effectiveLimit)
+                .toList();
     }
 
     private List<HomeBookResponse> getSalesRankingBooks(int limit) {
