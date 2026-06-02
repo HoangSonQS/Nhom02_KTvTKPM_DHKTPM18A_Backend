@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -31,7 +32,7 @@ public class FlashSaleService implements FlashSaleUseCase {
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public List<FlashSaleResponse> getAll() {
         return persistencePort.findAllByOrderByCreatedAtDesc().stream()
                 .flatMap(sale -> toVisibleResponse(sale).stream())
@@ -39,7 +40,7 @@ public class FlashSaleService implements FlashSaleUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
     public ActiveFlashSaleResponse getActive() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dayStart = now.toLocalDate().atStartOfDay();
